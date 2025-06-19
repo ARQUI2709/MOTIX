@@ -740,7 +740,7 @@ const InspectionApp = () => {
                 <li>Puedes agregar fotos y notas para cada ítem</li>
                 <li>La puntuación general se calcula automáticamente</li>
                 <li>La app funciona offline y sincroniza cuando hay internet</li>
-                <li>Usa "Guardar en la Nube" para sincronizar con Supabase</li>
+                <li>Usa &quot;Guardar en la Nube&quot; para sincronizar con Supabase</li>
                 <li>Descarga el reporte completo al finalizar</li>
               </ul>
             </div>
