@@ -214,22 +214,6 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para subir imagen a Supabase
-  const uploadImageToSupabase = async (imageData, fileName) => {
-    try {
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageData, fileName })
-      });
-      const result = await response.json();
-      return result.success ? result.url : null;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-  };
-
   // Función para guardar en Supabase
   const saveToSupabase = async () => {
     if (!isOnline) {
@@ -246,21 +230,25 @@ const InspectionApp = () => {
       }
 
       // Subir fotos primero
-       const photoUrls = {};
-        for (const [key, photoData] of Object.entries(photos)) {
-          if (photoData) {
-            const fileName = `${Date.now()}-${key}.jpg`;
+      const photoUrls = {};
+      for (const [key, photoData] of Object.entries(photos)) {
+        if (photoData) {
+          const fileName = `${Date.now()}-${key}.jpg`;
+          try {
             const response = await fetch('/api/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image: photoData, fileName })
-          });
-          const result = await response.json();
-          if (result.success) {
-          photoUrls[key] = result.url;
+            });
+            const result = await response.json();
+            if (result.success) {
+              photoUrls[key] = result.url;
+            }
+          } catch (photoError) {
+            console.warn(`Error subiendo foto ${key}:`, photoError);
+          }
         }
       }
-    }
 
       // Preparar datos de la inspección
       const inspectionRecord = {
@@ -274,31 +262,15 @@ const InspectionApp = () => {
       };
 
       // Guardar inspección en Supabase
-    const inspectionRecord = {
-      vehicle_info: vehicleInfo,
-      inspection_data: inspectionData,
-      total_score: parseFloat(totalScore),
-      total_repair_cost: totalRepairCost,
-      status: 'completed'
-    };
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inspectionRecord)
+      });
 
-    const response = await fetch('/api/inspections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(inspectionRecord)
-    });
-
-    const result = await response.json();
-    if (result.success) {
-      alert('Inspección guardada exitosamente en la nube!');
-    } else {
-      throw new Error(result.error);
-    }
-  } catch (error) {
-    alert('Error al guardar: ' + error.message);
-  }
-};
-        
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Inspección guardada exitosamente en la nube!');
         // También generar reporte local como respaldo
         generateReport();
       } else {
@@ -725,12 +697,19 @@ const InspectionApp = () => {
               <span className="text-sm sm:text-base">Descargar Reporte</span>
             </button>
             <button
-  className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-  onClick={saveToSupabase}
->
-  <Save className="mr-2" size={20} />
-  <span className="text-sm sm:text-base">Guardar en la Nube</span>
-</button>
+              onClick={saveToSupabase}
+              disabled={saving}
+              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <span className="text-sm sm:text-base">Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2" size={20} />
+                  <span className="text-sm sm:text-base">Guardar en la Nube</span>
                 </>
               )}
             </button>
