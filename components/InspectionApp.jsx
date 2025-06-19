@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff, FileText } from 'lucide-react';
+import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff, Search, Trash2, Eye, Filter } from 'lucide-react';
 
 const InspectionApp = () => {
   const [vehicleInfo, setVehicleInfo] = useState({
@@ -23,7 +23,14 @@ const InspectionApp = () => {
   const [activeCategory, setActiveCategory] = useState(null);
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [generatingPDF, setGeneratingPDF] = useState(false);
+  
+  // Estados para la gestión de inspecciones
+  const [showInspectionManager, setShowInspectionManager] = useState(false);
+  const [savedInspections, setSavedInspections] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date');
+  const [filterBy, setFilterBy] = useState('all');
+  const [loading, setLoading] = useState(false);
 
   // Detectar conexión a internet
   useEffect(() => {
@@ -180,6 +187,102 @@ const InspectionApp = () => {
     setTotalRepairCost(repairTotal);
   }, [inspectionData]);
 
+  // Cargar inspecciones guardadas
+  const loadSavedInspections = async () => {
+    if (!isOnline) {
+      alert('No hay conexión a internet para cargar inspecciones guardadas.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/inspections');
+      const result = await response.json();
+      
+      if (result.success) {
+        setSavedInspections(result.data || []);
+      } else {
+        throw new Error(result.error || 'Error al cargar inspecciones');
+      }
+    } catch (error) {
+      console.error('Error loading inspections:', error);
+      alert('Error al cargar inspecciones: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar una inspección específica
+  const loadInspection = (inspection) => {
+    setVehicleInfo(inspection.vehicle_info);
+    setInspectionData(inspection.inspection_data);
+    setPhotos(inspection.photo_urls || {});
+    setShowInspectionManager(false);
+    alert('✅ Inspección cargada exitosamente!');
+  };
+
+  // Eliminar una inspección
+  const deleteInspection = async (inspectionId) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta inspección? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/inspections/${inspectionId}`, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSavedInspections(prev => prev.filter(insp => insp.id !== inspectionId));
+        alert('✅ Inspección eliminada exitosamente!');
+      } else {
+        throw new Error(result.error || 'Error al eliminar inspección');
+      }
+    } catch (error) {
+      console.error('Error deleting inspection:', error);
+      alert('❌ Error al eliminar inspección: ' + error.message);
+    }
+  };
+
+  // Filtrar y ordenar inspecciones
+  const getFilteredInspections = () => {
+    let filtered = savedInspections.filter(inspection => {
+      const matchesSearch = 
+        (inspection.vehicle_info.placa || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (inspection.vehicle_info.marca || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (inspection.vehicle_info.modelo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (inspection.vehicle_info.vendedor || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesFilter = filterBy === 'all' || 
+        (filterBy === 'excellent' && inspection.total_score >= 8) ||
+        (filterBy === 'good' && inspection.total_score >= 6 && inspection.total_score < 8) ||
+        (filterBy === 'regular' && inspection.total_score >= 4 && inspection.total_score < 6) ||
+        (filterBy === 'poor' && inspection.total_score < 4);
+
+      return matchesSearch && matchesFilter;
+    });
+
+    // Ordenar
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date':
+          return new Date(b.created_at) - new Date(a.created_at);
+        case 'placa':
+          return (a.vehicle_info.placa || '').localeCompare(b.vehicle_info.placa || '');
+        case 'score':
+          return b.total_score - a.total_score;
+        case 'cost':
+          return b.total_repair_cost - a.total_repair_cost;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
   const updateInspectionItem = (category, itemName, field, value) => {
     setInspectionData(prev => ({
       ...prev,
@@ -215,274 +318,14 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para generar PDF en lugar de JSON
-  const generatePDFReport = async () => {
-    setGeneratingPDF(true);
-    try {
-      // Crear el contenido HTML del reporte
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Reporte de Inspección - ${vehicleInfo.placa || 'Sin Placa'}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              line-height: 1.6;
-              color: #333;
-            }
-            .header {
-              text-align: center;
-              border-bottom: 3px solid #2563eb;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .header h1 {
-              color: #1e40af;
-              margin: 0;
-            }
-            .vehicle-info {
-              background: #f8fafc;
-              padding: 20px;
-              border-radius: 8px;
-              margin-bottom: 30px;
-            }
-            .vehicle-info h2 {
-              color: #1e40af;
-              margin-top: 0;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 15px;
-            }
-            .info-item {
-              padding: 10px;
-              background: white;
-              border-radius: 4px;
-              border-left: 4px solid #2563eb;
-            }
-            .summary {
-              background: #fef3c7;
-              padding: 20px;
-              border-radius: 8px;
-              margin-bottom: 30px;
-              text-align: center;
-            }
-            .summary h2 {
-              color: #d97706;
-              margin-top: 0;
-            }
-            .score {
-              font-size: 3em;
-              font-weight: bold;
-              color: ${parseFloat(totalScore) >= 8 ? '#059669' : parseFloat(totalScore) >= 5 ? '#d97706' : '#dc2626'};
-            }
-            .category {
-              margin-bottom: 30px;
-              page-break-inside: avoid;
-            }
-            .category h3 {
-              background: #1e40af;
-              color: white;
-              padding: 15px;
-              margin: 0;
-              border-radius: 8px 8px 0 0;
-            }
-            .category-content {
-              border: 1px solid #e5e7eb;
-              border-top: none;
-              border-radius: 0 0 8px 8px;
-            }
-            .item {
-              padding: 15px;
-              border-bottom: 1px solid #f3f4f6;
-            }
-            .item:last-child {
-              border-bottom: none;
-            }
-            .item-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 10px;
-            }
-            .item-name {
-              font-weight: bold;
-              color: #374151;
-            }
-            .item-score {
-              padding: 5px 10px;
-              border-radius: 20px;
-              color: white;
-              font-weight: bold;
-            }
-            .score-excellent { background: #059669; }
-            .score-good { background: #0284c7; }
-            .score-fair { background: #d97706; }
-            .score-poor { background: #dc2626; }
-            .score-not-evaluated { background: #6b7280; }
-            .repair-cost {
-              color: #dc2626;
-              font-weight: bold;
-            }
-            .notes {
-              background: #f1f5f9;
-              padding: 10px;
-              border-radius: 4px;
-              margin-top: 10px;
-              font-style: italic;
-            }
-            .footer {
-              margin-top: 50px;
-              text-align: center;
-              font-size: 0.9em;
-              color: #6b7280;
-              border-top: 1px solid #e5e7eb;
-              padding-top: 20px;
-            }
-            @media print {
-              body { margin: 10px; }
-              .category { page-break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>🚙 REPORTE DE INSPECCIÓN VEHÍCULO 4x4</h1>
-            <p>Evaluación técnica completa para vehículos usados en Colombia</p>
-            <p><strong>Fecha:</strong> ${new Date().toLocaleDateString('es-CO')}</p>
-          </div>
-
-          <div class="vehicle-info">
-            <h2>📋 INFORMACIÓN DEL VEHÍCULO</h2>
-            <div class="info-grid">
-              <div class="info-item"><strong>Marca:</strong> ${vehicleInfo.marca || 'No especificado'}</div>
-              <div class="info-item"><strong>Modelo:</strong> ${vehicleInfo.modelo || 'No especificado'}</div>
-              <div class="info-item"><strong>Año:</strong> ${vehicleInfo.año || 'No especificado'}</div>
-              <div class="info-item"><strong>Placa:</strong> ${vehicleInfo.placa || 'No especificado'}</div>
-              <div class="info-item"><strong>Kilometraje:</strong> ${vehicleInfo.kilometraje || 'No especificado'}</div>
-              <div class="info-item"><strong>Precio:</strong> ${vehicleInfo.precio || 'No especificado'}</div>
-              <div class="info-item"><strong>Vendedor:</strong> ${vehicleInfo.vendedor || 'No especificado'}</div>
-              <div class="info-item"><strong>Teléfono:</strong> ${vehicleInfo.telefono || 'No especificado'}</div>
-              <div class="info-item"><strong>Fecha Inspección:</strong> ${vehicleInfo.fecha || 'No especificado'}</div>
-            </div>
-          </div>
-
-          <div class="summary">
-            <h2>📊 RESUMEN EJECUTIVO</h2>
-            <div class="score">${totalScore}/10</div>
-            <p><strong>Estado General:</strong> ${getOverallCondition().text}</p>
-            <p><strong>Costo Total de Reparaciones:</strong> <span style="color: #dc2626; font-weight: bold;">$${totalRepairCost.toLocaleString()} COP</span></p>
-            <p><strong>Items Evaluados:</strong> ${Object.values(inspectionData).reduce((acc, cat) => 
-              acc + Object.values(cat).filter(item => item.evaluated).length, 0
-            )} de ${Object.values(checklistStructure).reduce((acc, cat) => acc + cat.length, 0)} puntos de inspección</p>
-          </div>
-
-          ${Object.entries(checklistStructure).map(([category, items], categoryIndex) => {
-            const categoryData = inspectionData[category] || {};
-            const evaluatedItems = items.filter(item => categoryData[item.name]?.evaluated);
-            
-            if (evaluatedItems.length === 0) return '';
-            
-            return `
-              <div class="category">
-                <h3>${categoryIndex + 1}. ${category.toUpperCase()}</h3>
-                <div class="category-content">
-                  ${items.map((item, itemIndex) => {
-                    const itemData = categoryData[item.name] || {};
-                    if (!itemData.evaluated) return '';
-                    
-                    const scoreClass = itemData.score >= 8 ? 'score-excellent' :
-                                     itemData.score >= 7 ? 'score-good' :
-                                     itemData.score >= 5 ? 'score-fair' :
-                                     itemData.score > 0 ? 'score-poor' : 'score-not-evaluated';
-                    
-                    return `
-                      <div class="item">
-                        <div class="item-header">
-                          <span class="item-name">${itemIndex + 1}. ${item.name}</span>
-                          <span class="item-score ${scoreClass}">${itemData.score}/10</span>
-                        </div>
-                        ${itemData.repairCost > 0 ? `<p class="repair-cost">💰 Costo de reparación: $${parseFloat(itemData.repairCost).toLocaleString()} COP</p>` : ''}
-                        ${itemData.notes ? `<div class="notes">📝 Notas: ${itemData.notes}</div>` : ''}
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-            `;
-          }).join('')}
-
-          <div class="footer">
-            <p>🔧 Reporte generado por MOTIX - Sistema de Inspección de Vehículos 4x4</p>
-            <p>Este reporte es una herramienta de evaluación técnica. Se recomienda consultar con un mecánico especializado antes de tomar decisiones de compra.</p>
-            <p><strong>Versión:</strong> 1.0 | <strong>Generado:</strong> ${new Date().toLocaleString('es-CO')}</p>
-          </div>
-        </body>
-        </html>
-      `;
-
-      // Crear un nuevo documento HTML para imprimir
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      // Esperar a que se cargue y luego imprimir
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 500);
-      };
-
-      alert('✅ El reporte se abrirá en una nueva ventana para imprimir o guardar como PDF');
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('❌ Error al generar el reporte PDF: ' + error.message);
-    } finally {
-      setGeneratingPDF(false);
+  // Función para guardar en Supabase
+  const saveToSupabase = async () => {
+    if (!isOnline) {
+      alert('No hay conexión a internet. La inspección se guardará localmente.');
+      generateReport();
+      return;
     }
-  };
 
-  // Función mejorada para guardar en localStorage como respaldo
-  const saveToLocalStorage = () => {
-    try {
-      const report = {
-        vehicleInfo,
-        inspectionData,
-        photos,
-        summary: {
-          totalScore,
-          totalRepairCost,
-          date: new Date().toISOString(),
-          itemsEvaluated: Object.values(inspectionData).reduce((acc, cat) => 
-            acc + Object.values(cat).filter(item => item.evaluated).length, 0
-          ),
-          totalItems: Object.values(checklistStructure).reduce((acc, cat) => acc + cat.length, 0)
-        }
-      };
-      
-      const savedInspections = JSON.parse(localStorage.getItem('motixInspections') || '[]');
-      savedInspections.push(report);
-      
-      // Mantener solo las últimas 10 inspecciones
-      if (savedInspections.length > 10) {
-        savedInspections.splice(0, savedInspections.length - 10);
-      }
-      
-      localStorage.setItem('motixInspections', JSON.stringify(savedInspections));
-      alert('✅ Inspección guardada localmente como respaldo');
-    } catch (error) {
-      console.error('Error guardando localmente:', error);
-      alert('❌ Error al guardar respaldo local');
-    }
-  };
-
-  // Función simplificada para intentar guardar (sin Supabase por ahora)
-  const saveInspection = async () => {
     setSaving(true);
     try {
       // Validar que hay datos mínimos
@@ -490,46 +333,88 @@ const InspectionApp = () => {
         throw new Error('Placa y marca son campos obligatorios');
       }
 
-      // Guardar localmente como respaldo principal
-      saveToLocalStorage();
-      
-      // Generar reporte PDF automáticamente
-      await generatePDFReport();
-      
+      // Subir fotos primero
+      const photoUrls = {};
+      for (const [key, photoData] of Object.entries(photos)) {
+        if (photoData) {
+          const fileName = `${Date.now()}-${key}.jpg`;
+          try {
+            const response = await fetch('/api/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: photoData, fileName })
+            });
+            const result = await response.json();
+            if (result.success) {
+              photoUrls[key] = result.url;
+            }
+          } catch (photoError) {
+            console.warn(`Error subiendo foto ${key}:`, photoError);
+          }
+        }
+      }
+
+      // Preparar datos de la inspección
+      const inspectionRecord = {
+        vehicle_info: vehicleInfo,
+        inspection_data: inspectionData,
+        total_score: parseFloat(totalScore),
+        total_repair_cost: totalRepairCost,
+        photo_urls: photoUrls,
+        status: 'completed',
+        created_at: new Date().toISOString()
+      };
+
+      // Guardar inspección en Supabase
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inspectionRecord)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Inspección guardada exitosamente en la nube!');
+        // También generar reporte local como respaldo
+        generateReport();
+      } else {
+        throw new Error(result.error || 'Error desconocido al guardar');
+      }
     } catch (error) {
-      console.error('Error saving inspection:', error);
-      alert(`❌ Error: ${error.message}`);
+      console.error('Error saving to Supabase:', error);
+      alert(`❌ Error al guardar en la nube: ${error.message}\n\nSe generará un respaldo local.`);
+      generateReport();
     } finally {
       setSaving(false);
     }
   };
 
-  // Función para cargar inspecciones del localStorage
-  const loadLocalInspections = () => {
-    try {
-      const savedInspections = JSON.parse(localStorage.getItem('motixInspections') || '[]');
-      
-      if (savedInspections.length === 0) {
-        alert('No hay inspecciones guardadas localmente.');
-        return;
+  const generateReport = () => {
+    const report = {
+      vehicleInfo,
+      inspectionData,
+      photos,
+      summary: {
+        totalScore,
+        totalRepairCost,
+        date: new Date().toISOString(),
+        itemsEvaluated: Object.values(inspectionData).reduce((acc, cat) => 
+          acc + Object.values(cat).filter(item => item.evaluated).length, 0
+        ),
+        totalItems: Object.values(checklistStructure).reduce((acc, cat) => acc + cat.length, 0)
       }
-
-      const inspectionsList = savedInspections.map((inspection, index) => 
-        `${index + 1}. ${inspection.vehicleInfo.placa || 'SIN PLACA'} - ${inspection.vehicleInfo.marca} ${inspection.vehicleInfo.modelo} (${new Date(inspection.summary.date).toLocaleDateString()})`
-      );
-      
-      const selected = prompt(`Inspecciones guardadas:\n${inspectionsList.join('\n')}\n\nEscribe el número de la inspección a cargar (1-${inspectionsList.length}):`);
-      
-      if (selected && !isNaN(selected) && selected >= 1 && selected <= inspectionsList.length) {
-        const selectedInspection = savedInspections[selected - 1];
-        setVehicleInfo(selectedInspection.vehicleInfo);
-        setInspectionData(selectedInspection.inspectionData);
-        setPhotos(selectedInspection.photos || {});
-        alert('✅ Inspección cargada exitosamente!');
-      }
-    } catch (error) {
-      alert('❌ Error al cargar inspecciones: ' + error.message);
-    }
+    };
+    
+    console.log('Reporte generado:', report);
+    
+    const dataStr = JSON.stringify(report, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `inspeccion_${vehicleInfo.placa || 'SIN_PLACA'}_${vehicleInfo.fecha}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
   };
 
   const getScoreColor = (score) => {
@@ -549,6 +434,168 @@ const InspectionApp = () => {
   };
 
   let globalCounter = 0;
+
+  // Modal de gestión de inspecciones
+  const InspectionManagerModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Gestión de Inspecciones</h2>
+          <button
+            onClick={() => setShowInspectionManager(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="p-4">
+          {/* Controles de búsqueda y filtrado */}
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Buscar por placa, marca, modelo o vendedor..."
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <select
+                className="border rounded-lg px-3 py-2"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="date">Ordenar por fecha</option>
+                <option value="placa">Ordenar por placa</option>
+                <option value="score">Ordenar por puntuación</option>
+                <option value="cost">Ordenar por costo reparación</option>
+              </select>
+              <select
+                className="border rounded-lg px-3 py-2"
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value)}
+              >
+                <option value="all">Todas las condiciones</option>
+                <option value="excellent">Excelente (8-10)</option>
+                <option value="good">Bueno (6-7.9)</option>
+                <option value="regular">Regular (4-5.9)</option>
+                <option value="poor">Malo (0-3.9)</option>
+              </select>
+            </div>
+            <button
+              onClick={loadSavedInspections}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <Cloud className="mr-2" size={16} />
+                  Actualizar Lista
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Lista de inspecciones */}
+          <div className="max-h-96 overflow-y-auto">
+            {getFilteredInspections().length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {savedInspections.length === 0 ? 
+                  'No hay inspecciones guardadas. Haz clic en "Actualizar Lista" para cargar.' :
+                  'No se encontraron inspecciones con los criterios de búsqueda.'
+                }
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {getFilteredInspections().map((inspection) => (
+                  <div key={inspection.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="font-bold text-lg text-blue-600">
+                            {inspection.vehicle_info.placa || 'SIN PLACA'}
+                          </span>
+                          <span className="text-gray-600">
+                            {inspection.vehicle_info.marca} {inspection.vehicle_info.modelo}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {inspection.vehicle_info.año}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-500">Puntuación:</span>
+                            <span className={`ml-1 font-semibold ${getScoreColor(inspection.total_score)}`}>
+                              {inspection.total_score}/10
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Reparaciones:</span>
+                            <span className="ml-1 font-semibold text-red-600">
+                              ${inspection.total_repair_cost?.toLocaleString() || '0'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Vendedor:</span>
+                            <span className="ml-1">
+                              {inspection.vehicle_info.vendedor || 'No especificado'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Fecha:</span>
+                            <span className="ml-1">
+                              {new Date(inspection.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {inspection.vehicle_info.precio && (
+                          <div className="mt-2 text-sm">
+                            <span className="text-gray-500">Precio:</span>
+                            <span className="ml-1 font-semibold text-green-600">
+                              ${parseInt(inspection.vehicle_info.precio).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2 mt-3 sm:mt-0">
+                        <button
+                          onClick={() => loadInspection(inspection)}
+                          className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                          title="Cargar inspección"
+                        >
+                          <Eye size={16} className="mr-1" />
+                          Cargar
+                        </button>
+                        <button
+                          onClick={() => deleteInspection(inspection.id)}
+                          className="flex items-center px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                          title="Eliminar inspección"
+                        >
+                          <Trash2 size={16} className="mr-1" />
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -876,26 +923,16 @@ const InspectionApp = () => {
         <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-4 sm:mt-6">
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <button
-              onClick={generatePDFReport}
-              disabled={generatingPDF}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              onClick={generateReport}
+              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              {generatingPDF ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  <span className="text-sm sm:text-base">Generando PDF...</span>
-                </>
-              ) : (
-                <>
-                  <FileText className="mr-2" size={20} />
-                  <span className="text-sm sm:text-base">Generar PDF</span>
-                </>
-              )}
+              <Download className="mr-2" size={20} />
+              <span className="text-sm sm:text-base">Descargar Reporte</span>
             </button>
             <button
-              onClick={saveInspection}
+              onClick={saveToSupabase}
               disabled={saving}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? (
                 <>
@@ -905,17 +942,22 @@ const InspectionApp = () => {
               ) : (
                 <>
                   <Save className="mr-2" size={20} />
-                  <span className="text-sm sm:text-base">Guardar y Generar PDF</span>
+                  <span className="text-sm sm:text-base">Guardar en la Nube</span>
                 </>
               )}
             </button>
-            <button
-              onClick={loadLocalInspections}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              <Download className="mr-2" size={20} />
-              <span className="text-sm sm:text-base">Cargar Guardada</span>
-            </button>
+            {isOnline && (
+              <button
+                onClick={() => {
+                  setShowInspectionManager(true);
+                  loadSavedInspections();
+                }}
+                className="flex items-center justify-center px-4 sm:px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                <Filter className="mr-2" size={20} />
+                <span className="text-sm sm:text-base">Gestionar Inspecciones</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -932,15 +974,18 @@ const InspectionApp = () => {
                 <li>Si requiere reparación, ingresa el costo estimado</li>
                 <li>Puedes agregar fotos y notas para cada ítem</li>
                 <li>La puntuación general se calcula automáticamente</li>
-                <li><strong>📄 "Generar PDF":</strong> Crea un reporte profesional para imprimir o guardar</li>
-                <li><strong>💾 "Guardar y Generar PDF":</strong> Guarda localmente + genera PDF automáticamente</li>
-                <li><strong>📥 "Cargar Guardada":</strong> Recupera inspecciones guardadas previamente</li>
-                <li>Los datos se guardan en tu navegador, no requiere internet</li>
+                <li>La app funciona offline y sincroniza cuando hay internet</li>
+                <li>Usa "Guardar en la Nube" para sincronizar con Supabase</li>
+                <li>En "Gestionar Inspecciones" puedes buscar por placa y eliminar registros</li>
+                <li>Descarga el reporte completo al finalizar</li>
               </ul>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal de Gestión de Inspecciones */}
+      {showInspectionManager && <InspectionManagerModal />}
     </div>
   );
 };
