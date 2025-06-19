@@ -202,11 +202,20 @@ const InspectionApp = () => {
       if (result.success) {
         setSavedInspections(result.data || []);
       } else {
-        throw new Error(result.error || 'Error al cargar inspecciones');
+        // Manejar errores específicos de permisos
+        if (result.error && result.error.includes('permission denied')) {
+          alert('❌ Error de permisos en la base de datos.\n\nPor favor contacta al administrador para configurar los permisos de Supabase.\n\nMientras tanto, puedes usar la funcionalidad de descarga local.');
+        } else {
+          throw new Error(result.error || 'Error al cargar inspecciones');
+        }
       }
     } catch (error) {
       console.error('Error loading inspections:', error);
-      alert('Error al cargar inspecciones: ' + error.message);
+      if (error.message.includes('permission denied') || error.message.includes('schema public')) {
+        alert('❌ Error de configuración de base de datos.\n\nSe necesita configurar los permisos en Supabase.\n\nPor ahora puedes usar las funciones de descarga local.');
+      } else {
+        alert('Error al cargar inspecciones: ' + error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -333,7 +342,7 @@ const InspectionApp = () => {
         throw new Error('Placa y marca son campos obligatorios');
       }
 
-      // Subir fotos primero
+      // Subir fotos primero (omitir si hay errores de permisos)
       const photoUrls = {};
       for (const [key, photoData] of Object.entries(photos)) {
         if (photoData) {
@@ -382,7 +391,13 @@ const InspectionApp = () => {
       }
     } catch (error) {
       console.error('Error saving to Supabase:', error);
-      alert(`❌ Error al guardar en la nube: ${error.message}\n\nSe generará un respaldo local.`);
+      
+      // Manejar errores específicos de permisos
+      if (error.message.includes('permission denied') || error.message.includes('schema public')) {
+        alert(`❌ Error de configuración de base de datos.\n\nLa inspección se guardará localmente por ahora.\n\nContacta al administrador para configurar los permisos de Supabase.`);
+      } else {
+        alert(`❌ Error al guardar en la nube: ${error.message}\n\nSe generará un respaldo local.`);
+      }
       generateReport();
     } finally {
       setSaving(false);
