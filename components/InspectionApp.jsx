@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff } from 'lucide-react';
 
 const InspectionApp = () => {
@@ -38,7 +38,8 @@ const InspectionApp = () => {
     };
   }, []);
 
-  const checklistStructure = {
+  // Memoize checklistStructure to avoid recreating it on every render
+  const checklistStructure = useMemo(() => ({
     'Documentación Legal': [
       { name: 'SOAT vigente', description: 'Verificar fecha de vencimiento en el documento físico o digital. Consultar en www.runt.com.co si es auténtico.' },
       { name: 'Revisión Técnico-Mecánica', description: 'Revisar certificado vigente sin observaciones pendientes. Verificar que coincida la placa y fechas.' },
@@ -142,7 +143,7 @@ const InspectionApp = () => {
       { name: 'Funcionamiento 4L', description: 'Velocidad máxima 40km/h. Fuerza multiplicada notable. Sin saltos de tracción ni ruidos anormales.' },
       { name: 'Regreso a 2WD', description: 'Seguir manual del vehículo. Generalmente en movimiento para 4H→2H. Sin quedarse trabado en 4WD.' }
     ]
-  };
+  }), []);
 
   useEffect(() => {
     const initialData = {};
@@ -158,7 +159,7 @@ const InspectionApp = () => {
       });
     });
     setInspectionData(initialData);
-  }, []);
+  }, [checklistStructure]);
 
   useEffect(() => {
     let totalPoints = 0;
