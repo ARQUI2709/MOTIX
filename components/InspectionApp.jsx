@@ -1005,4 +1005,4 @@ const InspectionApp = () => {
   );
 };
 
-export default InspectionApp
+export default InspectionApp;
