@@ -1,5 +1,5 @@
-// data/checklistStructure.js
-// Estructura completa del checklist de inspección para vehículos
+// data/checklist.js
+// Estructura completa del checklist de inspección para vehículos 4x4
 
 export const checklistStructure = {
   'Documentación Legal': [
@@ -299,41 +299,4 @@ export const getItemNumber = (categoryName, itemName) => {
     counter += items.length;
   }
   return counter;
-};
-
-// Función helper para validar estructura de datos
-export const validateInspectionData = (inspectionData) => {
-  const errors = [];
-  
-  Object.keys(checklistStructure).forEach(categoryName => {
-    if (!inspectionData[categoryName]) {
-      errors.push(`Categoría faltante: ${categoryName}`);
-      return;
-    }
-    
-    checklistStructure[categoryName].forEach(item => {
-      if (!inspectionData[categoryName][item.name]) {
-        errors.push(`Item faltante: ${categoryName} - ${item.name}`);
-      }
-    });
-  });
-  
-  return errors;
-};
-
-// Función helper para inicializar datos de inspección
-export const initializeInspectionData = () => {
-  const initialData = {};
-  Object.keys(checklistStructure).forEach(category => {
-    initialData[category] = {};
-    checklistStructure[category].forEach(item => {
-      initialData[category][item.name] = {
-        score: 0,
-        repairCost: 0,
-        notes: '',
-        evaluated: false
-      };
-    });
-  });
-  return initialData;
 };
