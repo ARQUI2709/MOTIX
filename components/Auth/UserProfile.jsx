@@ -1,4 +1,8 @@
 // components/Auth/UserProfile.jsx
+import React, { useState } from 'react';
+import { X, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
 const UserProfile = ({ isOpen, onClose }) => {
   const { user, signOut, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -64,8 +68,9 @@ const UserProfile = ({ isOpen, onClose }) => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+              <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
             </div>
           )}
 
@@ -77,9 +82,7 @@ const UserProfile = ({ isOpen, onClose }) => {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
                 value={user.email}
@@ -91,9 +94,19 @@ const UserProfile = ({ isOpen, onClose }) => {
             {editing ? (
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Empresa/Organización
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tu nombre completo"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
                   <input
                     type="text"
                     name="company"
@@ -105,9 +118,7 @@ const UserProfile = ({ isOpen, onClose }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rol
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                   <select
                     name="role"
                     value={formData.role}
@@ -124,7 +135,7 @@ const UserProfile = ({ isOpen, onClose }) => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
                     {loading ? 'Guardando...' : 'Guardar'}
                   </button>
@@ -140,36 +151,28 @@ const UserProfile = ({ isOpen, onClose }) => {
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     {user.user_metadata?.full_name || 'No especificado'}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Empresa/Organización
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     {user.user_metadata?.company || 'No especificado'}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rol
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     {user.user_metadata?.role || 'inspector'}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha de registro
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de registro</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                     {new Date(user.created_at).toLocaleDateString('es-ES')}
                   </div>
@@ -177,7 +180,7 @@ const UserProfile = ({ isOpen, onClose }) => {
 
                 <button
                   onClick={() => setEditing(true)}
-                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Editar Perfil
                 </button>
@@ -187,7 +190,7 @@ const UserProfile = ({ isOpen, onClose }) => {
             <div className="border-t pt-4">
               <button
                 onClick={handleSignOut}
-                className="w-full py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="w-full py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
                 Cerrar Sesión
               </button>
@@ -198,3 +201,5 @@ const UserProfile = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
+export default UserProfile;

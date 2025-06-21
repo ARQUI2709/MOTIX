@@ -1,4 +1,8 @@
 // components/Auth/RegisterForm.jsx
+import React, { useState } from 'react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
 const RegisterForm = ({ onToggleMode, onClose }) => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -9,7 +13,6 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     role: 'inspector'
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signUp } = useAuth();
@@ -26,7 +29,6 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     setError('');
     setLoading(true);
 
-    // Validaciones
     if (!formData.fullName || !formData.email || !formData.password) {
       setError('Por favor completa todos los campos obligatorios');
       setLoading(false);
@@ -94,9 +96,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -112,9 +112,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Empresa/Organización
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
           <input
             type="text"
             name="company"
@@ -126,9 +124,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Rol
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
           <select
             name="role"
             value={formData.role}
@@ -142,9 +138,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contraseña *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -167,13 +161,11 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Confirmar Contraseña *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
-              type={showConfirmPassword ? 'text' : 'password'}
+              type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
@@ -181,20 +173,13 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
               placeholder="••••••••"
               required
             />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
           </div>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
         >
           {loading ? (
             <>
@@ -219,3 +204,5 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     </div>
   );
 };
+
+export default RegisterForm;

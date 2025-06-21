@@ -51,9 +51,7 @@ const LoginForm = ({ onToggleMode, onClose }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -68,9 +66,7 @@ const LoginForm = ({ onToggleMode, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contraseña
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -128,3 +124,5 @@ const LoginForm = ({ onToggleMode, onClose }) => {
     </div>
   );
 };
+
+export default LoginForm;

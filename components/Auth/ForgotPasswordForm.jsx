@@ -1,4 +1,8 @@
 // components/Auth/ForgotPasswordForm.jsx
+import React, { useState } from 'react';
+import { Mail, AlertCircle, Loader } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
 const ForgotPasswordForm = ({ onToggleMode }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,9 +72,7 @@ const ForgotPasswordForm = ({ onToggleMode }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -87,7 +89,7 @@ const ForgotPasswordForm = ({ onToggleMode }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
         >
           {loading ? (
             <>
@@ -112,4 +114,4 @@ const ForgotPasswordForm = ({ onToggleMode }) => {
   );
 };
 
-export { LoginForm, RegisterForm, ForgotPasswordForm };
+export default ForgotPasswordForm;
