@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthProvider } from '../contexts/AuthContext';
-import Header from './Layout/Header';
+import Header from './Layout/Header.jsx';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure, getItemNumber } from '../data/checklistStructure';
