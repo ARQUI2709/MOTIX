@@ -2,33 +2,30 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Configuración específica para Vercel
-  output: 'standalone',
-  
-  // Configuración de imágenes
-  images: {
-    domains: ['llfvlhmqkrkfzuyrnwie.supabase.co'],
-    unoptimized: true
+  experimental: {
+    esmExternals: false,
   },
-  
-  // Variables de entorno
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  },
-  
-  // Configuración de webpack para optimización
   webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      };
+    // Configuración para manejar archivos .js como módulos ES
+    config.resolve.extensionAlias = {
+      '.js': ['.js', '.ts', '.jsx', '.tsx'],
+    };
+
+    // Configuración específica para el servidor
+    if (isServer) {
+      config.externals = config.externals || [];
+      // Evitar problemas con importaciones dinámicas de CDN
+      config.externals.push(/^https?:\/\//);
     }
+
     return config;
   },
-  
-  // Configuración de headers para CORS
+  // Configuración para manejar errores de ESLint durante el build
+  eslint: {
+    ignoreDuringBuilds: false,
+    dirs: ['pages', 'components', 'lib', 'utils', 'data']
+  },
+  // Configurar CORS para APIs
   async headers() {
     return [
       {
@@ -37,7 +34,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
       },
     ];

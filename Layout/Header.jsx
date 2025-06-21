@@ -1,14 +1,13 @@
 // components/Layout/Header.jsx
 import React, { useState } from 'react';
-import { User, LogIn, Settings, Bell, Shield } from 'lucide-react';
+import { User, LogIn, Settings, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { AuthModal, UserProfile } from '../Auth/AuthModal';
+import { AuthModal } from '../Auth/AuthModal';
 
 const Header = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  const [showProfile, setShowProfile] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleAuthClick = (mode = 'login') => {
@@ -16,9 +15,13 @@ const Header = () => {
     setShowAuthModal(true);
   };
 
-  const handleProfileClick = () => {
-    setShowProfile(true);
-    setShowUserMenu(false);
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setShowUserMenu(false);
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   if (loading) {
@@ -27,6 +30,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
+              <Shield className="h-8 w-8 text-blue-600 mr-3" />
               <h1 className="text-xl font-bold text-gray-900">
                 Inspección de Vehículos 4x4
               </h1>
@@ -67,40 +71,40 @@ const Header = () => {
                         {user.user_metadata?.full_name || user.email}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {user.user_metadata?.role || 'Inspector'}
+                        Inspector
                       </div>
                     </div>
                   </button>
 
                   {showUserMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
-                      <button
-                        onClick={handleProfileClick}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Mi Perfil
-                      </button>
-                      <div className="border-t border-gray-100"></div>
-                      <div className="px-4 py-2 text-xs text-gray-500">
+                      <div className="px-4 py-2 text-xs text-gray-500 border-b">
                         {user.email}
                       </div>
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Cerrar Sesión
+                      </button>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => handleAuthClick('login')}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                   >
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="w-4 h-4 mr-2" />
                     Iniciar Sesión
                   </button>
                   <button
                     onClick={() => handleAuthClick('register')}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
+                    <User className="w-4 h-4 mr-2" />
                     Registrarse
                   </button>
                 </div>
@@ -108,27 +112,20 @@ const Header = () => {
             </div>
           </div>
         </div>
-
-        {/* Overlay para cerrar menú */}
-        {showUserMenu && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowUserMenu(false)}
-          ></div>
-        )}
       </header>
 
-      {/* Modales */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
-
-      <UserProfile
-        isOpen={showProfile}
-        onClose={() => setShowProfile(false)}
-      />
+      {/* Modal de Autenticación */}
+      {showAuthModal && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => {
+            setShowAuthModal(false);
+            setShowUserMenu(false);
+          }}
+          onToggleMode={(mode) => setAuthMode(mode)}
+        />
+      )}
     </>
   );
 };

@@ -31,6 +31,7 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
 
   useEffect(() => {
     loadInspections();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadInspections = async () => {

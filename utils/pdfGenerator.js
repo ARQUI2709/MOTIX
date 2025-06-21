@@ -4,8 +4,35 @@
 import { checklistStructure } from '../data/checklistStructure.js';
 
 export const generatePDFReport = async (inspectionData, vehicleInfo, photos = {}, userInfo = null) => {
-  // Importar jsPDF dinámicamente
-  const { jsPDF } = await import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  // Importar jsPDF dinámicamente desde un módulo CDN compatible
+  let jsPDF;
+  
+  try {
+    // Intentar importar jsPDF desde un CDN compatible
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    script.onload = () => {
+      jsPDF = window.jspdf.jsPDF;
+    };
+    document.head.appendChild(script);
+    
+    // Esperar a que cargue
+    await new Promise((resolve) => {
+      const checkLoad = () => {
+        if (window.jspdf) {
+          jsPDF = window.jspdf.jsPDF;
+          resolve();
+        } else {
+          setTimeout(checkLoad, 100);
+        }
+      };
+      checkLoad();
+    });
+  } catch (error) {
+    console.error('Error cargando jsPDF:', error);
+    // Fallback: generar reporte JSON si no se puede cargar PDF
+    return generateJSONReport(inspectionData, vehicleInfo, photos, userInfo);
+  }
   
   const doc = new jsPDF();
   let yPosition = 20;
