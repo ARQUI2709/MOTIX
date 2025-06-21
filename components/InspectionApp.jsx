@@ -18,7 +18,8 @@ import {
   FileText,
   Share2,
   Search,
-  ChevronDown
+  ChevronDown,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
