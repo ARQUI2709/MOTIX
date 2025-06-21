@@ -1,5 +1,5 @@
 // components/LandingPage.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Shield, 
   CheckCircle, 
@@ -12,72 +12,22 @@ import {
   Star,
   ArrowRight,
   Play,
-  Mail,
-  Phone,
-  MapPin,
-  Facebook,
-  Twitter,
-  Instagram,
-  LogIn,
-  UserPlus,
-  Camera  // ← AGREGAR ESTA LÍNEA
+  Camera
 } from 'lucide-react';
-import AuthModal from './Auth/AuthModal';
+import PublicHeader from './Layout/PublicHeader';
+import PublicFooter from './Layout/PublicFooter';
 
 const LandingPage = ({ onEnterApp }) => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-
   const handleAuthSuccess = () => {
-    setShowAuthModal(false);
     if (onEnterApp) {
       onEnterApp();
     }
   };
 
-  const handleAuthClick = (mode) => {
-    setAuthMode(mode);
-    setShowAuthModal(true);
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      {/* Header/Navigation */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600 mr-3" />
-              <span className="text-xl font-bold text-gray-900">InspecciónPro 4x4</span>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <a href="#inicio" className="text-gray-700 hover:text-blue-600 transition-colors">Inicio</a>
-              <a href="#caracteristicas" className="text-gray-700 hover:text-blue-600 transition-colors">Características</a>
-              <a href="#como-funciona" className="text-gray-700 hover:text-blue-600 transition-colors">Cómo Funciona</a>
-              <a href="#testimonios" className="text-gray-700 hover:text-blue-600 transition-colors">Testimonios</a>
-              <a href="#contacto" className="text-gray-700 hover:text-blue-600 transition-colors">Contacto</a>
-            </nav>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => handleAuthClick('login')}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Iniciar Sesión
-              </button>
-              <button
-                onClick={() => handleAuthClick('register')}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Registrarse
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header */}
+      <PublicHeader onAuthSuccess={handleAuthSuccess} />
 
       {/* Hero Section */}
       <section id="inicio" className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
@@ -352,69 +302,7 @@ const LandingPage = ({ onEnterApp }) => {
       </section>
 
       {/* Footer */}
-      <footer id="contacto" className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center mb-4">
-                <Shield className="h-8 w-8 text-blue-400 mr-3" />
-                <span className="text-xl font-bold">InspecciónPro 4x4</span>
-              </div>
-              <p className="text-gray-400 mb-6 max-w-md">
-                La herramienta profesional para inspeccionar vehículos todo terreno. 
-                Toma decisiones informadas y evita sorpresas costosas.
-              </p>
-              <div className="flex space-x-4">
-                <Facebook className="w-6 h-6 text-gray-400 hover:text-white cursor-pointer" />
-                <Twitter className="w-6 h-6 text-gray-400 hover:text-white cursor-pointer" />
-                <Instagram className="w-6 h-6 text-gray-400 hover:text-white cursor-pointer" />
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Producto</h3>
-              <ul className="space-y-2">
-                <li><a href="#caracteristicas" className="text-gray-400 hover:text-white">Características</a></li>
-                <li><a href="#como-funciona" className="text-gray-400 hover:text-white">Cómo Funciona</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white">Precios</a></li>
-                <li><a href="#" className="text-gray-400 hover:text-white">API</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Contacto</h3>
-              <ul className="space-y-2">
-                <li className="flex items-center text-gray-400">
-                  <Mail className="w-4 h-4 mr-2" />
-                  info@inspeccionpro.com
-                </li>
-                <li className="flex items-center text-gray-400">
-                  <Phone className="w-4 h-4 mr-2" />
-                  +57 300 123 4567
-                </li>
-                <li className="flex items-center text-gray-400">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Bogotá, Colombia
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 InspecciónPro 4x4. Todos los derechos reservados.</p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal
-          mode={authMode}
-          onClose={() => setShowAuthModal(false)}
-          onToggleMode={(newMode) => setAuthMode(newMode)}
-          onAuthSuccess={handleAuthSuccess}
-        />
-      )}
+      <PublicFooter />
     </div>
   );
 };

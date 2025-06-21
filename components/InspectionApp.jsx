@@ -20,7 +20,7 @@ import {
   Share2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import Header from './Layout/Header';
+import AppHeader from './Layout/AppHeader';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
@@ -30,14 +30,15 @@ const InspectionApp = () => {
   const { user, loading } = useAuth();
   
   // Estados principales
-  const [showLanding, setShowLanding] = useState(!user); // Inicializar basado en el usuario
-  const [showInspectionManager, setShowInspectionManager] = useState(false);
+  const [currentView, setCurrentView] = useState('inspection'); // 'inspection', 'manager'
+  const [showLanding, setShowLanding] = useState(false);
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
     año: '',
     placa: '',
     kilometraje: '',
+    precio: '',
     vendedor: '',
     telefono: '',
     fecha: new Date().toISOString().split('T')[0]
@@ -67,16 +68,7 @@ const InspectionApp = () => {
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Manejo automático de la navegación basado en el estado de autenticación
-  useEffect(() => {
-    if (user && showLanding) {
-      setShowLanding(false);
-    } else if (!user && !showLanding) {
-      setShowLanding(true);
-    }
-  }, [user, showLanding]);
-
-  // Listeners para detectar conexión
+  // Efectos
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -90,455 +82,48 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Calcular totales cuando cambian los datos de inspección
+  // Manejar el estado de la landing page basado en autenticación
   useEffect(() => {
-    let score = 0;
-    let cost = 0;
-    let evaluatedItems = 0;
-    let totalItems = 0;
+    if (!user && !loading) {
+      setShowLanding(true);
+    } else if (user) {
+      setShowLanding(false);
+    }
+  }, [user, loading]);
 
-    Object.keys(inspectionData).forEach(category => {
-      Object.keys(inspectionData[category]).forEach(itemKey => {
-        const item = inspectionData[category][itemKey];
-        totalItems++;
-        if (item.evaluated) {
-          evaluatedItems++;
-          score += item.score;
-          cost += parseFloat(item.repairCost) || 0;
+  // Calcular totales cuando inspectionData cambia
+  useEffect(() => {
+    let totalPoints = 0;
+    let totalItems = 0;
+    let repairTotal = 0;
+
+    Object.values(inspectionData).forEach(category => {
+      Object.values(category).forEach(item => {
+        if (item.evaluated && item.score > 0) {
+          totalPoints += item.score;
+          totalItems++;
+        }
+        if (item.repairCost) {
+          repairTotal += parseFloat(item.repairCost) || 0;
         }
       });
     });
 
-    setTotalScore(evaluatedItems > 0 ? Math.round(score / evaluatedItems) : 0);
-    setTotalRepairCost(cost);
+    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
+    setTotalRepairCost(repairTotal);
   }, [inspectionData]);
 
-  const updateInspectionData = (category, itemName, field, value) => {
-    setInspectionData(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [itemName]: {
-          ...prev[category][itemName],
-          [field]: value,
-          evaluated: true
-        }
-      }
-    }));
+  // Funciones de navegación
+  const handleNavigation = (view) => {
+    setCurrentView(view);
+    setMobileMenuOpen(false);
   };
 
-  const addPhoto = (category, itemName, file) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPhotos(prev => ({
-        ...prev,
-        [`${category}_${itemName}`]: {
-          file: e.target.result,
-          name: file.name,
-          timestamp: new Date().toISOString()
-        }
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removePhoto = (photoKey) => {
-    setPhotos(prev => {
-      const newPhotos = { ...prev };
-      delete newPhotos[photoKey];
-      return newPhotos;
-    });
-  };
-
-  const saveToCloud = async () => {
-    if (!user) {
-      alert('Debes iniciar sesión para guardar en la nube');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const inspectionRecord = {
-        vehicle_info: vehicleInfo,
-        inspection_data: inspectionData,
-        photos: photos,
-        total_score: totalScore,
-        total_repair_cost: totalRepairCost,
-        created_at: new Date().toISOString(),
-        user_id: user.id
-      };
-
-      const response = await fetch('/api/inspections', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`
-        },
-        body: JSON.stringify(inspectionRecord)
-      });
-
-      if (response.ok) {
-        alert('Inspección guardada exitosamente en la nube');
-      } else {
-        throw new Error('Error al guardar en la nube');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al guardar en la nube. Revisa tu conexión.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveToLocal = () => {
-    try {
-      const inspectionRecord = {
-        vehicle_info: vehicleInfo,
-        inspection_data: inspectionData,
-        photos: photos,
-        total_score: totalScore,
-        total_repair_cost: totalRepairCost,
-        created_at: new Date().toISOString()
-      };
-
-      const dataStr = JSON.stringify(inspectionRecord);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `inspeccion_${vehicleInfo.placa || 'vehiculo'}_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      alert('Inspección guardada localmente');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al guardar localmente');
-    }
-  };
-
-  const resetInspection = () => {
-    if (confirm('¿Estás seguro de que quieres reiniciar la inspección? Se perderán todos los datos.')) {
-      setVehicleInfo({
-        marca: '',
-        modelo: '',
-        año: '',
-        placa: '',
-        kilometraje: '',
-        vendedor: '',
-        telefono: '',
-        fecha: new Date().toISOString().split('T')[0]
-      });
-      
-      const initialData = {};
-      Object.keys(checklistStructure).forEach(category => {
-        initialData[category] = {};
-        checklistStructure[category].forEach(item => {
-          initialData[category][item.name] = {
-            score: 0,
-            repairCost: 0,
-            notes: '',
-            evaluated: false
-          };
-        });
-      });
-      setInspectionData(initialData);
-      setPhotos({});
-      setActiveCategory(null);
-    }
-  };
-
-  const downloadPDF = () => {
-    try {
-      generatePDFReport({
-        vehicleInfo,
-        inspectionData,
-        checklistStructure,
-        photos,
-        totalScore,
-        totalRepairCost
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Error al generar el PDF');
-    }
-  };
-
-  const downloadJSON = () => {
-    try {
-      generateJSONReport({
-        vehicleInfo,
-        inspectionData,
-        photos,
-        totalScore,
-        totalRepairCost
-      });
-    } catch (error) {
-      console.error('Error generating JSON:', error);
-      alert('Error al generar el archivo JSON');
-    }
-  };
-
-  // Componente para mostrar información del vehículo
-  const VehicleInfoCard = () => (
-    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
-        Información del Vehículo
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
-          <input
-            type="text"
-            value={vehicleInfo.marca}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, marca: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Toyota"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
-          <input
-            type="text"
-            value={vehicleInfo.modelo}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, modelo: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Land Cruiser"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
-          <input
-            type="number"
-            value={vehicleInfo.año}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, año: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="2020"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
-          <input
-            type="text"
-            value={vehicleInfo.placa}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, placa: e.target.value.toUpperCase()})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="ABC-123"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kilometraje</label>
-          <input
-            type="number"
-            value={vehicleInfo.kilometraje}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, kilometraje: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="50000"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
-          <input
-            type="text"
-            value={vehicleInfo.vendedor}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, vendedor: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Juan Pérez"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-          <input
-            type="tel"
-            value={vehicleInfo.telefono}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, telefono: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="+1234567890"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-          <input
-            type="date"
-            value={vehicleInfo.fecha}
-            onChange={(e) => setVehicleInfo({...vehicleInfo, fecha: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Componente para cada item de inspección
-  const InspectionItem = ({ category, item, itemNumber }) => {
-    const currentData = inspectionData[category][item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
-    const photoKey = `${category}_${item.name}`;
-    const hasPhoto = photos[photoKey];
-    
-    return (
-      <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <h3 className="font-medium text-gray-900 flex items-center">
-              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full mr-2">
-                {itemNumber}
-              </span>
-              {item.name}
-            </h3>
-            {item.description && (
-              <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Calificación */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Calificación (1-5)
-            </label>
-            <div className="flex space-x-1">
-              {[1, 2, 3, 4, 5].map((score) => (
-                <button
-                  key={score}
-                  onClick={() => updateInspectionData(category, item.name, 'score', score)}
-                  className={`p-1 rounded transition-colors ${
-                    currentData.score >= score
-                      ? 'text-yellow-400 hover:text-yellow-500'
-                      : 'text-gray-300 hover:text-gray-400'
-                  }`}
-                >
-                  {currentData.score >= score ? <Star size={24} fill="currentColor" /> : <StarOff size={24} />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Costo de reparación */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Costo de Reparación ($)
-            </label>
-            <input
-              type="number"
-              value={currentData.repairCost}
-              onChange={(e) => updateInspectionData(category, item.name, 'repairCost', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="0"
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          {/* Foto */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Evidencia Fotográfica
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    addPhoto(category, item.name, e.target.files[0]);
-                  }
-                }}
-                className="hidden"
-                id={`photo-${category}-${item.name}`}
-              />
-              <label
-                htmlFor={`photo-${category}-${item.name}`}
-                className={`flex items-center px-3 py-2 text-sm border rounded-md cursor-pointer transition-colors ${
-                  hasPhoto 
-                    ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
-                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Camera size={16} className="mr-1" />
-                {hasPhoto ? 'Cambiar' : 'Tomar'}
-              </label>
-              
-              {hasPhoto && (
-                <button
-                  onClick={() => removePhoto(photoKey)}
-                  className="flex items-center px-2 py-2 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
-                  title="Eliminar foto"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-            
-            {hasPhoto && (
-              <div className="mt-2">
-                <img
-                  src={photos[photoKey].file}
-                  alt={`Evidencia de ${item.name}`}
-                  className="w-full h-24 object-cover rounded-md border"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Notas */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Notas y Observaciones
-          </label>
-          <textarea
-            value={currentData.notes}
-            onChange={(e) => updateInspectionData(category, item.name, 'notes', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Observaciones específicas sobre este componente..."
-            rows="2"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Componente para resumen de categoría
-  const CategorySummary = ({ categoryName, items }) => {
-    const categoryData = inspectionData[categoryName] || {};
-    const evaluatedItems = Object.values(categoryData).filter(item => item.evaluated).length;
-    const totalItems = items.length;
-    const avgScore = evaluatedItems > 0 
-      ? Object.values(categoryData).filter(item => item.evaluated).reduce((sum, item) => sum + item.score, 0) / evaluatedItems 
-      : 0;
-    const totalCost = Object.values(categoryData).reduce((sum, item) => sum + (parseFloat(item.repairCost) || 0), 0);
-    
-    const startIndex = Object.keys(checklistStructure).slice(0, Object.keys(checklistStructure).indexOf(categoryName))
-      .reduce((acc, cat) => acc + checklistStructure[cat].length, 0);
-
-    return (
-      <div key={categoryName} className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
-          {categoryName}
-        </h2>
-        <div className="space-y-4">
-          {items.map((item, index) => (
-            <InspectionItem
-              key={item.name}
-              category={categoryName}
-              item={item}
-              itemNumber={startIndex + index + 1}
-            />
-          ))}
-        </div>
-      </div>
-    );
+  const handleLoadInspection = (inspection) => {
+    setVehicleInfo(inspection.vehicle_info || vehicleInfo);
+    setInspectionData(inspection.inspection_data || inspectionData);
+    setPhotos(inspection.photos || {});
+    setCurrentView('inspection');
   };
 
   // Si está cargando la autenticación
@@ -550,246 +135,493 @@ const InspectionApp = () => {
     );
   }
 
-  // Renderizado condicional para diferentes vistas
-  if (showLanding && !user) {
+  // Si no hay usuario, mostrar landing
+  if (showLanding || !user) {
     return <LandingPage onEnterApp={() => setShowLanding(false)} />;
   }
 
-  if (showInspectionManager) {
-    return (
-      <InspectionManager
-        onClose={() => setShowInspectionManager(false)}
-        onLoadInspection={(inspection) => {
-          setVehicleInfo(inspection.vehicle_info);
-          setInspectionData(inspection.inspection_data);
-          setPhotos(inspection.photos || {});
-          setShowInspectionManager(false);
-        }}
-      />
-    );
-  }
+  // Funciones auxiliares para la inspección
+  const updateInspectionItem = (category, itemName, field, value) => {
+    setInspectionData(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [itemName]: {
+          ...prev[category][itemName],
+          [field]: value,
+          evaluated: field === 'score' ? value > 0 : prev[category][itemName].evaluated || (field === 'notes' && value) || (field === 'repairCost' && value > 0)
+        }
+      }
+    }));
+  };
 
-  // Componente principal de la app de inspección
+  const addPhoto = (category, itemName, photoUrl) => {
+    const key = `${category}_${itemName}`;
+    setPhotos(prev => ({
+      ...prev,
+      [key]: [...(prev[key] || []), photoUrl]
+    }));
+  };
+
+  const removePhoto = (category, itemName, photoIndex) => {
+    const key = `${category}_${itemName}`;
+    setPhotos(prev => ({
+      ...prev,
+      [key]: prev[key].filter((_, index) => index !== photoIndex)
+    }));
+  };
+
+  const handleSaveInspection = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const inspectionToSave = {
+        vehicle_info: vehicleInfo,
+        inspection_data: inspectionData,
+        photos,
+        total_score: totalScore,
+        total_repair_cost: totalRepairCost,
+        user_id: user.id
+      };
+
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`
+        },
+        body: JSON.stringify(inspectionToSave)
+      });
+
+      if (response.ok) {
+        alert('Inspección guardada exitosamente');
+      } else {
+        throw new Error('Error al guardar');
+      }
+    } catch (error) {
+      console.error('Error saving inspection:', error);
+      alert('Error al guardar la inspección');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const generateReport = async () => {
+    try {
+      const report = await generatePDFReport(inspectionData, vehicleInfo, photos, user);
+      // Download logic here
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Error al generar el reporte');
+    }
+  };
+
+  const getConditionInfo = (score) => {
+    if (score >= 8) return { text: 'Excelente', color: 'text-green-600', bg: 'bg-green-100' };
+    if (score >= 6) return { text: 'Bueno', color: 'text-yellow-600', bg: 'bg-yellow-100' };
+    if (score >= 4) return { text: 'Regular', color: 'text-orange-600', bg: 'bg-orange-100' };
+    return { text: 'Crítico', color: 'text-red-600', bg: 'bg-red-100' };
+  };
+
+  // Renderizado principal
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Botones de navegación */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <button
-            onClick={() => setShowLanding(true)}
-            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <Home className="mr-2" size={16} />
-            Inicio
-          </button>
-          
-          {user && (
-            <button
-              onClick={() => setShowInspectionManager(true)}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <FolderOpen className="mr-2" size={16} />
-              Mis Inspecciones
-            </button>
-          )}
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        onNavigate={handleNavigation}
+        currentView={currentView}
+      />
 
-        {/* Barra de estado */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Vista de Gestor de Inspecciones */}
+      {currentView === 'manager' && (
+        <InspectionManager
+          onClose={() => setCurrentView('inspection')}
+          onLoadInspection={handleLoadInspection}
+        />
+      )}
+
+      {/* Vista principal de inspección */}
+      {currentView === 'inspection' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Status Bar */}
+          <div className="mb-6 flex items-center justify-between bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center space-x-4">
               <div className="flex items-center">
                 {isOnline ? (
-                  <>
-                    <Wifi className="text-green-500 mr-2" size={20} />
-                    <span className="text-sm text-green-600">En línea</span>
-                  </>
+                  <Wifi className="h-5 w-5 text-green-500 mr-2" />
                 ) : (
-                  <>
-                    <WifiOff className="text-red-500 mr-2" size={20} />
-                    <span className="text-sm text-red-600">Sin conexión</span>
-                  </>
+                  <WifiOff className="h-5 w-5 text-red-500 mr-2" />
                 )}
-              </div>
-              
-              <div className="bg-blue-100 px-3 py-1 rounded-full">
-                <span className="text-sm font-medium text-blue-800">
-                  Puntuación: {totalScore}/5
+                <span className="text-sm text-gray-600">
+                  {isOnline ? 'En línea' : 'Sin conexión'}
                 </span>
               </div>
               
-              <div className="bg-red-100 px-3 py-1 rounded-full">
-                <span className="text-sm font-medium text-red-800">
-                  Costo estimado: ${totalRepairCost.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={saveToLocal}
-                className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Download className="mr-2" size={16} />
-                Guardar Local
-              </button>
-              
-              {user && (
-                <button
-                  onClick={saveToCloud}
-                  disabled={saving}
-                  className="flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? (
-                    <RefreshCw className="mr-2 animate-spin" size={16} />
-                  ) : (
-                    <Upload className="mr-2" size={16} />
-                  )}
-                  {saving ? 'Guardando...' : 'Guardar en la Nube'}
-                </button>
+              {totalScore > 0 && (
+                <div className="flex items-center">
+                  <Star className="h-5 w-5 text-yellow-500 mr-1" />
+                  <span className="text-sm font-medium">{totalScore}/10</span>
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getConditionInfo(totalScore).bg} ${getConditionInfo(totalScore).color}`}>
+                    {getConditionInfo(totalScore).text}
+                  </span>
+                </div>
               )}
               
-              <button
-                onClick={downloadPDF}
-                className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <FileText className="mr-2" size={16} />
-                PDF
-              </button>
-              
-              <button
-                onClick={downloadJSON}
-                className="flex items-center px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <Share2 className="mr-2" size={16} />
-                JSON
-              </button>
-              
-              <button
-                onClick={resetInspection}
-                className="flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <RefreshCw className="mr-2" size={16} />
-                Reiniciar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Información del vehículo */}
-        <VehicleInfoCard />
-
-        {/* Navegación por categorías en móvil */}
-        <div className="lg:hidden mb-6">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow-lg border"
-          >
-            <span className="font-medium text-gray-900">
-              {activeCategory || 'Seleccionar Categoría'}
-            </span>
-            <Menu size={20} />
-          </button>
-          
-          {mobileMenuOpen && (
-            <div className="mt-2 bg-white rounded-lg shadow-lg border">
-              {Object.keys(checklistStructure).map((category) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setActiveCategory(category);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 ${
-                    activeCategory === category ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar de categorías - Desktop */}
-          <div className="hidden lg:block w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-lg p-4 sticky top-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Categorías de Inspección</h3>
-              <nav className="space-y-2">
-                {Object.keys(checklistStructure).map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setActiveCategory(category)}
-                    className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
-                      activeCategory === category
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </nav>
-            </div>
-          </div>
-
-          {/* Contenido principal */}
-          <div className="flex-1">
-            {activeCategory ? (
-              <CategorySummary 
-                categoryName={activeCategory} 
-                items={checklistStructure[activeCategory]} 
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-                <Info className="mx-auto text-gray-400 mb-4" size={48} />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Selecciona una categoría para comenzar
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Elige una categoría del menú lateral para empezar la inspección del vehículo.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
-                  {Object.keys(checklistStructure).slice(0, 4).map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => setActiveCategory(category)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      {category}
-                    </button>
-                  ))}
+              {totalRepairCost > 0 && (
+                <div className="text-sm text-gray-600">
+                  Reparaciones: ${totalRepairCost.toLocaleString()}
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
 
-        {/* Información adicional */}
-        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-start space-x-4">
-            <AlertCircle className="text-blue-500 flex-shrink-0 mt-1" size={20} />
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">Instrucciones de Uso</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Completa la información del vehículo antes de comenzar</li>
-                <li>• Evalúa cada componente con una calificación del 1 al 5 (5 = excelente)</li>
-                <li>• Toma fotos como evidencia de los problemas encontrados</li>
-                <li>• Estima los costos de reparación para cada problema identificado</li>
-                <li>• Usa "Guardar Local" para descargar los datos sin conexión</li>
-                {user ? (
-                  <li>• Usa "Guardar en la Nube" para sincronizar con tu cuenta</li>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleSaveInspection}
+                disabled={saving || !user}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <li>• Inicia sesión para guardar tus inspecciones en la nube</li>
+                  <Save className="w-4 h-4 mr-2" />
                 )}
-              </ul>
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+              
+              <button
+                onClick={generateReport}
+                className="flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Reporte
+              </button>
+            </div>
+          </div>
+
+          {/* Vehicle Information Form */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información del Vehículo</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Marca
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.marca}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, marca: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Toyota, Jeep, etc."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Modelo
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.modelo}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, modelo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Prado, Wrangler, etc."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Año
+                </label>
+                <input
+                  type="number"
+                  value={vehicleInfo.año}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, año: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="2020"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Placa
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.placa}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, placa: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ABC123"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kilometraje
+                </label>
+                <input
+                  type="number"
+                  value={vehicleInfo.kilometraje}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, kilometraje: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="50000"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Precio Solicitado
+                </label>
+                <input
+                  type="number"
+                  value={vehicleInfo.precio}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, precio: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="50000000"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vendedor
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.vendedor}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, vendedor: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Nombre del vendedor"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={vehicleInfo.telefono}
+                  onChange={(e) => setVehicleInfo({ ...vehicleInfo, telefono: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="300 123 4567"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Inspection Categories */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Categories Menu */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm p-4 sticky top-24">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Categorías</h3>
+                <nav className="space-y-2">
+                  {Object.keys(checklistStructure).map((category) => {
+                    const categoryData = inspectionData[category] || {};
+                    const evaluatedItems = Object.values(categoryData).filter(item => item.evaluated).length;
+                    const totalItems = Object.keys(categoryData).length;
+                    const isActive = activeCategory === category;
+                    
+                    return (
+                      <button
+                        key={category}
+                        onClick={() => setActiveCategory(category)}
+                        className={`w-full text-left px-3 py-3 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-blue-100 text-blue-700 border-2 border-blue-200'
+                            : 'text-gray-700 hover:bg-gray-100 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{category}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">
+                              {evaluatedItems}/{totalItems}
+                            </span>
+                            {evaluatedItems === totalItems && totalItems > 0 && (
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </div>
+
+            {/* Inspection Content */}
+            <div className="lg:col-span-3">
+              {activeCategory ? (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900">{activeCategory}</h2>
+                    <button
+                      onClick={() => setActiveCategory(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {checklistStructure[activeCategory]?.map((item, index) => {
+                      const itemData = inspectionData[activeCategory]?.[item.name] || {
+                        score: 0,
+                        repairCost: 0,
+                        notes: '',
+                        evaluated: false
+                      };
+                      const photoKey = `${activeCategory}_${item.name}`;
+                      const itemPhotos = photos[photoKey] || [];
+
+                      return (
+                        <div key={item.name} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                                {index + 1}. {item.name}
+                              </h3>
+                              <p className="text-sm text-gray-600">{item.description}</p>
+                            </div>
+                            
+                            {itemData.evaluated && (
+                              <div className={`px-3 py-1 rounded-full text-sm font-medium ${getConditionInfo(itemData.score).bg} ${getConditionInfo(itemData.score).color}`}>
+                                {itemData.score}/10
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Score Rating */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Puntuación (1-10)
+                            </label>
+                            <div className="flex items-center space-x-1">
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                                <button
+                                  key={score}
+                                  onClick={() => updateInspectionItem(activeCategory, item.name, 'score', score)}
+                                  className={`w-8 h-8 rounded-full border-2 text-sm font-medium transition-colors ${
+                                    itemData.score >= score
+                                      ? score <= 3
+                                        ? 'bg-red-500 border-red-500 text-white'
+                                        : score <= 6
+                                        ? 'bg-yellow-500 border-yellow-500 text-white'
+                                        : score <= 8
+                                        ? 'bg-blue-500 border-blue-500 text-white'
+                                        : 'bg-green-500 border-green-500 text-white'
+                                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                                  }`}
+                                >
+                                  {score}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Notes */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Notas adicionales
+                            </label>
+                            <textarea
+                              value={itemData.notes}
+                              onChange={(e) => updateInspectionItem(activeCategory, item.name, 'notes', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows="2"
+                              placeholder="Observaciones, detalles específicos..."
+                            />
+                          </div>
+
+                          {/* Repair Cost */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Costo estimado de reparación (COP)
+                            </label>
+                            <input
+                              type="number"
+                              value={itemData.repairCost}
+                              onChange={(e) => updateInspectionItem(activeCategory, item.name, 'repairCost', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          {/* Photos */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Fotos de evidencia
+                            </label>
+                            
+                            <div className="flex items-center space-x-3 mb-3">
+                              <label className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors">
+                                <Camera className="w-4 h-4 mr-2" />
+                                Agregar Foto
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        addPhoto(activeCategory, item.name, event.target.result);
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+
+                            {/* Photo Grid */}
+                            {itemPhotos.length > 0 && (
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {itemPhotos.map((photo, photoIndex) => (
+                                  <div key={photoIndex} className="relative">
+                                    <img
+                                      src={photo}
+                                      alt={`Evidencia ${photoIndex + 1}`}
+                                      className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                                    />
+                                    <button
+                                      onClick={() => removePhoto(activeCategory, item.name, photoIndex)}
+                                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                  <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Selecciona una categoría
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Elige una categoría del menú lateral para comenzar la inspección
+                  </p>
+                  <button
+                    onClick={() => setActiveCategory(Object.keys(checklistStructure)[0])}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Comenzar con {Object.keys(checklistStructure)[0]}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
