@@ -1,5 +1,10 @@
 // components/InspectionApp.jsx
 import React, { useState, useEffect } from 'react';
+import {
+  Save, Download, RefreshCw, Star, StarOff, Camera, X, Menu,
+  AlertCircle, Info, Home, FolderOpen, Wifi, WifiOff, Upload,
+  FileText, Share2
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Layout/Header';
 import LandingPage from './LandingPage';
@@ -9,31 +14,10 @@ import { checklistStructure } from '../data/checklistStructure';
   // Estados principales
 const InspectionApp = () => {
   const { user, loading } = useAuth();
+
+  // Todos los useState aquí, sin condiciones
   const [showLanding, setShowLanding] = useState(true);
   const [showInspectionManager, setShowInspectionManager] = useState(false);
-  
-    // Si el usuario está autenticado, no mostrar landing
-  useEffect(() => {
-    if (user && showLanding) {
-      setShowLanding(false);
-    }
-  }, [user, showLanding]);
-  
-  // Renderizado condicional para diferentes vistas
-  if (showLanding && !user) {
-    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
-  }
-
-  // Si está cargando la autenticación
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  // Estados de la aplicación
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
@@ -44,6 +28,26 @@ const InspectionApp = () => {
     telefono: '',
     fecha: new Date().toISOString().split('T')[0]
   });
+
+  // useEffect también aquí
+  useEffect(() => {
+    if (user && showLanding) {
+      setShowLanding(false);
+    }
+  }, [user, showLanding]);
+
+  // Renderizado condicional DESPUÉS de declarar todos los hooks
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (showLanding && !user) {
+    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
+  }
 
   const [inspectionData, setInspectionData] = useState(() => {
     const initialData = {};
