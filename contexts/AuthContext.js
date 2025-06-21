@@ -12,14 +12,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Obtener sesión inicial
     const getInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getInitialSession();
@@ -37,44 +42,46 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Función para registrar usuario
+  // Función para registrar usuario (simplificada)
   const signUp = async (email, password, userData = {}) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: userData.fullName,
-            company: userData.company,
-            role: userData.role || 'inspector'
+            full_name: userData.fullName
           }
         }
       });
 
       if (error) throw error;
-
       return { data, error: null };
     } catch (error) {
       console.error('Error signing up:', error);
       return { data: null, error };
+    } finally {
+      setLoading(false);
     }
   };
 
   // Función para iniciar sesión
   const signIn = async (email, password) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
-
       return { data, error: null };
     } catch (error) {
       console.error('Error signing in:', error);
       return { data: null, error };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,7 +95,6 @@ export const AuthProvider = ({ children }) => {
       setSession(null);
       return { error: null };
     } catch (error) {
-      console.error('Error signing out:', error);
       return { error };
     }
   };
@@ -99,44 +105,25 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
-
       if (error) throw error;
-
       return { data, error: null };
     } catch (error) {
-      console.error('Error resetting password:', error);
       return { data: null, error };
     }
   };
 
-  // Función para actualizar perfil
+  // Función para actualizar perfil (simplificada)
   const updateProfile = async (updates) => {
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: updates
-      });
-
+      const { data, error } = await supabase.auth.updateUser({ data: updates });
       if (error) throw error;
-
+      
+      if (data.user) {
+        setUser(data.user);
+      }
+      
       return { data, error: null };
     } catch (error) {
-      console.error('Error updating profile:', error);
-      return { data: null, error };
-    }
-  };
-
-  // Función para actualizar contraseña
-  const updatePassword = async (newPassword) => {
-    try {
-      const { data, error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) throw error;
-
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error updating password:', error);
       return { data: null, error };
     }
   };
@@ -149,8 +136,7 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signOut,
     resetPassword,
-    updateProfile,
-    updatePassword
+    updateProfile
   };
 
   return (

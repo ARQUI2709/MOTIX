@@ -8,9 +8,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    company: '',
-    role: 'inspector'
+    confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,9 +46,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     }
 
     const { error: signUpError } = await signUp(formData.email, formData.password, {
-      fullName: formData.fullName,
-      company: formData.company,
-      role: formData.role
+      fullName: formData.fullName
     });
     
     if (signUpError) {
@@ -109,32 +105,6 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
               required
             />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-          <input
-            type="text"
-            name="company"
-            value={formData.company}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Nombre de tu empresa (opcional)"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="inspector">Inspector</option>
-            <option value="manager">Gerente</option>
-            <option value="admin">Administrador</option>
-          </select>
         </div>
 
         <div>

@@ -21,7 +21,7 @@ const Header = () => {
     setShowUserMenu(false);
   };
 
-  // Componentes de autenticación integrados dentro del Header
+  // Componente LoginForm simplificado
   const LoginForm = ({ onToggleMode, onClose }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -144,14 +144,13 @@ const Header = () => {
     );
   };
 
+  // Componente RegisterForm simplificado (sin empresa ni rol)
   const RegisterForm = ({ onToggleMode, onClose }) => {
     const [formData, setFormData] = useState({
       fullName: '',
       email: '',
       password: '',
-      confirmPassword: '',
-      company: '',
-      role: 'inspector'
+      confirmPassword: ''
     });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -189,9 +188,7 @@ const Header = () => {
       }
 
       const { error: signUpError } = await signUp(formData.email, formData.password, {
-        fullName: formData.fullName,
-        company: formData.company,
-        role: formData.role
+        fullName: formData.fullName
       });
       
       if (signUpError) {
@@ -247,32 +244,6 @@ const Header = () => {
               placeholder="tu@email.com"
               required
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-            <input
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Nombre de tu empresa (opcional)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="inspector">Inspector</option>
-              <option value="manager">Gerente</option>
-              <option value="admin">Administrador</option>
-            </select>
           </div>
 
           <div>
@@ -339,6 +310,7 @@ const Header = () => {
     );
   };
 
+  // Componente ForgotPasswordForm
   const ForgotPasswordForm = ({ onToggleMode }) => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -499,7 +471,7 @@ const Header = () => {
     );
   };
 
-  // Perfil de Usuario
+  // Perfil de Usuario simplificado
   const UserProfile = ({ isOpen, onClose }) => {
     const { user, signOut, updateProfile } = useAuth();
     const [editing, setEditing] = useState(false);
@@ -507,9 +479,7 @@ const Header = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [formData, setFormData] = useState({
-      fullName: user?.user_metadata?.full_name || '',
-      company: user?.user_metadata?.company || '',
-      role: user?.user_metadata?.role || 'inspector'
+      fullName: user?.user_metadata?.full_name || ''
     });
 
     if (!isOpen || !user) return null;
@@ -528,9 +498,7 @@ const Header = () => {
       setLoading(true);
 
       const { error: updateError } = await updateProfile({
-        full_name: formData.fullName,
-        company: formData.company,
-        role: formData.role
+        full_name: formData.fullName
       });
 
       if (updateError) {
@@ -601,32 +569,6 @@ const Header = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
-                    <input
-                      type="text"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Nombre de tu empresa"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="inspector">Inspector</option>
-                      <option value="manager">Gerente</option>
-                      <option value="admin">Administrador</option>
-                    </select>
-                  </div>
-
                   <div className="flex space-x-3">
                     <button
                       type="submit"
@@ -654,20 +596,6 @@ const Header = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {user.user_metadata?.company || 'No especificado'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {user.user_metadata?.role || 'inspector'}
-                    </div>
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de registro</label>
                     <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                       {new Date(user.created_at).toLocaleDateString('es-ES')}
@@ -675,9 +603,6 @@ const Header = () => {
                   </div>
 
                   <button
-                    onClick={() => setEditing(true)}
-                    className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    <button
                     onClick={() => setEditing(true)}
                     className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
@@ -747,7 +672,7 @@ const Header = () => {
                         {user.user_metadata?.full_name || user.email}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {user.user_metadata?.role || 'Inspector'}
+                        Inspector
                       </div>
                     </div>
                   </button>
@@ -867,7 +792,7 @@ const InspectionApp = () => {
       { name: 'Comparendos', description: 'Consultar en www.simit.org.co y www.runt.com.co con el número de placa. Verificar multas pendientes.' },
       { name: 'Historial RUNT', description: 'Consultar en www.runt.com.co: propietarios anteriores, prendas, limitaciones, reporte de hurto.' },
       { name: 'Seguro todo riesgo', description: 'Si tiene, verificar cobertura, deducibles y vigencia. Preguntar si es transferible al nuevo propietario.' },
-      { name: 'Factura de compra', description: 'Para vehículos <10 años. Verificar autenticidad, coincidencia de datos y cadena de traspasos.' },
+      { name: 'Factura de compra', description: 'Para vehículos menores a 10 años. Verificar autenticidad, coincidencia de datos y cadena de traspasos.' },
       { name: 'Certificado de tradición', description: 'Solicitar historial completo del vehículo. Verificar cantidad de propietarios y tiempo de tenencia.' }
     ],
     'Carrocería': [
@@ -982,7 +907,6 @@ const InspectionApp = () => {
     ]
   };
 
-  // Resto de las funciones del componente principal...
   useEffect(() => {
     const initialData = {};
     Object.keys(checklistStructure).forEach(category => {
@@ -1040,9 +964,7 @@ const InspectionApp = () => {
       user: user ? { 
         id: user.id, 
         email: user.email, 
-        name: user.user_metadata?.full_name,
-        company: user.user_metadata?.company,
-        role: user.user_metadata?.role
+        name: user.user_metadata?.full_name
       } : null,
       summary: {
         totalScore,
@@ -1445,682 +1367,4 @@ const App = () => {
   );
 };
 
-export default App;// components/InspectionApp.jsx
-import React, { useState, useEffect } from 'react';
-import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff, Search, Trash2, Eye, Filter, User, LogIn, Settings, Shield, Mail, Lock, EyeOff, Loader } from 'lucide-react';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-
-// Componente Header con autenticación
-const Header = () => {
-  const { user, loading } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [showProfile, setShowProfile] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const handleAuthClick = (mode = 'login') => {
-    setAuthMode(mode);
-    setShowAuthModal(true);
-  };
-
-  const handleProfileClick = () => {
-    setShowProfile(true);
-    setShowUserMenu(false);
-  };
-
-  // Componentes de autenticación integrados dentro del Header
-  const LoginForm = ({ onToggleMode, onClose }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const { signIn } = useAuth();
-
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setError('');
-      setLoading(true);
-
-      if (!email || !password) {
-        setError('Por favor completa todos los campos');
-        setLoading(false);
-        return;
-      }
-
-      const { error: signInError } = await signIn(email, password);
-      
-      if (signInError) {
-        setError(signInError.message === 'Invalid login credentials' 
-          ? 'Credenciales incorrectas' 
-          : signInError.message);
-      } else {
-        onClose();
-      }
-      
-      setLoading(false);
-    };
-
-    return (
-      <div className="w-full max-w-md mx-auto p-6">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Iniciar Sesión</h2>
-          <p className="text-gray-600 mt-2">Accede a tu cuenta de inspecciones</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-          >
-            {loading ? (
-              <>
-                <Loader className="animate-spin mr-2" size={16} />
-                Iniciando sesión...
-              </>
-            ) : (
-              'Iniciar Sesión'
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => onToggleMode('forgot')}
-            className="text-blue-600 hover:text-blue-700 text-sm"
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-        </div>
-
-        <div className="mt-4 text-center">
-          <span className="text-gray-600 text-sm">¿No tienes cuenta? </span>
-          <button
-            onClick={() => onToggleMode('register')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Regístrate
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const RegisterForm = ({ onToggleMode, onClose }) => {
-    const [formData, setFormData] = useState({
-      fullName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      company: '',
-      role: 'inspector'
-    });
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const { signUp } = useAuth();
-
-    const handleChange = (e) => {
-      setFormData({
-        ...formData,
-        [e.target.name]: e.target.value
-      });
-    };
-
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setError('');
-      setLoading(true);
-
-      if (!formData.fullName || !formData.email || !formData.password) {
-        setError('Por favor completa todos los campos obligatorios');
-        setLoading(false);
-        return;
-      }
-
-      if (formData.password.length < 6) {
-        setError('La contraseña debe tener al menos 6 caracteres');
-        setLoading(false);
-        return;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        setError('Las contraseñas no coinciden');
-        setLoading(false);
-        return;
-      }
-
-      const { error: signUpError } = await signUp(formData.email, formData.password, {
-        fullName: formData.fullName,
-        company: formData.company,
-        role: formData.role
-      });
-      
-      if (signUpError) {
-        setError(signUpError.message === 'User already registered' 
-          ? 'Este email ya está registrado' 
-          : signUpError.message);
-      } else {
-        alert('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.');
-        onToggleMode('login');
-      }
-      
-      setLoading(false);
-    };
-
-    return (
-      <div className="w-full max-w-md mx-auto p-6">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
-          <p className="text-gray-600 mt-2">Únete a nuestra plataforma de inspecciones</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre Completo *
-            </label>
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Tu nombre completo"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="tu@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-            <input
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Nombre de tu empresa (opcional)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="inspector">Inspector</option>
-              <option value="manager">Gerente</option>
-              <option value="admin">Administrador</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña *</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
-          >
-            {loading ? (
-              <>
-                <Loader className="animate-spin mr-2" size={16} />
-                Creando cuenta...
-              </>
-            ) : (
-              'Crear Cuenta'
-            )}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <span className="text-gray-600 text-sm">¿Ya tienes cuenta? </span>
-          <button
-            onClick={() => onToggleMode('login')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Inicia sesión
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const ForgotPasswordForm = ({ onToggleMode }) => {
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [sent, setSent] = useState(false);
-    const { resetPassword } = useAuth();
-
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setError('');
-      setLoading(true);
-
-      if (!email) {
-        setError('Por favor ingresa tu email');
-        setLoading(false);
-        return;
-      }
-
-      const { error: resetError } = await resetPassword(email);
-      
-      if (resetError) {
-        setError(resetError.message);
-      } else {
-        setSent(true);
-      }
-      
-      setLoading(false);
-    };
-
-    if (sent) {
-      return (
-        <div className="w-full max-w-md mx-auto p-6 text-center">
-          <div className="mb-6">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <Mail className="text-green-600" size={24} />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900">Email Enviado</h2>
-            <p className="text-gray-600 mt-2">
-              Hemos enviado un enlace de recuperación a tu email.
-            </p>
-          </div>
-          <button
-            onClick={() => onToggleMode('login')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Volver al inicio de sesión
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-full max-w-md mx-auto p-6">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Recuperar Contraseña</h2>
-          <p className="text-gray-600 mt-2">
-            Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
-          >
-            {loading ? (
-              <>
-                <Loader className="animate-spin mr-2" size={16} />
-                Enviando...
-              </>
-            ) : (
-              'Enviar Enlace'
-            )}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => onToggleMode('login')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            Volver al inicio de sesión
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Modal de Autenticación
-  const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
-    const [mode, setMode] = useState(initialMode);
-
-    if (!isOpen) return null;
-
-    const handleToggleMode = (newMode) => {
-      setMode(newMode);
-    };
-
-    const handleClose = () => {
-      setMode('login');
-      onClose();
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto relative">
-          <button
-            onClick={handleClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
-          >
-            <X size={24} />
-          </button>
-
-          {mode === 'login' && (
-            <LoginForm 
-              onToggleMode={handleToggleMode} 
-              onClose={handleClose}
-            />
-          )}
-          
-          {mode === 'register' && (
-            <RegisterForm 
-              onToggleMode={handleToggleMode} 
-              onClose={handleClose}
-            />
-          )}
-          
-          {mode === 'forgot' && (
-            <ForgotPasswordForm 
-              onToggleMode={handleToggleMode}
-            />
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Perfil de Usuario
-  const UserProfile = ({ isOpen, onClose }) => {
-    const { user, signOut, updateProfile } = useAuth();
-    const [editing, setEditing] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [formData, setFormData] = useState({
-      fullName: user?.user_metadata?.full_name || '',
-      company: user?.user_metadata?.company || '',
-      role: user?.user_metadata?.role || 'inspector'
-    });
-
-    if (!isOpen || !user) return null;
-
-    const handleSignOut = async () => {
-      if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-        await signOut();
-        onClose();
-      }
-    };
-
-    const handleUpdateProfile = async (e) => {
-      e.preventDefault();
-      setError('');
-      setSuccess('');
-      setLoading(true);
-
-      const { error: updateError } = await updateProfile({
-        full_name: formData.fullName,
-        company: formData.company,
-        role: formData.role
-      });
-
-      if (updateError) {
-        setError(updateError.message);
-      } else {
-        setSuccess('Perfil actualizado exitosamente');
-        setEditing(false);
-      }
-
-      setLoading(false);
-    };
-
-    const handleChange = (e) => {
-      setFormData({
-        ...formData,
-        [e.target.name]: e.target.value
-      });
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Mi Perfil</h2>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-                {success}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={user.email}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                />
-              </div>
-
-              {editing ? (
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Tu nombre completo"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
-                    <input
-                      type="text"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Nombre de tu empresa"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="inspector">Inspector</option>
-                      <option value="manager">Gerente</option>
-                      <option value="admin">Administrador</option>
-                    </select>
-                  </div>
-
-                  <div className="flex space-x-3">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {loading ? 'Guardando...' : 'Guardar'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(false)}
-                      className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {user.user_metadata?.full_name || 'No especificado'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {user.user_metadata?.company || 'No especificado'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {user.user_metadata?.role || 'inspector'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de registro</label>
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                      {new Date(user.created_at).toLocaleDateString('es-ES')}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+export default App;
