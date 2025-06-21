@@ -1,4 +1,4 @@
-// data/checklistStructure.js
+// data/checklist.js
 // Estructura completa del checklist de inspección para vehículos 4x4
 
 export const checklistStructure = {
@@ -63,303 +63,123 @@ export const checklistStructure = {
     },
     { 
       name: 'Vidrios', 
-      description: 'Revisar fechas de fabricación en cada vidrio (deben ser similares). Fisuras, rajaduras o sellos despegados.' 
+      description: 'Revisar fechas de fabricación en cada vidrio (deben ser similares). Fisuras, rajaduras o sellos despegados.'
     },
     { 
-      name: 'Emblemas y molduras', 
-      description: 'Verificar que estén completos, bien fijados y sean originales. Faltantes pueden indicar repintado barato.' 
+      name: 'Gomas y sellos', 
+      description: 'Puertas, ventanas, techo: sin grietas ni desprendimientos. Mal sellado = entrada de agua.' 
     },
     { 
-      name: 'Antena', 
-      description: 'Probar funcionamiento de radio AM/FM. Verificar que se extienda/retraiga correctamente si es automática.' 
-    }
-  ],
-  'Sistema 4x4 Exterior': [
-    { 
-      name: 'Protector de cárter', 
-      description: 'Revisar debajo del motor. Buscar abolladuras, fisuras o tornillos faltantes. Indica uso todoterreno severo.' 
-    },
-    { 
-      name: 'Estribos', 
-      description: 'Verificar firmeza moviendo con fuerza. Revisar oxidación en puntos de anclaje al chasis.' 
-    },
-    { 
-      name: 'Ganchos de remolque', 
-      description: 'Delanteros: generalmente tras tapa en paragolpes. Traseros: bajo el vehículo. Verificar que no estén doblados.' 
-    },
-    { 
-      name: 'Snorkel', 
-      description: 'Si tiene: verificar sellado en unión con carrocería y entrada de aire. Manguera sin grietas hasta el filtro.' 
-    },
-    { 
-      name: 'Protectores de farolas', 
-      description: 'Si tiene: verificar montaje firme, sin vibración. Bisagras y seguros funcionales.' 
-    }
-  ],
-  'Luces': [
-    { 
-      name: 'Farolas principales', 
-      description: 'Probar luces altas y bajas. Verificar alcance del haz de luz (30-50m en bajas, 100m en altas).' 
-    },
-    { 
-      name: 'Exploradoras', 
-      description: 'Si tiene: encender y verificar orientación. No deben vibrar con el motor encendido.' 
-    },
-    { 
-      name: 'Luces de posición', 
-      description: 'Todas deben funcionar: delanteras (blancas), traseras (rojas), laterales (naranjas en USA).' 
-    },
-    { 
-      name: 'Direccionales', 
-      description: 'Probar las 4 esquinas + laterales. Frecuencia de parpadeo: 60-120 veces/minuto.' 
-    },
-    { 
-      name: 'Luces de freno', 
-      description: 'Pedir ayuda para verificar. Las 3 deben encender simultáneamente al pisar el freno.' 
-    },
-    { 
-      name: 'Luces de reversa', 
-      description: 'Ambas deben encender en reversa. Luz blanca brillante, no amarillenta.' 
-    },
-    { 
-      name: 'Luz de placa', 
-      description: 'Debe iluminar claramente la placa trasera. Generalmente son 2 pequeñas luces blancas.' 
-    },
-    { 
-      name: 'Luces antiniebla', 
-      description: 'Delanteras: luz amarilla o blanca baja. Traseras: luz roja intensa. Verificar interruptores.' 
-    }
-  ],
-  'Llantas y Suspensión': [
-    { 
-      name: 'Profundidad del labrado', 
-      description: 'Usar moneda de $100 en las ranuras principales. Si se ve toda la cara dorada = cambiar. Mínimo legal: 1.6mm.' 
-    },
-    { 
-      name: 'Desgaste uniforme', 
-      description: 'Pasar la mano por toda la banda. Desgaste en bordes = problemas de alineación. Centro = sobrepresión.' 
-    },
-    { 
-      name: 'Presión de aire', 
-      description: 'Verificar con manómetro. Generalmente 32-35 PSI. Ver etiqueta en marco de puerta del conductor.' 
-    },
-    { 
-      name: 'Fecha de fabricación', 
-      description: 'Buscar código DOT en costado: últimos 4 dígitos (semana y año). Ej: 2419 = semana 24 del 2019.' 
-    },
-    { 
-      name: 'Marca y modelo uniformes', 
-      description: 'Ideal: 4 llantas iguales. Mínimo: iguales por eje. Diferentes modelos afectan el 4x4.' 
-    },
-    { 
-      name: 'Llanta de repuesto', 
-      description: 'Ubicación: bajo el vehículo o en la puerta trasera. Verificar estado, presión y que sea del mismo tamaño.' 
-    },
-    { 
-      name: 'Rines', 
-      description: 'Girar llanta y buscar: fisuras en rayos, reparaciones (soldaduras), oxidación en la pestaña.' 
-    },
-    { 
-      name: 'Amortiguadores', 
-      description: 'Buscar manchas de aceite en el vástago. Presionar cada esquina: debe rebotar solo una vez.' 
-    },
-    { 
-      name: 'Espirales/muelles', 
-      description: 'Verificar con linterna: sin fracturas, óxido excesivo o espiras juntas. Altura uniforme lado a lado.' 
-    },
-    { 
-      name: 'Bujes de suspensión', 
-      description: 'Goma en puntos de unión brazos-chasis. Buscar grietas, desprendimiento o ausencia de material.' 
-    }
-  ],
-  'Interior': [
-    { 
-      name: 'Asientos', 
-      description: 'Revisar: rasgaduras, funcionamiento de ajustes eléctricos/manuales, rieles sin óxido, anclajes firmes.' 
-    },
-    { 
-      name: 'Cinturones de seguridad', 
-      description: 'Tirar fuerte de cada cinturón. Debe trabar. Revisar deshilachado, hebillas, retracción automática.' 
-    },
-    { 
-      name: 'Tapicería techo', 
-      description: 'Buscar manchas de agua (filtración), desprendimientos en esquinas, olor a humedad.' 
-    },
-    { 
-      name: 'Alfombras', 
-      description: 'Levantar todas las alfombras. Buscar: óxido, humedad, cables sueltos, reparaciones en el piso.' 
-    },
-    { 
-      name: 'Pedales', 
-      description: 'Desgaste debe corresponder al kilometraje. 50.000km = desgaste leve. Pedales nuevos en km alto = sospechoso.' 
-    },
-    { 
-      name: 'Volante', 
-      description: 'Girar completamente. Sin juego excesivo (max 2cm). Desgaste en zona de agarre acorde al km.' 
-    },
-    { 
-      name: 'Palanca de cambios', 
-      description: 'Mover en todas las posiciones. Sin juego lateral excesivo. Funda sin roturas.' 
-    },
-    { 
-      name: 'Palanca 4x4', 
-      description: 'Debe moverse con firmeza pero sin fuerza excesiva. Posiciones claramente definidas: 2H-4H-N-4L.' 
-    },
-    { 
-      name: 'Freno de mano', 
-      description: 'Debe sostener el vehículo en pendiente al 4to-6to clic. Cable no debe estar muy tenso ni flojo.' 
-    },
-    { 
-      name: 'Tablero', 
-      description: 'Encender switch sin arrancar: todas las luces deben prender y apagar. Sin pixeles muertos en pantallas.' 
-    },
-    { 
-      name: 'Odómetro', 
-      description: 'Comparar con desgaste general. 20.000km/año promedio. Números alineados, sin manipulación evidente.' 
+      name: 'Chromados y plásticos', 
+      description: 'Sin descoloramiento, fisuras o desprendimientos. Costo de reposición puede ser alto.' 
     }
   ],
   'Motor': [
     { 
-      name: 'Limpieza general', 
-      description: 'Motor moderadamente sucio es normal. Excesivamente limpio = sospechoso (oculta fugas). Muy sucio = mal mantenimiento.' 
+      name: 'Ruidos anormales', 
+      description: 'En ralentí y aceleración. Golpeteos, silbidos o ruidos metálicos = problemas internos.' 
     },
     { 
-      name: 'Fugas de aceite', 
-      description: 'Revisar: tapa válvulas, carter, retenes de cigüeñal. Manchas frescas vs secas. Goteo activo = problema.' 
+      name: 'Vibraciones', 
+      description: 'Motor en ralentí debe ser suave. Vibraciones = soportes dañados o problemas internos.' 
     },
     { 
-      name: 'Fugas de refrigerante', 
-      description: 'Color verde/rosa/naranja. Revisar: radiador, mangueras, bomba de agua, tapa de radiador.' 
+      name: 'Humo del escape', 
+      description: 'Azul = consume aceite. Blanco = anticongelante. Negro = mezcla rica. Solo vapor de agua es normal.' 
     },
     { 
-      name: 'Nivel de aceite', 
-      description: 'Motor frío, varilla limpia. Entre mínimo y máximo. Color negro/marrón normal. Lechoso = mezcla con refrigerante.' 
+      name: 'Niveles de fluidos', 
+      description: 'Aceite motor, anticongelante, líquido frenos, dirección. Color y consistencia normales.' 
     },
     { 
-      name: 'Color del aceite', 
-      description: 'Ámbar/negro = normal. Lechoso = refrigerante mezclado. Muy negro + grumos = cambio urgente.' 
+      name: 'Fugas visibles', 
+      description: 'Bajo vehículo estacionado. Manchas de aceite, anticongelante o combustible.' 
     },
     { 
-      name: 'Nivel refrigerante', 
-      description: 'En reservorio: entre MIN/MAX. En radiador (frío): hasta el cuello. Color claro, sin residuos flotantes.' 
+      name: 'Correa de distribución', 
+      description: 'Si es de correa: revisar fecha de cambio. Ruptura = motor destruido en motores interferentes.' 
     },
     { 
-      name: 'Nivel líquido de frenos', 
-      description: 'En reservorio del master. Entre MIN/MAX. Color claro/amarillento. Negro = cambio urgente.' 
-    },
-    { 
-      name: 'Nivel líquido dirección', 
-      description: 'Motor encendido, volante centrado. Entre MIN/MAX. Color rojizo normal. Negro/quemado = problema.' 
-    },
-    { 
-      name: 'Filtro de aire', 
-      description: 'Abrir caja filtro. Elemento blanco/amarillento = bueno. Negro/aceitoso = cambio. Verificar sellos.' 
+      name: 'Filtros', 
+      description: 'Aire, aceite, combustible: estado y fecha de cambio. Filtros sucios afectan rendimiento.' 
     },
     { 
       name: 'Batería', 
-      description: 'Terminales sin corrosión (polvo blanco/verde). Líquido entre marcas. Caja sin fisuras. Verificar fijación.' 
+      description: 'Voltaje correcto, bornes limpios, sin hinchazón o corrosión. Arranque inmediato.' 
     },
     { 
-      name: 'Correas', 
-      description: 'Sin grietas, deshilachado o sonidos chirriantes. Tensión: presionar centro, ceder máximo 1cm.' 
+      name: 'Sistema de refrigeración', 
+      description: 'Radiador, mangueras, electro-ventilador. Sin fugas ni sobrecalentamiento.' 
     },
     { 
-      name: 'Mangueras', 
-      description: 'Radiador, calefacción. Sin grietas, abombamientos o goteos. Verificar abrazaderas apretadas.' 
-    },
-    { 
-      name: 'Funcionamiento en ralentí', 
-      description: 'Motor encendido en P/N. RPM estables (600-900). Sin vibraciones excesivas ni ruidos metálicos.' 
-    },
-    { 
-      name: 'Aceleración en neutro', 
-      description: 'Acelerar suavemente. Respuesta inmediata, sin humo negro/azul/blanco excesivo del escape.' 
-    },
-    { 
-      name: 'Temperatura de operación', 
-      description: 'Motor caliente: indicador en zona normal (centro). Ventilador debe encender. Sin sobrecalentamiento.' 
+      name: 'Arranque y ralentí', 
+      description: 'Arranque inmediato en frío y caliente. Ralentí estable sin fluctuaciones.' 
     }
   ],
   'Transmisión': [
     { 
-      name: 'Nivel aceite transmisión', 
-      description: 'Motor encendido, transmisión caliente, en P. Varilla entre MIN/MAX. Color rojizo normal.' 
+      name: 'Cambios de marcha', 
+      description: 'Manual: entra suave, sin rechazar. Automática: cambios imperceptibles sin tirones.' 
     },
     { 
-      name: 'Color aceite transmisión', 
-      description: 'Rojizo/marrón = bueno. Negro/quemado = cambio urgente. Olor dulce normal, quemado = problema.' 
+      name: 'Ruidos en transmisión', 
+      description: 'Sin ruidos en punto muerto o al cambiar. Ruidos = desgaste interno.' 
     },
     { 
-      name: 'Funcionamiento en P', 
-      description: 'Vehículo debe mantenerse fijo en pendiente. Palanca con resistencia normal al mover.' 
+      name: 'Embrague (manual)', 
+      description: 'Punto de agarre correcto, sin deslizamiento, pedal sin dureza excesiva.' 
     },
     { 
-      name: 'Entrada a R', 
-      description: 'Cambio suave, sin golpes. Vehículo debe moverse hacia atrás inmediatamente.' 
+      name: 'Fugas de aceite', 
+      description: 'Revisar bajo caja de cambios. Nivel correcto, aceite limpio.' 
     },
     { 
-      name: 'Entrada a D', 
-      description: 'Engagement suave. Movimiento hacia adelante inmediato sin aceleración.' 
-    },
-    { 
-      name: 'Cambio 1ra a 2da', 
-      description: 'Acelerar gradualmente. Cambio entre 2000-3000 RPM. Sin tirones ni golpes.' 
-    },
-    { 
-      name: 'Cambio 2da a 3ra', 
-      description: 'Aceleración continua. Cambio suave y en tiempo correcto según velocidad.' 
-    },
-    { 
-      name: 'Overdrive (4ta)', 
-      description: 'Se debe activar automáticamente en velocidad crucero. Botón O/D funcional.' 
+      name: 'Aceleración', 
+      description: 'Respuesta inmediata, sin tirones ni pérdida de potencia.' 
     }
   ],
-  'Frenos': [
+  'Suspensión y Frenos': [
+    { 
+      name: 'Amortiguadores', 
+      description: 'Prueba de rebote: debe estabilizarse en máximo 2 oscilaciones. Sin fugas de aceite.' 
+    },
+    { 
+      name: 'Resortes', 
+      description: 'Altura uniforme, sin deformaciones. Vehículo nivelado sin inclinaciones.' 
+    },
+    { 
+      name: 'Rótulas y terminales', 
+      description: 'Sin juego excesivo. Mover rueda arriba-abajo y izquierda-derecha.' 
+    },
+    { 
+      name: 'Pastillas y discos', 
+      description: 'Grosor suficiente, sin cristalizaciones o rayas profundas en discos.' 
+    },
     { 
       name: 'Pedal de freno', 
-      description: 'No debe ir hasta el piso. Recorrido firme, sin esponjosidad. Altura normal.' 
+      description: 'Firme, sin ir al fondo. Frenada uniforme sin tirar hacia un lado.' 
     },
     { 
-      name: 'Eficiencia de frenado', 
-      description: 'Frenar en línea recta a 30km/h. Parada corta, sin desviación lateral.' 
+      name: 'Freno de parqueo', 
+      description: 'Debe sostener vehículo en pendiente. Ajuste correcto.' 
     },
     { 
-      name: 'Ruido al frenar', 
-      description: 'Sin chirridos, rechinar o ruidos metálicos. Ligero silbido puede ser normal.' 
+      name: 'Líquido de frenos', 
+      description: 'Nivel correcto, color claro. Sin burbujas de aire en el sistema.' 
     },
     { 
-      name: 'Vibración en pedal', 
-      description: 'Sin vibración al frenar. Vibración = discos alabeados o pastillas irregulares.' 
-    },
-    { 
-      name: 'Pastillas delanteras', 
-      description: 'Ver a través de los rayos del rin. Mínimo 3mm de material. Sin cristalización.' 
-    },
-    { 
-      name: 'Pastillas traseras', 
-      description: 'Misma verificación. En tambores: revisar por el agujero de inspección si lo tiene.' 
-    },
-    { 
-      name: 'Discos de freno', 
-      description: 'Superficie lisa, sin ranuras profundas. Espesor uniforme. Sin puntos azules (sobrecalentamiento).' 
-    },
-    { 
-      name: 'Mangueras de freno', 
-      description: 'Goma flexible sin grietas o abombamientos. Conexiones sin fugas.' 
+      name: 'Llantas', 
+      description: 'Desgaste uniforme, profundidad mínima 1.6mm, sin grietas laterales.' 
     }
   ],
   'Dirección': [
     { 
-      name: 'Juego del volante', 
-      description: 'Motor encendido, ruedas rectas. Mover volante suavemente: juego máximo 2cm antes de que giren las ruedas.' 
+      name: 'Juego en volante', 
+      description: 'Máximo 2cm de juego antes de que respondan las ruedas.' 
     },
     { 
-      name: 'Esfuerzo de giro', 
-      description: 'Girar volante con vehículo detenido. Debe ser suave con dirección asistida.' 
-    },
-    { 
-      name: 'Centrado del volante', 
-      description: 'En línea recta, volante centrado. Si está descentrado = problemas de alineación.' 
+      name: 'Esfuerzo de dirección', 
+      description: 'Suave sin ruidos. No debe requerir esfuerzo excesivo.' 
     },
     { 
       name: 'Retorno del volante', 
@@ -406,6 +226,54 @@ export const checklistStructure = {
     { 
       name: 'Regreso a 2WD', 
       description: 'Seguir manual del vehículo. Generalmente en movimiento para 4H a 2H. Sin quedarse trabado en 4WD.' 
+    }
+  ],
+  'Interior': [
+    { 
+      name: 'Asientos', 
+      description: 'Sin desgarros, funcionamiento eléctrico, ajustes manuales operativos.' 
+    },
+    { 
+      name: 'Tablero de instrumentos', 
+      description: 'Todas las luces funcionando, sin códigos de error, velocímetro preciso.' 
+    },
+    { 
+      name: 'Aire acondicionado', 
+      description: 'Enfría adecuadamente, sin ruidos, filtros limpios, sin olores.' 
+    },
+    { 
+      name: 'Sistemas eléctricos', 
+      description: 'Radio, luces, elevavidrios, seguros eléctricos funcionando.' 
+    },
+    { 
+      name: 'Alfombras y tapicería', 
+      description: 'Sin desgaste excesivo, manchas permanentes o daños.' 
+    }
+  ],
+  'Elementos de Seguridad': [
+    { 
+      name: 'Luces', 
+      description: 'Todas funcionando: bajas, altas, stop, direccionales, reversa, emergencia.' 
+    },
+    { 
+      name: 'Pito/Bocina', 
+      description: 'Sonido claro y fuerte. Funcionamiento correcto.' 
+    },
+    { 
+      name: 'Espejos', 
+      description: 'Sin rajaduras, ajuste correcto, eléctricos funcionando si los tiene.' 
+    },
+    { 
+      name: 'Limpiabrisas', 
+      description: 'Gomas sin desgaste, motores funcionando, limpia uniformemente.' 
+    },
+    { 
+      name: 'Cinturones de seguridad', 
+      description: 'Todos los asientos, sin desgaste, mecanismo de bloqueo operativo.' 
+    },
+    { 
+      name: 'Airbags', 
+      description: 'Luz de airbag debe apagar tras arranque. Sin luz de error.' 
     }
   ]
 };

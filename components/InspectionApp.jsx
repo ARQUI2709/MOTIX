@@ -24,7 +24,7 @@ import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklist';
-import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
+import { generatePDFReport, generateJSONReport } from '../utils/ReportGenerator';
 
 const InspectionApp = () => {
   const { user } = useAuth();
