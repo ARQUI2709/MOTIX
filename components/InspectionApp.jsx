@@ -147,7 +147,7 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
 };
 
 const InspectionApp = () => {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading } = useAuth(); // Agregar session aquí
   
   // Estados principales
   const [currentView, setCurrentView] = useState('inspection');
@@ -336,9 +336,9 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para guardar inspección - CORREGIDA PARA USAR API
+  // Función para guardar inspección - CORREGIDA PARA USAR TOKEN DE SESIÓN
   const handleSaveInspection = async () => {
-    if (!user) {
+    if (!user || !session) {
       alert('Debe estar autenticado para guardar inspecciones');
       return;
     }
@@ -362,12 +362,12 @@ const InspectionApp = () => {
 
       console.log('Saving inspection:', inspectionRecord);
 
-      // USAR NUESTRA API EN LUGAR DE SUPABASE DIRECTAMENTE
+      // USAR EL TOKEN DE LA SESIÓN EN LUGAR DE user.access_token
       const response = await fetch('/api/inspections', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}` // Usar el token del usuario
+          'Authorization': `Bearer ${session.access_token}` // Usar session.access_token
         },
         body: JSON.stringify(inspectionRecord)
       });
