@@ -1,35 +1,37 @@
 // components/InspectionApp.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  Download, 
-  RefreshCw, 
-  Star, 
-  StarOff, 
-  Camera, 
-  X, 
-  Menu,
-  AlertCircle,
-  Info,
-  Home,
-  FolderOpen,
-  Wifi,
-  WifiOff,
-  Upload,
-  FileText,
-  Share2
-} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
-import { generatePDFReport, generateJSONReport } from '../utils/ReportGenerator';
 
-// Resto del código permanece exactamente igual...
 const InspectionApp = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [showLanding, setShowLanding] = useState(true);
+  const [showInspectionManager, setShowInspectionManager] = useState(false);
   
+    // Si el usuario está autenticado, no mostrar landing
+  useEffect(() => {
+    if (user && showLanding) {
+      setShowLanding(false);
+    }
+  }, [user, showLanding]);
+  
+  // Renderizado condicional para diferentes vistas
+  if (showLanding && !user) {
+    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
+  }
+
+  // Si está cargando la autenticación
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   // Estados principales
   const [showLanding, setShowLanding] = useState(false);
   const [showInspectionManager, setShowInspectionManager] = useState(false);
