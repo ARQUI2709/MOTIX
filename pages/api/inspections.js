@@ -1,4 +1,4 @@
-// pages/api/inspections.js
+// pages/api/inspections.js - VERSIÓN MEJORADA
 import { supabase } from '../../lib/supabase'
 
 export default async function handler(req, res) {
@@ -22,13 +22,25 @@ export default async function handler(req, res) {
     let userId = null
 
     if (token) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-      if (!authError && user) {
-        userId = user.id
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        if (!authError && user) {
+          userId = user.id
+        }
+      } catch (authErr) {
+        console.error('Auth error:', authErr)
       }
     }
 
     if (req.method === 'POST') {
+      // Validar autenticación
+      if (!userId) {
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Autenticación requerida para guardar inspecciones' 
+        })
+      }
+
       // Validar que hay datos en el body
       if (!req.body) {
         return res.status(400).json({ 
@@ -37,56 +49,103 @@ export default async function handler(req, res) {
         })
       }
 
-      // Extraer y validar datos requeridos
-      const { vehicle_info, inspection_data, photos, total_score, total_repair_cost } = req.body
+      // Extraer datos del body
+      const { 
+        vehicle_info, 
+        inspection_data, 
+        photos, 
+        total_score, 
+        total_repair_cost, 
+        completed_items 
+      } = req.body
 
       // Validación básica
-      if (!vehicle_info) {
+      if (!vehicle_info || typeof vehicle_info !== 'object') {
         return res.status(400).json({ 
           success: false, 
-          error: 'Información del vehículo es requerida' 
+          error: 'Información del vehículo es requerida y debe ser un objeto' 
         })
       }
 
-      // Preparar datos para insertar con valores por defecto
-      const inspectionData = {
+      if (!inspection_data || typeof inspection_data !== 'object') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Datos de inspección son requeridos' 
+        })
+      }
+
+      // Preparar datos para insertar con validación
+      const inspectionRecord = {
+        user_id: userId,
         vehicle_info: vehicle_info || {},
         inspection_data: inspection_data || {},
         photos: photos || {},
-        total_score: total_score || 0,
-        total_repair_cost: total_repair_cost || 0,
-        user_id: userId,
+        total_score: parseFloat(total_score) || 0,
+        total_repair_cost: parseFloat(total_repair_cost) || 0,
+        completed_items: parseInt(completed_items) || 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
-      console.log('Intentando insertar:', {
+      console.log('Intentando insertar inspección:', {
         user_id: userId,
-        vehicle_info_keys: Object.keys(vehicle_info || {}),
-        inspection_data_keys: Object.keys(inspection_data || {}),
-        photos_keys: Object.keys(photos || {}),
-        total_score,
-        total_repair_cost
+        vehicle_info: !!vehicle_info,
+        inspection_data_categories: Object.keys(inspection_data || {}),
+        photos_count: Object.keys(photos || {}).length,
+        total_score: inspectionRecord.total_score,
+        total_repair_cost: inspectionRecord.total_repair_cost,
+        completed_items: inspectionRecord.completed_items
       })
 
+      // Intentar insertar en la base de datos
       const { data, error } = await supabase
         .from('inspections')
-        .insert([inspectionData])
+        .insert([inspectionRecord])
         .select()
+        .single()
 
       if (error) {
-        console.error('Supabase insert error:', error)
+        console.error('Error de Supabase al insertar:', error)
+        
+        // Manejar errores específicos
+        if (error.code === '42P01') {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'La tabla de inspecciones no existe. Por favor contacta al administrador.',
+            code: 'TABLE_NOT_EXISTS'
+          })
+        }
+        
+        if (error.code === '42703') {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Faltan campos en la tabla de base de datos. Por favor contacta al administrador.',
+            code: 'COLUMN_NOT_EXISTS',
+            details: error.message
+          })
+        }
+
+        if (error.code === '23505') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Ya existe una inspección con estos datos',
+            code: 'DUPLICATE_ENTRY'
+          })
+        }
+
         return res.status(500).json({ 
           success: false, 
           error: `Error de base de datos: ${error.message}`,
+          code: error.code || 'DATABASE_ERROR',
           details: error.details || 'Sin detalles adicionales'
         })
       }
 
-      console.log('Inspección creada exitosamente:', data)
+      console.log('Inspección creada exitosamente:', data?.id)
       res.status(200).json({ success: true, data })
     } 
     else if (req.method === 'GET') {
+      // Obtener inspecciones
       let query = supabase
         .from('inspections')
         .select('*')
@@ -97,29 +156,40 @@ export default async function handler(req, res) {
         query = query.eq('user_id', userId)
       }
 
-      // Limitar resultados
-      query = query.limit(50)
+      // Limitar resultados para evitar sobrecarga
+      query = query.limit(100)
 
       const { data, error } = await query
 
       if (error) {
-        console.error('Supabase select error:', error)
+        console.error('Error al obtener inspecciones:', error)
+        
+        if (error.code === '42P01') {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'La tabla de inspecciones no existe',
+            code: 'TABLE_NOT_EXISTS'
+          })
+        }
+
         return res.status(500).json({ 
           success: false, 
-          error: `Error al obtener inspecciones: ${error.message}` 
+          error: `Error al obtener inspecciones: ${error.message}`,
+          code: error.code || 'DATABASE_ERROR'
         })
       }
 
-      res.status(200).json({ success: true, data })
+      res.status(200).json({ success: true, data: data || [] })
     } 
     else {
       res.status(405).json({ success: false, error: 'Método no permitido' })
     }
   } catch (error) {
-    console.error('API Error completo:', error)
+    console.error('Error general en API:', error)
     res.status(500).json({ 
       success: false, 
-      error: error.message || 'Error interno del servidor',
+      error: 'Error interno del servidor',
+      message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
