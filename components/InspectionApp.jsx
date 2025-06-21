@@ -1,7 +1,134 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff, Search, Trash2, Eye, Filter } from 'lucide-react';
+// Header con Autenticación
+const Header = () => {
+  const { user, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [showProfile, setShowProfile] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const handleAuthClick = (mode = 'login') => {
+    setAuthMode(mode);
+    setShowAuthModal(true);
+  };
+
+  const handleProfileClick = () => {
+    setShowProfile(true);
+    setShowUserMenu(false);
+  };
+
+  if (loading) {
+    return (
+      <header className="bg-white shadow-lg border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">
+                Inspección de Vehículos 4x4
+              </h1>
+            </div>
+            <div className="animate-pulse">
+              <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  return (
+    <>
+      <header className="bg-white shadow-lg border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Shield className="h-8 w-8 text-blue-600 mr-3" />
+              <h1 className="text-xl font-bold text-gray-900">
+                Inspección de Vehículos 4x4
+              </h1>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"
+                  >
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="hidden md:block text-left">
+                      <div className="text-sm font-medium">
+                        {user.user_metadata?.full_name || user.email}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {user.user_metadata?.role || 'Inspector'}
+                      </div>
+                    </div>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                      <button
+                        onClick={handleProfileClick}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Mi Perfil
+                      </button>
+                      <div className="border-t border-gray-100"></div>
+                      <div className="px-4 py-2 text-xs text-gray-500">
+                        {user.email}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleAuthClick('login')}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                  >
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Iniciar Sesión
+                  </button>
+                  <button
+                    onClick={() => handleAuthClick('register')}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+                  >
+                    Registrarse
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {showUserMenu && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowUserMenu(false)}
+          ></div>
+        )}
+      </header>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialMode={authMode}
+      />
+
+      <UserProfile
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+      />
+    </>
+  );
+};
+
+// Componente principal de la aplicación con autenticación integrada
 const InspectionApp = () => {
+  const { user, session } = useAuth();
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
@@ -114,37 +241,55 @@ const InspectionApp = () => {
       { name: 'Limpieza general', description: 'Motor moderadamente sucio es normal. Excesivamente limpio = sospechoso (oculta fugas). Muy sucio = mal mantenimiento.' },
       { name: 'Fugas de aceite', description: 'Revisar: tapa válvulas, carter, retenes de cigüeñal. Manchas frescas vs secas. Goteo activo = problema.' },
       { name: 'Fugas de refrigerante', description: 'Color verde/rosa/naranja. Revisar: radiador, mangueras, bomba de agua, tapa de radiador.' },
-      { name: 'Correas', description: 'Presionar con el pulgar: debe ceder 1-2cm. Sin grietas, deshilachado o brillo excesivo (patinaje).' },
-      { name: 'Mangueras', description: 'Apretar suavemente: deben ser flexibles, no rígidas ni muy blandas. Sin grietas o abultamientos.' },
-      { name: 'Batería', description: 'Bornes sin sulfato blanco/verde. Fecha de fabricación <3 años. Nivel de agua (si no es sellada).' },
-      { name: 'Cableado', description: 'Sin empalmes con cinta aislante, cables pelados o conectores improvisados. Arnés original intacto.' },
-      { name: 'Soportes de motor', description: 'Gomas entre motor y chasis. Buscar grietas, desprendimiento o exceso de movimiento al acelerar.' },
-      { name: 'Nivel de aceite', description: 'Motor frío: entre MIN y MAX. Color miel claro a marrón. Negro = cambio vencido. Lechoso = contamina refrigerante.' },
-      { name: 'Nivel refrigerante', description: 'Motor frío: verificar en radiador y depósito. Nivel entre MIN-MAX. Color uniforme, no marrón (óxido).' },
-      { name: 'Líquido de frenos', description: 'Depósito cerca del firewall. Transparente o amarillo claro. Oscuro = humedad, cambio necesario.' }
+      { name: 'Nivel de aceite', description: 'Motor frío, varilla limpia. Entre mínimo y máximo. Color negro/marrón normal. Lechoso = mezcla con refrigerante.' },
+      { name: 'Color del aceite', description: 'Ámbar/negro = normal. Lechoso = refrigerante mezclado. Muy negro + grumos = cambio urgente.' },
+      { name: 'Nivel refrigerante', description: 'En reservorio: entre MIN/MAX. En radiador (frío): hasta el cuello. Color claro, sin residuos flotantes.' },
+      { name: 'Nivel líquido de frenos', description: 'En reservorio del master. Entre MIN/MAX. Color claro/amarillento. Negro = cambio urgente.' },
+      { name: 'Nivel líquido dirección', description: 'Motor encendido, volante centrado. Entre MIN/MAX. Color rojizo normal. Negro/quemado = problema.' },
+      { name: 'Filtro de aire', description: 'Abrir caja filtro. Elemento blanco/amarillento = bueno. Negro/aceitoso = cambio. Verificar sellos.' },
+      { name: 'Batería', description: 'Terminales sin corrosión (polvo blanco/verde). Líquido entre marcas. Caja sin fisuras. Verificar fijación.' },
+      { name: 'Correas', description: 'Sin grietas, deshilachado o sonidos chirriantes. Tensión: presionar centro, ceder máximo 1cm.' },
+      { name: 'Mangueras', description: 'Radiador, calefacción. Sin grietas, abombamientos o goteos. Verificar abrazaderas apretadas.' },
+      { name: 'Funcionamiento en ralentí', description: 'Motor encendido en P/N. RPM estables (600-900). Sin vibraciones excesivas ni ruidos metálicos.' },
+      { name: 'Aceleración en neutro', description: 'Acelerar suavemente. Respuesta inmediata, sin humo negro/azul/blanco excesivo del escape.' },
+      { name: 'Temperatura de operación', description: 'Motor caliente: indicador en zona normal (centro). Ventilador debe encender. Sin sobrecalentamiento.' }
     ],
-    'Debajo del Vehículo': [
-      { name: 'Chasis', description: 'Usar linterna potente. Buscar: dobleces, soldaduras no originales, óxido perforante en largueros principales.' },
-      { name: 'Óxido estructural', description: 'Golpear suavemente con destornillador zonas oxidadas. Si se perfora = problema grave. Revisar uniones.' },
-      { name: 'Sistema de escape', description: 'Desde el motor hasta la salida. Sin perforaciones, parches, abrazaderas improvisadas. Soportes firmes.' },
-      { name: 'Caja de cambios', description: 'Buscar fugas en sellos y tapones. Manual: goteo leve normal. Automática: sin fugas, ATF rojo no marrón.' },
-      { name: 'Caja de transferencia', description: 'Componente clave 4x4. Sin fugas en sellos de entrada/salida. Palanca de accionamiento sin juego excesivo.' },
-      { name: 'Diferencial delantero', description: 'Centro del eje delantero. Revisar: fugas en piñón, tapa y palieres. Respiradero no obstruido.' },
-      { name: 'Diferencial trasero', description: 'Similar al delantero pero más grande. Nivel de aceite por tapón lateral. Sin zumbidos al girar ruedas.' },
-      { name: 'Cardanes', description: 'Ejes que conectan caja con diferenciales. Buscar juego en crucetas moviendo con la mano. Sin vibraciones.' },
-      { name: 'Crucetas', description: 'Uniones universales en cardanes. Mover en todas direcciones: sin juego ni ruidos. Engraseras con grasa fresca.' },
-      { name: 'Discos de freno', description: 'Medir grosor con calibrador o visual. Sin ranuras profundas, grietas o labio excesivo en el borde.' },
-      { name: 'Líneas de freno', description: 'Tubos metálicos y mangueras flexibles. Sin corrosión, aplastamiento o fugas. Flexibles sin grietas.' }
+    'Transmisión': [
+      { name: 'Nivel aceite transmisión', description: 'Motor encendido, transmisión caliente, en P. Varilla entre MIN/MAX. Color rojizo normal.' },
+      { name: 'Color aceite transmisión', description: 'Rojizo/marrón = bueno. Negro/quemado = cambio urgente. Olor dulce normal, quemado = problema.' },
+      { name: 'Funcionamiento en P', description: 'Vehículo debe mantenerse fijo en pendiente. Palanca con resistencia normal al mover.' },
+      { name: 'Entrada a R', description: 'Cambio suave, sin golpes. Vehículo debe moverse hacia atrás inmediatamente.' },
+      { name: 'Entrada a D', description: 'Engagement suave. Movimiento hacia adelante inmediato sin aceleración.' },
+      { name: 'Cambio 1ra a 2da', description: 'Acelerar gradualmente. Cambio entre 2000-3000 RPM. Sin tirones ni golpes.' },
+      { name: 'Cambio 2da a 3ra', description: 'Cambio suave alrededor de 3000 RPM. Sin patinamiento ni demora excesiva.' },
+      { name: 'Kick-down', description: 'Acelerar a fondo desde velocidad constante. Debe reducir cambio y acelerar fuertemente.' },
+      { name: 'Freno motor', description: 'Soltar acelerador en subida. Transmisión debe ayudar a frenar, sin punto muerto.' }
     ],
-    'Prueba de Manejo': [
-      { name: 'Arranque del motor', description: 'Debe arrancar al primer intento en frío. Sin ruidos metálicos, cascabeleo o humo excesivo.' },
-      { name: 'Ralentí estable', description: 'RPM entre 750-900 sin fluctuaciones. Sin vibraciones anormales. Motor no debe apagarse.' },
-      { name: 'Aceleración', description: 'Progresiva sin tirones, humo negro (diesel) o pérdida de potencia. Respuesta inmediata al acelerador.' },
-      { name: 'Cambios de marcha', description: 'Manual: sin ruidos, entra fácil. Automática: cambios suaves sin golpes o demoras. Sin patinaje.' },
-      { name: 'Frenos', description: 'Probar a 40km/h: frenado recto sin tirarse a un lado. Pedal firme, no esponjoso ni va al fondo.' },
-      { name: 'Dirección', description: 'Centrada en recta. Retorna sola tras curvas. Sin ruidos o vibraciones. Giro completo sin toques.' },
-      { name: 'Suspensión en marcha', description: 'Pasar por baches: sin ruidos metálicos, golpes secos o rebotes excesivos. Estable en curvas.' },
-      { name: 'Cambio a 4H', description: 'En movimiento <60km/h. Debe entrar sin ruidos fuertes. Luz 4WD encendida. Sin vibraciones nuevas.' },
+    'Frenos': [
+      { name: 'Recorrido del pedal', description: 'Pedal firme, recorrido máximo 1/3 hacia el piso. Sin llegar al fondo con presión normal.' },
+      { name: 'Firmeza del pedal', description: 'Mantener presión 30 segundos. Pedal no debe hundirse gradualmente.' },
+      { name: 'Frenado en línea recta', description: 'A 30 km/h frenar progresivamente. Vehículo debe mantenerse recto sin tirar a un lado.' },
+      { name: 'Freno de mano eficacia', description: 'Debe sostener vehículo en pendiente entre 4to-6to clic. Sin llegar al final del recorrido.' },
+      { name: 'Ruidos al frenar', description: 'Frenar desde diferentes velocidades. Sin chirridos agudos (pastillas gastadas) ni ruidos metálicos.' },
+      { name: 'Vibración en frenado', description: 'Frenar desde 60 km/h. Volante y pedal no deben vibrar (discos deformados).' },
+      { name: 'Pastillas delanteras', description: 'Mirar a través de los rines. Espesor mínimo 3mm. Sin cristales (sobrecalentamiento).' },
+      { name: 'Discos delanteros', description: 'Superficie lisa, sin rayones profundos o escalones en el borde. Color uniforme.' },
+      { name: 'Pastillas traseras', description: 'Si son visibles, verificar espesor. En tambores, revisar si hay polvo excesivo.' },
+      { name: 'Líneas de freno', description: 'Mangueras sin grietas, abombamientos o goteos. Líneas metálicas sin corrosión.' }
+    ],
+    'Dirección': [
+      { name: 'Juego del volante', description: 'Motor encendido, ruedas rectas. Mover volante suavemente: juego máximo 2cm antes de que giren las ruedas.' },
+      { name: 'Esfuerzo de giro', description: 'Girar volante con vehículo detenido. Debe ser suave con dirección asistida.' },
+      { name: 'Centrado del volante', description: 'En línea recta, volante centrado. Si está descentrado = problemas de alineación.' },
+      { name: 'Retorno del volante', description: 'Tras curva, volante debe regresar solo al centro. Sin quedarse girando.' },
+      { name: 'Vibración en volante', description: 'A diferentes velocidades. Vibración = problema en ruedas, balanceo o suspensión.' },
+      { name: 'Ruido en giros', description: 'Girar completamente a ambos lados. Sin ruidos de cremallera o bombas.' },
+      { name: 'Tirón hacia un lado', description: 'En recta, soltar ligeramente volante. Vehículo debe mantener dirección.' },
+      { name: 'Alineación', description: 'Desgaste uniforme en llantas. Sin tirón al frenar o al acelerar.' }
+    ],
+    'Sistema 4x4': [
+      { name: 'Selector 4WD', description: 'Probar cambio de 2H a 4H. Algunos requieren movimiento lento, otros se puede en movimiento. Consultar manual del vehículo.' },
+      { name: 'Indicadores tablero', description: 'Al activar 4WD deben encender luces correspondientes: 4H, 4L, diff lock según equipamiento.' },
       { name: 'Funcionamiento 4H', description: 'Probar en superficie con buen agarre. Sin saltos ni ruidos. Mejor tracción notable en aceleración.' },
       { name: 'Cambio a 4L', description: 'Vehículo detenido o <5km/h. Cambio firme, reducción notable. Para subidas extremas o vadeo.' },
       { name: 'Funcionamiento 4L', description: 'Velocidad máxima 40km/h. Fuerza multiplicada notable. Sin saltos de tracción ni ruidos anormales.' },
@@ -196,13 +341,20 @@ const InspectionApp = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/inspections');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/inspections', { headers });
       const result = await response.json();
       
       if (result.success) {
         setSavedInspections(result.data || []);
       } else {
-        // Manejar errores específicos de permisos
         if (result.error && result.error.includes('permission denied')) {
           alert('❌ Error de permisos en la base de datos.\n\nPor favor contacta al administrador para configurar los permisos de Supabase.\n\nMientras tanto, puedes usar la funcionalidad de descarga local.');
         } else {
@@ -237,8 +389,17 @@ const InspectionApp = () => {
     }
 
     try {
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch(`/api/inspections/${inspectionId}`, {
         method: 'DELETE',
+        headers
       });
       
       const result = await response.json();
@@ -251,137 +412,62 @@ const InspectionApp = () => {
       }
     } catch (error) {
       console.error('Error deleting inspection:', error);
-      alert('❌ Error al eliminar inspección: ' + error.message);
+      alert('Error al eliminar inspección: ' + error.message);
     }
   };
 
-  // Filtrar y ordenar inspecciones
-  const getFilteredInspections = () => {
-    let filtered = savedInspections.filter(inspection => {
-      const matchesSearch = 
-        (inspection.vehicle_info.placa || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (inspection.vehicle_info.marca || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (inspection.vehicle_info.modelo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (inspection.vehicle_info.vendedor || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesFilter = filterBy === 'all' || 
-        (filterBy === 'excellent' && inspection.total_score >= 8) ||
-        (filterBy === 'good' && inspection.total_score >= 6 && inspection.total_score < 8) ||
-        (filterBy === 'regular' && inspection.total_score >= 4 && inspection.total_score < 6) ||
-        (filterBy === 'poor' && inspection.total_score < 4);
-
-      return matchesSearch && matchesFilter;
-    });
-
-    // Ordenar
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'date':
-          return new Date(b.created_at) - new Date(a.created_at);
-        case 'placa':
-          return (a.vehicle_info.placa || '').localeCompare(b.vehicle_info.placa || '');
-        case 'score':
-          return b.total_score - a.total_score;
-        case 'cost':
-          return b.total_repair_cost - a.total_repair_cost;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  };
-
-  const updateInspectionItem = (category, itemName, field, value) => {
+  const updateItemData = (category, itemName, field, value) => {
     setInspectionData(prev => ({
       ...prev,
       [category]: {
         ...prev[category],
         [itemName]: {
           ...prev[category][itemName],
-          [field]: value
+          [field]: value,
+          evaluated: field === 'score' ? value > 0 : prev[category][itemName].evaluated || field === 'notes' || field === 'repairCost'
         }
       }
     }));
   };
 
-  const handlePhotoUpload = (category, itemName, event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotos(prev => ({
-          ...prev,
-          [`${category}-${itemName}`]: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const toggleItemExpanded = (category, itemName) => {
-    const key = `${category}-${itemName}`;
-    setExpandedItems(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  // Función para guardar en Supabase
   const saveToSupabase = async () => {
-    if (!isOnline) {
-      alert('No hay conexión a internet. La inspección se guardará localmente.');
-      generateReport();
+    if (!user) {
+      alert('Debes iniciar sesión para guardar en la nube');
+      return;
+    }
+
+    if (!vehicleInfo.placa) {
+      alert('La placa del vehículo es requerida para guardar');
       return;
     }
 
     setSaving(true);
     try {
-      // Validar que hay datos mínimos
-      if (!vehicleInfo.placa || !vehicleInfo.marca) {
-        throw new Error('Placa y marca son campos obligatorios');
-      }
-
-      // Subir fotos primero (omitir si hay errores de permisos)
-      const photoUrls = {};
-      for (const [key, photoData] of Object.entries(photos)) {
-        if (photoData) {
-          const fileName = `${Date.now()}-${key}.jpg`;
-          try {
-            const response = await fetch('/api/upload-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: photoData, fileName })
-            });
-            const result = await response.json();
-            if (result.success) {
-              photoUrls[key] = result.url;
-            }
-          } catch (photoError) {
-            console.warn(`Error subiendo foto ${key}:`, photoError);
-          }
-        }
-      }
-
-      // Preparar datos de la inspección
-      const inspectionRecord = {
+      const inspectionPayload = {
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        total_score: parseFloat(totalScore),
+        photo_urls: photos,
+        total_score: totalScore,
         total_repair_cost: totalRepairCost,
-        photo_urls: photoUrls,
-        status: 'completed',
-        created_at: new Date().toISOString()
+        user_id: user.id
       };
 
-      // Guardar inspección en Supabase
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch('/api/inspections', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inspectionRecord)
+        headers,
+        body: JSON.stringify(inspectionPayload)
       });
-
+      
       const result = await response.json();
+      
       if (result.success) {
         alert('✅ Inspección guardada exitosamente en la nube!');
         // También generar reporte local como respaldo
@@ -409,6 +495,13 @@ const InspectionApp = () => {
       vehicleInfo,
       inspectionData,
       photos,
+      user: user ? { 
+        id: user.id, 
+        email: user.email, 
+        name: user.user_metadata?.full_name,
+        company: user.user_metadata?.company,
+        role: user.user_metadata?.role
+      } : null,
       summary: {
         totalScore,
         totalRepairCost,
@@ -451,235 +544,372 @@ const InspectionApp = () => {
   let globalCounter = 0;
 
   // Modal de gestión de inspecciones
-  const InspectionManagerModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Gestión de Inspecciones</h2>
-          <button
-            onClick={() => setShowInspectionManager(false)}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X size={24} />
-          </button>
-        </div>
-        
-        <div className="p-4">
-          {/* Controles de búsqueda y filtrado */}
-          <div className="mb-4 space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Buscar por placa, marca, modelo o vendedor..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <select
-                className="border rounded-lg px-3 py-2"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="date">Ordenar por fecha</option>
-                <option value="placa">Ordenar por placa</option>
-                <option value="score">Ordenar por puntuación</option>
-                <option value="cost">Ordenar por costo reparación</option>
-              </select>
-              <select
-                className="border rounded-lg px-3 py-2"
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value)}
-              >
-                <option value="all">Todas las condiciones</option>
-                <option value="excellent">Excelente (8-10)</option>
-                <option value="good">Bueno (6-7.9)</option>
-                <option value="regular">Regular (4-5.9)</option>
-                <option value="poor">Malo (0-3.9)</option>
-              </select>
-            </div>
+  const InspectionManagerModal = () => {
+    const filteredInspections = savedInspections.filter(inspection => {
+      const matchesSearch = inspection.vehicle_info?.placa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           inspection.vehicle_info?.marca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           inspection.vehicle_info?.modelo?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (filterBy === 'all') return matchesSearch;
+      if (filterBy === 'high') return matchesSearch && parseFloat(inspection.total_score || 0) >= 8;
+      if (filterBy === 'medium') return matchesSearch && parseFloat(inspection.total_score || 0) >= 5 && parseFloat(inspection.total_score || 0) < 8;
+      if (filterBy === 'low') return matchesSearch && parseFloat(inspection.total_score || 0) < 5;
+      return matchesSearch;
+    });
+
+    const sortedInspections = [...filteredInspections].sort((a, b) => {
+      if (sortBy === 'date') return new Date(b.created_at) - new Date(a.created_at);
+      if (sortBy === 'score') return parseFloat(b.total_score || 0) - parseFloat(a.total_score || 0);
+      if (sortBy === 'placa') return (a.vehicle_info?.placa || '').localeCompare(b.vehicle_info?.placa || '');
+      return 0;
+    });
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Gestión de Inspecciones</h2>
             <button
-              onClick={loadSavedInspections}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-              disabled={loading}
+              onClick={() => setShowInspectionManager(false)}
+              className="text-gray-500 hover:text-gray-700"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Cargando...
-                </>
-              ) : (
-                <>
-                  <Cloud className="mr-2" size={16} />
-                  Actualizar Lista
-                </>
-              )}
+              <X size={24} />
             </button>
           </div>
-
-          {/* Lista de inspecciones */}
-          <div className="max-h-96 overflow-y-auto">
-            {getFilteredInspections().length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {savedInspections.length === 0 ? 
-                  'No hay inspecciones guardadas. Haz clic en "Actualizar Lista" para cargar.' :
-                  'No se encontraron inspecciones con los criterios de búsqueda.'
-                }
+          
+          <div className="p-4">
+            {/* Controles de búsqueda y filtrado */}
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Buscar por placa, marca o modelo..."
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="date">Ordenar por fecha</option>
+                  <option value="score">Ordenar por puntuación</option>
+                  <option value="placa">Ordenar por placa</option>
+                </select>
+                <select
+                  value={filterBy}
+                  onChange={(e) => setFilterBy(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">Todas las inspecciones</option>
+                  <option value="high">Puntuación alta (8+)</option>
+                  <option value="medium">Puntuación media (5-7.9)</option>
+                  <option value="low">Puntuación baja (&lt;5)</option>
+                </select>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {getFilteredInspections().map((inspection) => (
-                  <div key={inspection.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="font-bold text-lg text-blue-600">
-                            {inspection.vehicle_info.placa || 'SIN PLACA'}
-                          </span>
-                          <span className="text-gray-600">
-                            {inspection.vehicle_info.marca} {inspection.vehicle_info.modelo}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {inspection.vehicle_info.año}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Puntuación:</span>
-                            <span className={`ml-1 font-semibold ${getScoreColor(inspection.total_score)}`}>
-                              {inspection.total_score}/10
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Reparaciones:</span>
-                            <span className="ml-1 font-semibold text-red-600">
-                              ${inspection.total_repair_cost?.toLocaleString() || '0'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Vendedor:</span>
-                            <span className="ml-1">
-                              {inspection.vehicle_info.vendedor || 'No especificado'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Fecha:</span>
-                            <span className="ml-1">
-                              {new Date(inspection.created_at).toLocaleDateString()}
-                            </span>
+            </div>
+
+            {/* Lista de inspecciones */}
+            <div className="max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2">Cargando inspecciones...</span>
+                </div>
+              ) : sortedInspections.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {savedInspections.length === 0 ? 'No hay inspecciones guardadas' : 'No se encontraron inspecciones con los filtros aplicados'}
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {sortedInspections.map((inspection) => (
+                    <div key={inspection.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <h3 className="font-medium text-gray-900">
+                                {inspection.vehicle_info?.marca} {inspection.vehicle_info?.modelo}
+                              </h3>
+                              <p className="text-sm text-gray-500">
+                                Placa: {inspection.vehicle_info?.placa || 'N/A'} | 
+                                Fecha: {new Date(inspection.created_at).toLocaleDateString('es-ES')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-lg font-bold ${getScoreColor(inspection.total_score || 0)}`}>
+                                {inspection.total_score || 0}/10
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ${(inspection.total_repair_cost || 0).toLocaleString()}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        
-                        {inspection.vehicle_info.precio && (
-                          <div className="mt-2 text-sm">
-                            <span className="text-gray-500">Precio:</span>
-                            <span className="ml-1 font-semibold text-green-600">
-                              ${parseInt(inspection.vehicle_info.precio).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2 mt-3 sm:mt-0">
-                        <button
-                          onClick={() => loadInspection(inspection)}
-                          className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                          title="Cargar inspección"
-                        >
-                          <Eye size={16} className="mr-1" />
-                          Cargar
-                        </button>
-                        <button
-                          onClick={() => deleteInspection(inspection.id)}
-                          className="flex items-center px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                          title="Eliminar inspección"
-                        >
-                          <Trash2 size={16} className="mr-1" />
-                          Eliminar
-                        </button>
+                        <div className="flex items-center space-x-2 ml-4">
+                          <button
+                            onClick={() => loadInspection(inspection)}
+                            className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                            title="Cargar inspección"
+                          >
+                            <Eye size={14} className="mr-1" />
+                            Cargar
+                          </button>
+                          <button
+                            onClick={() => deleteInspection(inspection.id)}
+                            className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                            title="Eliminar inspección"
+                          >
+                            <Trash2 size={14} className="mr-1" />
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const renderCategory = (categoryName, items) => {
+    return (
+      <div key={categoryName} className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">{categoryName}</h3>
+        <div className="space-y-4">
+          {items.map((item) => {
+            globalCounter++;
+            const itemKey = `${categoryName}-${item.name}`;
+            const isExpanded = expandedItems[itemKey];
+            const itemData = inspectionData[categoryName]?.[item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
+
+            return (
+              <div key={item.name} className="border rounded-lg p-3 sm:p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-2">
+                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center mr-2">
+                        {globalCounter}
+                      </span>
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">{item.name}</h4>
+                      <button
+                        onClick={() => setExpandedItems({...expandedItems, [itemKey]: !isExpanded})}
+                        className="ml-2 text-blue-500 hover:text-blue-700"
+                      >
+                        <Info size={16} />
+                      </button>
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                        <p className="text-sm text-gray-700">{item.description}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-3 mb-3">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-medium text-gray-700">Puntuación:</span>
+                        {[...Array(10)].map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => updateItemData(categoryName, item.name, 'score', i + 1)}
+                            className={`${
+                              i < itemData.score 
+                                ? 'text-yellow-400' 
+                                : 'text-gray-300'
+                            } hover:text-yellow-400 transition-colors`}
+                          >
+                            <Star size={16} fill="currentColor" />
+                          </button>
+                        ))}
+                        <span className={`ml-2 font-bold ${getScoreColor(itemData.score)}`}>
+                          {itemData.score}/10
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Costo de reparación (COP)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="0"
+                          value={itemData.repairCost}
+                          onChange={(e) => updateItemData(categoryName, item.name, 'repairCost', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Foto
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.accept = 'image/*';
+                              input.onchange = (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (e) => {
+                                    setPhotos(prev => ({
+                                      ...prev,
+                                      [itemKey]: e.target.result
+                                    }));
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              };
+                              input.click();
+                            }}
+                            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+                          >
+                            <Camera size={16} className="mr-1" />
+                            {photos[itemKey] ? 'Cambiar' : 'Agregar'}
+                          </button>
+                          {photos[itemKey] && (
+                            <button
+                              onClick={() => setPhotos(prev => {
+                                const newPhotos = {...prev};
+                                delete newPhotos[itemKey];
+                                return newPhotos;
+                              })}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                        {photos[itemKey] && (
+                          <img 
+                            src={photos[itemKey]} 
+                            alt={`Foto de ${item.name}`}
+                            className="mt-2 w-16 h-16 object-cover rounded border"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notas adicionales
+                      </label>
+                      <textarea
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        rows="2"
+                        placeholder="Observaciones, detalles específicos..."
+                        value={itemData.notes}
+                        onChange={(e) => updateItemData(categoryName, item.name, 'notes', e.target.value)}
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-                Inspección de Vehículo 4x4
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600">Checklist completo para evaluación de vehículos usados en Colombia</p>
+      <Header />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Resumen superior */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{totalScore}</div>
+              <div className="text-sm text-gray-600">Puntuación General</div>
+              <div className={`text-sm font-medium ${getOverallCondition().color}`}>
+                {getOverallCondition().text}
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="text-center">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
+                ${totalRepairCost.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600">Costo Total Reparaciones</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
+                {Object.values(inspectionData).reduce((acc, cat) => 
+                  acc + Object.values(cat).filter(item => item.evaluated).length, 0
+                )}
+              </div>
+              <div className="text-sm text-gray-600">Ítems Evaluados</div>
+            </div>
+            <div className="text-center flex items-center justify-center">
               {isOnline ? (
                 <div className="flex items-center text-green-600">
-                  <Cloud size={20} />
-                  <span className="text-xs ml-1">Online</span>
+                  <Cloud size={20} className="mr-1" />
+                  <span className="text-sm">En línea</span>
                 </div>
               ) : (
                 <div className="flex items-center text-red-600">
-                  <CloudOff size={20} />
-                  <span className="text-xs ml-1">Offline</span>
+                  <CloudOff size={20} className="mr-1" />
+                  <span className="text-sm">Sin conexión</span>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Mobile Menu Button */}
-        <div className="lg:hidden mb-4">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-full bg-blue-600 text-white p-3 rounded-lg flex items-center justify-center"
-          >
-            <Menu className="mr-2" />
-            {activeCategory || 'Seleccionar Categoría'}
-          </button>
-        </div>
-
-        {/* Mobile Category Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setMobileMenuOpen(false)}>
-            <div className="bg-white w-4/5 h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Categorías</h2>
-                <button onClick={() => setMobileMenuOpen(false)}>
-                  <X />
-                </button>
-              </div>
-              <div className="p-4">
-                {Object.keys(checklistStructure).map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setActiveCategory(category);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left p-3 rounded-lg mb-2 ${
-                      activeCategory === category ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3 mt-6">
+            <button
+              onClick={generateReport}
+              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Download className="mr-2" size={20} />
+              <span className="text-sm sm:text-base">Descargar Reporte</span>
+            </button>
+            {user && (
+              <button
+                onClick={saveToSupabase}
+                disabled={saving}
+                className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span className="text-sm sm:text-base">Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2" size={20} />
+                    <span className="text-sm sm:text-base">Guardar en la Nube</span>
+                  </>
+                )}
+              </button>
+            )}
+            {isOnline && user && (
+              <button
+                onClick={() => {
+                  setShowInspectionManager(true);
+                  loadSavedInspections();
+                }}
+                className="flex items-center justify-center px-4 sm:px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                <Filter className="mr-2" size={20} />
+                <span className="text-sm sm:text-base">Gestionar Inspecciones</span>
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Información del Vehículo */}
         <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
@@ -754,226 +984,40 @@ const InspectionApp = () => {
           </div>
         </div>
 
-        {/* Resumen */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-700">Puntuación General</h3>
-              <p className={`text-3xl sm:text-4xl font-bold ${getScoreColor(totalScore)}`}>
-                {totalScore}/10
-              </p>
-              <p className={`text-xs sm:text-sm ${getOverallCondition().color}`}>
-                {getOverallCondition().text}
-              </p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-700">Costo Total Reparaciones</h3>
-              <p className="text-3xl sm:text-4xl font-bold text-red-600">
-                ${totalRepairCost.toLocaleString()}
-              </p>
-              <p className="text-xs sm:text-sm text-gray-600">COP</p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-700">Items Evaluados</h3>
-              <p className="text-3xl sm:text-4xl font-bold text-blue-600">
-                {Object.values(inspectionData).reduce((acc, cat) => 
-                  acc + Object.values(cat).filter(item => item.evaluated).length, 0
-                )}
-              </p>
-              <p className="text-xs sm:text-sm text-gray-600">de {Object.values(checklistStructure).reduce((acc, cat) => acc + cat.length, 0)}</p>
-            </div>
-          </div>
-        </div>
+        {/* Menú móvil */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow border"
+          >
+            <span className="font-medium">
+              {activeCategory || 'Seleccionar categoría'}
+            </span>
+            <Menu size={20} />
+          </button>
 
-        {/* Desktop Categories */}
-        <div className="hidden lg:flex flex-wrap gap-2 mb-6">
-          {Object.keys(checklistStructure).map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-4 py-2 rounded-lg ${
-                activeCategory === category 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        {/* Checklist */}
-        <div className="space-y-4 sm:space-y-6">
-          {Object.entries(checklistStructure).map(([category, items]) => {
-            if (activeCategory && activeCategory !== category) return null;
-            
-            globalCounter = Object.keys(checklistStructure).slice(0, Object.keys(checklistStructure).indexOf(category))
-              .reduce((acc, cat) => acc + checklistStructure[cat].length, 0);
-            
-            return (
-              <div key={category} className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">{category}</h2>
-                <div className="space-y-3">
-                  {items.map((item, index) => {
-                    const itemNumber = globalCounter + index + 1;
-                    const itemData = inspectionData[category]?.[item.name] || {};
-                    const isExpanded = expandedItems[`${category}-${item.name}`];
-                    
-                    return (
-                      <div key={item.name} className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex items-start flex-1 mb-3 sm:mb-0">
-                            <span className="font-bold text-blue-600 mr-2 sm:mr-3 text-base sm:text-lg">{itemNumber}.</span>
-                            <div className="flex-1">
-                              <div className="flex items-start">
-                                <span className="font-medium text-gray-800 text-sm sm:text-base flex-1">{item.name}</span>
-                                <button
-                                  onClick={() => toggleItemExpanded(category, item.name)}
-                                  className="ml-2 text-blue-500 hover:text-blue-700"
-                                >
-                                  <Info size={16} />
-                                </button>
-                              </div>
-                              {isExpanded && (
-                                <p className="text-xs sm:text-sm text-gray-600 mt-2 bg-blue-50 p-2 rounded">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Stars Rating - Mobile */}
-                          <div className="flex flex-col sm:hidden w-full">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm text-gray-600">Calificación:</span>
-                              <span className={`font-semibold ${getScoreColor(itemData.score)}`}>
-                                {itemData.score}/10
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-1">
-                              {[...Array(10)].map((_, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => {
-                                    updateInspectionItem(category, item.name, 'score', i + 1);
-                                    updateInspectionItem(category, item.name, 'evaluated', true);
-                                  }}
-                                  className={`p-1 ${itemData.score >= i + 1 ? 'text-yellow-500' : 'text-gray-300'}`}
-                                >
-                                  <Star size={20} fill={itemData.score >= i + 1 ? 'currentColor' : 'none'} />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          {/* Stars Rating - Desktop */}
-                          <div className="hidden sm:flex items-center space-x-1">
-                            {[...Array(10)].map((_, i) => (
-                              <button
-                                key={i}
-                                onClick={() => {
-                                  updateInspectionItem(category, item.name, 'score', i + 1);
-                                  updateInspectionItem(category, item.name, 'evaluated', true);
-                                }}
-                                className={`text-sm ${itemData.score >= i + 1 ? 'text-yellow-500' : 'text-gray-300'}`}
-                              >
-                                <Star size={16} fill={itemData.score >= i + 1 ? 'currentColor' : 'none'} />
-                              </button>
-                            ))}
-                            <span className={`ml-2 font-semibold ${getScoreColor(itemData.score)}`}>
-                              {itemData.score}/10
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {itemData.evaluated && (
-                          <div className="mt-3 space-y-2">
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <input
-                                type="number"
-                                placeholder="Costo reparación ($)"
-                                className="flex-1 border rounded px-3 py-2 text-sm"
-                                value={itemData.repairCost || ''}
-                                onChange={(e) => updateInspectionItem(category, item.name, 'repairCost', e.target.value)}
-                              />
-                              <label className="flex items-center justify-center px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600">
-                                <Camera size={16} className="mr-2" />
-                                <span className="text-sm">Foto</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handlePhotoUpload(category, item.name, e)}
-                                />
-                              </label>
-                            </div>
-                            <textarea
-                              placeholder="Notas..."
-                              className="w-full border rounded px-3 py-2 text-sm"
-                              rows="2"
-                              value={itemData.notes || ''}
-                              onChange={(e) => updateInspectionItem(category, item.name, 'notes', e.target.value)}
-                            />
-                            {photos[`${category}-${item.name}`] && (
-                              <div className="mt-2">
-                                <img 
-                                  src={photos[`${category}-${item.name}`]} 
-                                  alt={`${category} - ${item.name}`}
-                                  className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+          {mobileMenuOpen && (
+            <div className="mt-2 bg-white rounded-lg shadow-lg border overflow-hidden">
+              <div className="max-h-64 overflow-y-auto">
+                {Object.keys(checklistStructure).map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setActiveCategory(category);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 border-b last:border-b-0 ${
+                      activeCategory === category 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Botones de Acción */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-4 sm:mt-6">
-          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-            <button
-              onClick={generateReport}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <Download className="mr-2" size={20} />
-              <span className="text-sm sm:text-base">Descargar Reporte</span>
-            </button>
-            <button
-              onClick={saveToSupabase}
-              disabled={saving}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  <span className="text-sm sm:text-base">Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2" size={20} />
-                  <span className="text-sm sm:text-base">Guardar en la Nube</span>
-                </>
-              )}
-            </button>
-            {isOnline && (
-              <button
-                onClick={() => {
-                  setShowInspectionManager(true);
-                  loadSavedInspections();
-                }}
-                className="flex items-center justify-center px-4 sm:px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Filter className="mr-2" size={20} />
-                <span className="text-sm sm:text-base">Gestionar Inspecciones</span>
-              </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Instrucciones */}
@@ -990,12 +1034,31 @@ const InspectionApp = () => {
                 <li>Puedes agregar fotos y notas para cada ítem</li>
                 <li>La puntuación general se calcula automáticamente</li>
                 <li>La app funciona offline y sincroniza cuando hay internet</li>
-                <li>Usa "Guardar en la Nube" para sincronizar con Supabase</li>
-                <li>En "Gestionar Inspecciones" puedes buscar por placa y eliminar registros</li>
+                {user && <li>Usa "Guardar en la Nube" para sincronizar con Supabase</li>}
+                {user && <li>En "Gestionar Inspecciones" puedes buscar por placa y eliminar registros</li>}
+                {!user && <li>Inicia sesión para guardar tus inspecciones en la nube</li>}
                 <li>Descarga el reporte completo al finalizar</li>
               </ul>
             </div>
           </div>
+        </div>
+
+        {/* Formulario de inspección */}
+        <div className="lg:hidden">
+          {activeCategory && checklistStructure[activeCategory] && 
+            renderCategory(activeCategory, checklistStructure[activeCategory])
+          }
+          {!activeCategory && (
+            <div className="text-center py-8 text-gray-500">
+              Selecciona una categoría para comenzar la inspección
+            </div>
+          )}
+        </div>
+
+        <div className="hidden lg:block">
+          {Object.entries(checklistStructure).map(([categoryName, items]) => 
+            renderCategory(categoryName, items)
+          )}
         </div>
       </div>
 
@@ -1005,4 +1068,845 @@ const InspectionApp = () => {
   );
 };
 
-export default InspectionApp;
+// Componente principal con Provider
+const App = () => {
+  return (
+    <AuthProvider>
+      <InspectionApp />
+    </AuthProvider>
+  );
+};
+
+export default App;// components/InspectionApp.jsx
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { Camera, Save, Download, Plus, AlertCircle, Info, Star, Menu, X, Cloud, CloudOff, Search, Trash2, Eye, Filter, User, LogIn, Settings, Shield, Mail, Lock, EyeOff, Loader } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+// Context de Autenticación
+const AuthContext = createContext({});
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    // Obtener sesión inicial
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signUp = async (email, password, userData = {}) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: userData.fullName,
+            company: userData.company,
+            role: userData.role || 'inspector'
+          }
+        }
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error signing up:', error);
+      return { data: null, error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signIn = async (email, password) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error signing in:', error);
+      return { data: null, error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      setUser(null);
+      setSession(null);
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const resetPassword = async (email) => {
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  const updateProfile = async (updates) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({ data: updates });
+      if (error) throw error;
+      
+      if (data.user) {
+        setUser(data.user);
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  const value = {
+    user,
+    session,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+    resetPassword,
+    updateProfile
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+// Componentes de Autenticación
+const LoginForm = ({ onToggleMode, onClose }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { signIn } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!email || !password) {
+      setError('Por favor completa todos los campos');
+      setLoading(false);
+      return;
+    }
+
+    const { error: signInError } = await signIn(email, password);
+    
+    if (signInError) {
+      setError(signInError.message === 'Invalid login credentials' 
+        ? 'Credenciales incorrectas' 
+        : signInError.message);
+    } else {
+      onClose();
+    }
+    
+    setLoading(false);
+  };
+
+  return (
+    <div className="w-full max-w-md mx-auto p-6">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Iniciar Sesión</h2>
+        <p className="text-gray-600 mt-2">Accede a tu cuenta de inspecciones</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+          <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="tu@email.com"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+        >
+          {loading ? (
+            <>
+              <Loader className="animate-spin mr-2" size={16} />
+              Iniciando sesión...
+            </>
+          ) : (
+            'Iniciar Sesión'
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => onToggleMode('forgot')}
+          className="text-blue-600 hover:text-blue-700 text-sm"
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+      </div>
+
+      <div className="mt-4 text-center">
+        <span className="text-gray-600 text-sm">¿No tienes cuenta? </span>
+        <button
+          onClick={() => onToggleMode('register')}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Regístrate
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const RegisterForm = ({ onToggleMode, onClose }) => {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    company: '',
+    role: 'inspector'
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { signUp } = useAuth();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!formData.fullName || !formData.email || !formData.password) {
+      setError('Por favor completa todos los campos obligatorios');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      setLoading(false);
+      return;
+    }
+
+    const { error: signUpError } = await signUp(formData.email, formData.password, {
+      fullName: formData.fullName,
+      company: formData.company,
+      role: formData.role
+    });
+    
+    if (signUpError) {
+      setError(signUpError.message === 'User already registered' 
+        ? 'Este email ya está registrado' 
+        : signUpError.message);
+    } else {
+      alert('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.');
+      onToggleMode('login');
+    }
+    
+    setLoading(false);
+  };
+
+  return (
+    <div className="w-full max-w-md mx-auto p-6">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
+        <p className="text-gray-600 mt-2">Únete a nuestra plataforma de inspecciones</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+          <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Nombre Completo *
+          </label>
+          <input
+            type="text"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Tu nombre completo"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="tu@email.com"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+          <input
+            type="text"
+            name="company"
+            value={formData.company}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Nombre de tu empresa (opcional)"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+          <select
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="inspector">Inspector</option>
+            <option value="manager">Gerente</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña *</label>
+          <input
+            type="password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+        >
+          {loading ? (
+            <>
+              <Loader className="animate-spin mr-2" size={16} />
+              Creando cuenta...
+            </>
+          ) : (
+            'Crear Cuenta'
+          )}
+        </button>
+      </form>
+
+      <div className="mt-4 text-center">
+        <span className="text-gray-600 text-sm">¿Ya tienes cuenta? </span>
+        <button
+          onClick={() => onToggleMode('login')}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Inicia sesión
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ForgotPasswordForm = ({ onToggleMode }) => {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+  const { resetPassword } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!email) {
+      setError('Por favor ingresa tu email');
+      setLoading(false);
+      return;
+    }
+
+    const { error: resetError } = await resetPassword(email);
+    
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setSent(true);
+    }
+    
+    setLoading(false);
+  };
+
+  if (sent) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 text-center">
+        <div className="mb-6">
+          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <Mail className="text-green-600" size={24} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Email Enviado</h2>
+          <p className="text-gray-600 mt-2">
+            Hemos enviado un enlace de recuperación a tu email.
+          </p>
+        </div>
+        <button
+          onClick={() => onToggleMode('login')}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Volver al inicio de sesión
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-md mx-auto p-6">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Recuperar Contraseña</h2>
+        <p className="text-gray-600 mt-2">
+          Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+          <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="tu@email.com"
+              required
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+        >
+          {loading ? (
+            <>
+              <Loader className="animate-spin mr-2" size={16} />
+              Enviando...
+            </>
+          ) : (
+            'Enviar Enlace'
+          )}
+        </button>
+      </form>
+
+      <div className="mt-4 text-center">
+        <button
+          onClick={() => onToggleMode('login')}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Volver al inicio de sesión
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Modal de Autenticación
+const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
+  const [mode, setMode] = useState(initialMode);
+
+  if (!isOpen) return null;
+
+  const handleToggleMode = (newMode) => {
+    setMode(newMode);
+  };
+
+  const handleClose = () => {
+    setMode('login');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+        >
+          <X size={24} />
+        </button>
+
+        {mode === 'login' && (
+          <LoginForm 
+            onToggleMode={handleToggleMode} 
+            onClose={handleClose}
+          />
+        )}
+        
+        {mode === 'register' && (
+          <RegisterForm 
+            onToggleMode={handleToggleMode} 
+            onClose={handleClose}
+          />
+        )}
+        
+        {mode === 'forgot' && (
+          <ForgotPasswordForm 
+            onToggleMode={handleToggleMode}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Perfil de Usuario
+const UserProfile = ({ isOpen, onClose }) => {
+  const { user, signOut, updateProfile } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [formData, setFormData] = useState({
+    fullName: user?.user_metadata?.full_name || '',
+    company: user?.user_metadata?.company || '',
+    role: user?.user_metadata?.role || 'inspector'
+  });
+
+  if (!isOpen || !user) return null;
+
+  const handleSignOut = async () => {
+    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      await signOut();
+      onClose();
+    }
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    const { error: updateError } = await updateProfile({
+      full_name: formData.fullName,
+      company: formData.company,
+      role: formData.role
+    });
+
+    if (updateError) {
+      setError(updateError.message);
+    } else {
+      setSuccess('Perfil actualizado exitosamente');
+      setEditing(false);
+    }
+
+    setLoading(false);
+  };
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Mi Perfil</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+              {success}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={user.email}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+              />
+            </div>
+
+            {editing ? (
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tu nombre completo"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
+                  <input
+                    type="text"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nombre de tu empresa"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="inspector">Inspector</option>
+                    <option value="manager">Gerente</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {loading ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {user.user_metadata?.full_name || 'No especificado'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa/Organización</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {user.user_metadata?.company || 'No especificado'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {user.user_metadata?.role || 'inspector'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de registro</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {new Date(user.created_at).toLocaleDateString('es-ES')}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setEditing(true)}
+                  className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Editar Perfil
+                </button>
+              </>
+            )}
+
+            <div className="border-t pt-4">
+              <button
+                onClick={handleSignOut}
+                className="w-full py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Header
