@@ -1,183 +1,64 @@
-// contexts/AuthContext.js
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
+import LoginForm from './LoginForm';
+import RegisterForm from './RegisterForm';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
-const AuthContext = createContext({});
+const AuthModal = ({ isOpen, onClose, initialMode = 'login', onAuthSuccess }) => {
+  const [mode, setMode] = useState(initialMode);
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
+  if (!isOpen) return null;
 
-  useEffect(() => {
-    let isMounted = true;
-
-    // Obtener sesión inicial
-    const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error);
-        } else if (isMounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-        }
-      } catch (error) {
-        console.error('Error in getInitialSession:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    getInitialSession();
-
-    // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-        
-        console.log('Auth state changed:', event, session);
-        
-        // Evitar actualizar el estado si es el mismo evento de sesión inicial
-        if (event === 'INITIAL_SESSION') {
-          // Solo actualizar si realmente cambió algo
-          if (session) {
-            setSession(session);
-            setUser(session.user);
-          } else {
-            setSession(null);
-            setUser(null);
-          }
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setSession(session);
-          setUser(session?.user ?? null);
-        } else if (event === 'SIGNED_OUT') {
-          setSession(null);
-          setUser(null);
-        }
-        
-        if (loading) {
-          setLoading(false);
-        }
-      }
-    );
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [loading]);
-
-  // Función para registrar usuario
-  const signUp = async (email, password, userData = {}) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: userData.fullName
-          }
-        }
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error signing up:', error);
-      return { data: null, error };
-    } finally {
-      setLoading(false);
-    }
+  const handleToggleMode = (newMode) => {
+    setMode(newMode);
   };
 
-  // Función para iniciar sesión
-  const signIn = async (email, password) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error signing in:', error);
-      return { data: null, error };
-    } finally {
-      setLoading(false);
-    }
+  const handleClose = () => {
+    setMode('login');
+    onClose();
   };
 
-  // Función para cerrar sesión
-  const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      setUser(null);
-      setSession(null);
-      return { error: null };
-    } catch (error) {
-      return { error };
+  const handleAuthSuccess = () => {
+    handleClose();
+    if (onAuthSuccess) {
+      onAuthSuccess(); // LLAMAR A LA FUNCIÓN DE ÉXITO
     }
-  };
-
-  // Función para restablecer contraseña
-  const resetPassword = async (email) => {
-    try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  // Función para actualizar perfil
-  const updateProfile = async (updates) => {
-    try {
-      const { data, error } = await supabase.auth.updateUser({ data: updates });
-      if (error) throw error;
-      
-      if (data.user) {
-        setUser(data.user);
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  const value = {
-    user,
-    session,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
-    updateProfile
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+        >
+          <X size={24} />
+        </button>
+
+        {mode === 'login' && (
+          <LoginForm 
+            onToggleMode={handleToggleMode} 
+            onClose={handleClose}
+            onAuthSuccess={handleAuthSuccess} // PASAR LA FUNCIÓN
+          />
+        )}
+        
+        {mode === 'register' && (
+          <RegisterForm 
+            onToggleMode={handleToggleMode} 
+            onClose={handleClose}
+            onAuthSuccess={handleAuthSuccess} // PASAR LA FUNCIÓN
+          />
+        )}
+        
+        {mode === 'forgot' && (
+          <ForgotPasswordForm 
+            onToggleMode={handleToggleMode}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export default AuthModal;

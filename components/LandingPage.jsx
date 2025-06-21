@@ -401,10 +401,10 @@ const LandingPage = ({ onEnterApp }) => {
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           initialMode={authMode}
+          onAuthSuccess={handleAuthSuccess} // AÑADIR ESTA PROP
         />
       )}
     </div>
   );
 };
-
 export default LandingPage;

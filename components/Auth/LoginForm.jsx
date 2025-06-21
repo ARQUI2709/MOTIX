@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const LoginForm = ({ onToggleMode, onClose }) => {
+const LoginForm = ({ onToggleMode, onClose, onAuthSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,11 +28,16 @@ const LoginForm = ({ onToggleMode, onClose }) => {
       setError(signInError.message === 'Invalid login credentials' 
         ? 'Credenciales incorrectas' 
         : signInError.message);
+      setLoading(false);
     } else {
-      onClose();
+      // LOGIN EXITOSO - LLAMAR A onAuthSuccess
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else {
+        onClose();
+      }
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -90,7 +95,7 @@ const LoginForm = ({ onToggleMode, onClose }) => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+          className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? (
             <>
@@ -106,19 +111,19 @@ const LoginForm = ({ onToggleMode, onClose }) => {
       <div className="mt-6 text-center">
         <button
           onClick={() => onToggleMode('forgot')}
-          className="text-blue-600 hover:text-blue-700 text-sm"
+          className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
         >
           ¿Olvidaste tu contraseña?
         </button>
       </div>
 
       <div className="mt-4 text-center">
-        <span className="text-gray-600 text-sm">¿No tienes cuenta? </span>
+        <span className="text-sm text-gray-600">¿No tienes una cuenta? </span>
         <button
           onClick={() => onToggleMode('register')}
-          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
         >
-          Regístrate
+          Regístrate aquí
         </button>
       </div>
     </div>

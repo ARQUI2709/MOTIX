@@ -24,11 +24,37 @@ import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
-import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 
-// Resto del código permanece exactamente igual...
 const InspectionApp = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [showLanding, setShowLanding] = useState(true);
+  const [showInspectionManager, setShowInspectionManager] = useState(false);
+  
+  // Si el usuario está autenticado, no mostrar landing
+  useEffect(() => {
+    if (user && showLanding) {
+      setShowLanding(false);
+    }
+  }, [user, showLanding]);
+
+  // Resto del código del componente...
+  
+  // Renderizado condicional para diferentes vistas
+  if (showLanding && !user) {
+    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
+  }
+
+  // Si está cargando la autenticación
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Resto del renderizado...
+};
   
   // Estados principales
   const [showLanding, setShowLanding] = useState(false);
@@ -654,6 +680,5 @@ const InspectionApp = () => {
       </div>
     </div>
   );
-};
 
 export default InspectionApp;

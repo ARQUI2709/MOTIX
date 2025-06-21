@@ -1,9 +1,9 @@
 // components/Auth/RegisterForm.jsx
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const RegisterForm = ({ onToggleMode, onClose }) => {
+const RegisterForm = ({ onToggleMode, onClose, onAuthSuccess }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -11,6 +11,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signUp } = useAuth();
@@ -27,20 +28,20 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
     setError('');
     setLoading(true);
 
-    if (!formData.fullName || !formData.email || !formData.password) {
-      setError('Por favor completa todos los campos obligatorios');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
+    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError('Por favor completa todos los campos');
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
       setLoading(false);
       return;
     }
@@ -53,12 +54,13 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
       setError(signUpError.message === 'User already registered' 
         ? 'Este email ya está registrado' 
         : signUpError.message);
+      setLoading(false);
     } else {
+      // REGISTRO EXITOSO - MOSTRAR MENSAJE Y REDIRIGIR A LOGIN
       alert('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.');
       onToggleMode('login');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -135,7 +137,7 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
@@ -143,13 +145,20 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
               placeholder="••••••••"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+          className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? (
             <>
@@ -162,13 +171,13 @@ const RegisterForm = ({ onToggleMode, onClose }) => {
         </button>
       </form>
 
-      <div className="mt-4 text-center">
-        <span className="text-gray-600 text-sm">¿Ya tienes cuenta? </span>
+      <div className="mt-6 text-center">
+        <span className="text-sm text-gray-600">¿Ya tienes una cuenta? </span>
         <button
           onClick={() => onToggleMode('login')}
-          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
         >
-          Inicia sesión
+          Inicia sesión aquí
         </button>
       </div>
     </div>
