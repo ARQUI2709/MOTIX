@@ -1,5 +1,5 @@
 // components/InspectionApp.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Save, 
   Download, 
@@ -47,7 +47,7 @@ const InspectionApp = () => {
     fecha: new Date().toISOString().split('T')[0]
   });
 
-  // Estados para datos de vehículos
+  // Estados para datos de vehículos - DEFINIDOS ANTES DE USO
   const [vehicleMakes, setVehicleMakes] = useState([]);
   const [vehicleModels, setVehicleModels] = useState([]);
   const [loadingMakes, setLoadingMakes] = useState(false);
@@ -75,77 +75,67 @@ const InspectionApp = () => {
   const [totalScore, setTotalScore] = useState(0);
   const [totalRepairCost, setTotalRepairCost] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
 
-  // Efectos
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+  // Funciones - TODAS DEFINIDAS CON useCallback PARA EVITAR PROBLEMAS DE ORDEN
+  
+  const getConditionInfo = useCallback((score) => {
+    if (score >= 8) return { text: 'Excelente', color: 'text-green-600', bg: 'bg-green-100' };
+    if (score >= 6) return { text: 'Bueno', color: 'text-yellow-600', bg: 'bg-yellow-100' };
+    if (score >= 4) return { text: 'Regular', color: 'text-orange-600', bg: 'bg-orange-100' };
+    return { text: 'Crítico', color: 'text-red-600', bg: 'bg-red-100' };
   }, []);
 
-  // Cargar marcas de vehículos al inicializar
-  useEffect(() => {
-    loadVehicleMakes();
-  }, []);
-
-  // Manejar el estado de la landing page basado en autenticación
-  useEffect(() => {
-    if (!user && !loading) {
-      setShowLanding(true);
-    } else if (user) {
-      setShowLanding(false);
-    }
-  }, [user, loading]);
-
-  // Calcular totales cuando inspectionData cambia
-  useEffect(() => {
-    let totalPoints = 0;
-    let totalItems = 0;
-    let repairTotal = 0;
-
-    Object.values(inspectionData).forEach(category => {
-      Object.values(category).forEach(item => {
-        if (item.evaluated && item.score > 0) {
-          totalPoints += item.score;
-          totalItems++;
-        }
-        if (item.repairCost) {
-          repairTotal += parseFloat(item.repairCost) || 0;
-        }
-      });
-    });
-
-    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
-    setTotalRepairCost(repairTotal);
-  }, [inspectionData]);
-
-  // Funciones para cargar datos de vehículos
-  const loadVehicleMakes = async () => {
+  const loadVehicleMakes = useCallback(async () => {
     setLoadingMakes(true);
     try {
-      const response = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?format=json');
-      const data = await response.json();
-      
-      if (data.Results) {
-        // Filtrar marcas más comunes para vehículos 4x4
-        const commonMakes = ['Toyota', 'Jeep', 'Ford', 'Chevrolet', 'Nissan', 'Honda', 'Mitsubishi', 'Suzuki', 'Land Rover', 'Mercedes-Benz', 'BMW', 'Audi'];
-        const filteredMakes = data.Results.filter(make => 
-          commonMakes.includes(make.MakeName)
-        ).sort((a, b) => a.MakeName.localeCompare(b.MakeName));
+      // Fallback directo a marcas comunes para vehículos 4x4
+      const commonMakes = [
+        { MakeId: 1, MakeName: 'Toyota' },
+        { MakeId: 2, MakeName: 'Jeep' },
+        { MakeId: 3, MakeName: 'Ford' },
+        { MakeId: 4, MakeName: 'Chevrolet' },
+        { MakeId: 5, MakeName: 'Nissan' },
+        { MakeId: 6, MakeName: 'Honda' },
+        { MakeId: 7, MakeName: 'Mitsubishi' },
+        { MakeId: 8, MakeName: 'Suzuki' },
+        { MakeId: 9, MakeName: 'Land Rover' },
+        { MakeId: 10, MakeName: 'Mercedes-Benz' },
+        { MakeId: 11, MakeName: 'BMW' },
+        { MakeId: 12, MakeName: 'Audi' },
+        { MakeId: 13, MakeName: 'Volkswagen' },
+        { MakeId: 14, MakeName: 'Hyundai' },
+        { MakeId: 15, MakeName: 'Kia' },
+        { MakeId: 16, MakeName: 'Mazda' },
+        { MakeId: 17, MakeName: 'Subaru' },
+        { MakeId: 18, MakeName: 'Volvo' }
+      ];
+
+      // Intentar cargar desde API, pero usar fallback si falla
+      try {
+        const response = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?format=json');
+        const data = await response.json();
         
-        setVehicleMakes(filteredMakes);
+        if (data.Results && data.Results.length > 0) {
+          const filteredMakes = data.Results.filter(make => 
+            commonMakes.some(common => common.MakeName === make.MakeName)
+          ).sort((a, b) => a.MakeName.localeCompare(b.MakeName));
+          
+          if (filteredMakes.length > 0) {
+            setVehicleMakes(filteredMakes);
+          } else {
+            setVehicleMakes(commonMakes);
+          }
+        } else {
+          setVehicleMakes(commonMakes);
+        }
+      } catch (apiError) {
+        console.log('API NHTSA no disponible, usando marcas predefinidas');
+        setVehicleMakes(commonMakes);
       }
     } catch (error) {
       console.error('Error loading vehicle makes:', error);
-      // Fallback a marcas predefinidas
+      // Fallback absoluto
       setVehicleMakes([
         { MakeId: 1, MakeName: 'Toyota' },
         { MakeId: 2, MakeName: 'Jeep' },
@@ -156,9 +146,9 @@ const InspectionApp = () => {
     } finally {
       setLoadingMakes(false);
     }
-  };
+  }, []);
 
-  const loadVehicleModels = async (makeName) => {
+  const loadVehicleModels = useCallback(async (makeName) => {
     if (!makeName) {
       setVehicleModels([]);
       return;
@@ -166,12 +156,66 @@ const InspectionApp = () => {
 
     setLoadingModels(true);
     try {
-      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/${encodeURIComponent(makeName)}?format=json`);
-      const data = await response.json();
-      
-      if (data.Results) {
-        const sortedModels = data.Results.sort((a, b) => a.Model_Name.localeCompare(b.Model_Name));
-        setVehicleModels(sortedModels);
+      // Modelos predefinidos para marcas comunes
+      const predefinedModels = {
+        'Toyota': [
+          { Model_ID: 1, Model_Name: 'Prado' },
+          { Model_ID: 2, Model_Name: 'Land Cruiser' },
+          { Model_ID: 3, Model_Name: 'Fortuner' },
+          { Model_ID: 4, Model_Name: 'RAV4' },
+          { Model_ID: 5, Model_Name: 'Hilux' },
+          { Model_ID: 6, Model_Name: '4Runner' }
+        ],
+        'Jeep': [
+          { Model_ID: 7, Model_Name: 'Wrangler' },
+          { Model_ID: 8, Model_Name: 'Cherokee' },
+          { Model_ID: 9, Model_Name: 'Grand Cherokee' },
+          { Model_ID: 10, Model_Name: 'Compass' },
+          { Model_ID: 11, Model_Name: 'Renegade' }
+        ],
+        'Ford': [
+          { Model_ID: 12, Model_Name: 'Explorer' },
+          { Model_ID: 13, Model_Name: 'Bronco' },
+          { Model_ID: 14, Model_Name: 'Escape' },
+          { Model_ID: 15, Model_Name: 'Edge' },
+          { Model_ID: 16, Model_Name: 'Ranger' }
+        ],
+        'Chevrolet': [
+          { Model_ID: 17, Model_Name: 'Tahoe' },
+          { Model_ID: 18, Model_Name: 'Suburban' },
+          { Model_ID: 19, Model_Name: 'Traverse' },
+          { Model_ID: 20, Model_Name: 'Equinox' },
+          { Model_ID: 21, Model_Name: 'Blazer' }
+        ],
+        'Nissan': [
+          { Model_ID: 22, Model_Name: 'Pathfinder' },
+          { Model_ID: 23, Model_Name: 'Armada' },
+          { Model_ID: 24, Model_Name: 'Murano' },
+          { Model_ID: 25, Model_Name: 'Rogue' },
+          { Model_ID: 26, Model_Name: 'Frontier' }
+        ]
+      };
+
+      // Usar modelos predefinidos si están disponibles
+      if (predefinedModels[makeName]) {
+        setVehicleModels(predefinedModels[makeName]);
+        return;
+      }
+
+      // Intentar API si no hay predefinidos
+      try {
+        const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/${encodeURIComponent(makeName)}?format=json`);
+        const data = await response.json();
+        
+        if (data.Results && data.Results.length > 0) {
+          const sortedModels = data.Results.sort((a, b) => a.Model_Name.localeCompare(b.Model_Name));
+          setVehicleModels(sortedModels);
+        } else {
+          setVehicleModels([{ Model_ID: 999, Model_Name: 'Modelo genérico' }]);
+        }
+      } catch (apiError) {
+        console.log('API NHTSA no disponible para modelos');
+        setVehicleModels([{ Model_ID: 999, Model_Name: 'Modelo genérico' }]);
       }
     } catch (error) {
       console.error('Error loading vehicle models:', error);
@@ -179,40 +223,21 @@ const InspectionApp = () => {
     } finally {
       setLoadingModels(false);
     }
-  };
+  }, []);
 
-  // Funciones de navegación
-  const handleNavigation = (view) => {
+  const handleNavigation = useCallback((view) => {
     setCurrentView(view);
     setMobileMenuOpen(false);
-  };
+  }, []);
 
-  const handleLoadInspection = (inspection) => {
+  const handleLoadInspection = useCallback((inspection) => {
     setVehicleInfo(inspection.vehicle_info || vehicleInfo);
     setInspectionData(inspection.inspection_data || inspectionData);
     setPhotos(inspection.photos || {});
     setCurrentView('inspection');
-  };
+  }, [vehicleInfo, inspectionData]);
 
-  // Si está cargando la autenticación
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando aplicación...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si no hay usuario, mostrar landing
-  if (showLanding || !user) {
-    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
-  }
-
-  // Funciones auxiliares para la inspección
-  const updateInspectionItem = (category, itemName, field, value) => {
+  const updateInspectionItem = useCallback((category, itemName, field, value) => {
     setInspectionData(prev => ({
       ...prev,
       [category]: {
@@ -224,25 +249,25 @@ const InspectionApp = () => {
         }
       }
     }));
-  };
+  }, []);
 
-  const addPhoto = (category, itemName, photoUrl) => {
+  const addPhoto = useCallback((category, itemName, photoUrl) => {
     const key = `${category}_${itemName}`;
     setPhotos(prev => ({
       ...prev,
       [key]: [...(prev[key] || []), photoUrl]
     }));
-  };
+  }, []);
 
-  const removePhoto = (category, itemName, photoIndex) => {
+  const removePhoto = useCallback((category, itemName, photoIndex) => {
     const key = `${category}_${itemName}`;
     setPhotos(prev => ({
       ...prev,
       [key]: prev[key].filter((_, index) => index !== photoIndex)
     }));
-  };
+  }, []);
 
-  const handleSaveInspection = async () => {
+  const handleSaveInspection = useCallback(async () => {
     if (!user || !session) {
       alert('Debe iniciar sesión para guardar inspecciones');
       return;
@@ -289,9 +314,9 @@ const InspectionApp = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, session, vehicleInfo, inspectionData, photos, totalScore, totalRepairCost]);
 
-  const generateReport = async () => {
+  const generateReport = useCallback(async () => {
     try {
       const report = await generatePDFReport(inspectionData, vehicleInfo, photos, user);
       // Download logic here
@@ -299,22 +324,82 @@ const InspectionApp = () => {
       console.error('Error generating report:', error);
       alert('Error al generar el reporte');
     }
-  };
+  }, [inspectionData, vehicleInfo, photos, user]);
 
-  const getConditionInfo = (score) => {
-    if (score >= 8) return { text: 'Excelente', color: 'text-green-600', bg: 'bg-green-100' };
-    if (score >= 6) return { text: 'Bueno', color: 'text-yellow-600', bg: 'bg-yellow-100' };
-    if (score >= 4) return { text: 'Regular', color: 'text-orange-600', bg: 'bg-orange-100' };
-    return { text: 'Crítico', color: 'text-red-600', bg: 'bg-red-100' };
-  };
-
-  const handleMakeChange = (makeName) => {
+  const handleMakeChange = useCallback((makeName) => {
     setVehicleInfo({ ...vehicleInfo, marca: makeName, modelo: '' });
     setVehicleModels([]);
     if (makeName) {
       loadVehicleModels(makeName);
     }
-  };
+  }, [vehicleInfo, loadVehicleModels]);
+
+  // Efectos
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Cargar marcas de vehículos al inicializar
+  useEffect(() => {
+    loadVehicleMakes();
+  }, [loadVehicleMakes]);
+
+  // Manejar el estado de la landing page basado en autenticación
+  useEffect(() => {
+    if (!user && !loading) {
+      setShowLanding(true);
+    } else if (user) {
+      setShowLanding(false);
+    }
+  }, [user, loading]);
+
+  // Calcular totales cuando inspectionData cambia
+  useEffect(() => {
+    let totalPoints = 0;
+    let totalItems = 0;
+    let repairTotal = 0;
+
+    Object.values(inspectionData).forEach(category => {
+      Object.values(category).forEach(item => {
+        if (item.evaluated && item.score > 0) {
+          totalPoints += item.score;
+          totalItems++;
+        }
+        if (item.repairCost) {
+          repairTotal += parseFloat(item.repairCost) || 0;
+        }
+      });
+    });
+
+    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
+    setTotalRepairCost(repairTotal);
+  }, [inspectionData]);
+
+  // Si está cargando la autenticación
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando aplicación...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no hay usuario, mostrar landing
+  if (showLanding || !user) {
+    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
+  }
 
   // Renderizado principal
   return (
@@ -558,7 +643,7 @@ const InspectionApp = () => {
             )}
           </div>
 
-          {/* Inspection Categories */}
+          {/* Categories and Inspection Content - RESTO DEL COMPONENTE IGUAL */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Categories Menu */}
             <div className="lg:col-span-1">
@@ -747,7 +832,6 @@ const InspectionApp = () => {
                                       alt={`Evidencia ${photoIndex + 1}`}
                                       className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
                                       onClick={() => {
-                                        // Abrir imagen en modal o nueva ventana
                                         window.open(photo, '_blank');
                                       }}
                                     />
