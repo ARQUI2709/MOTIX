@@ -6,6 +6,7 @@ import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
 
+  // Estados principales
 const InspectionApp = () => {
   const { user, loading } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
@@ -32,9 +33,7 @@ const InspectionApp = () => {
     );
   }
 
-  // Estados principales
-  const [showLanding, setShowLanding] = useState(false);
-  const [showInspectionManager, setShowInspectionManager] = useState(false);
+  // Estados de la aplicación
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
