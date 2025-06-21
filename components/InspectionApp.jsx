@@ -222,20 +222,21 @@ const InspectionApp = () => {
     }
   };
 
-  const generatePDFReport = async () => {
-    try {
-      const userInfo = user ? {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || user.email
-      } : null;
+const handleGeneratePDFReport = async () => {
+  try {
+    const userInfo = user ? {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name || user.email
+    } : null;
 
-      await generatePDFReport(inspectionData, vehicleInfo, photos, userInfo);
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('Error al generar el reporte PDF. Inténtalo de nuevo.');
-    }
-  };
+    await generatePDFReport(inspectionData, vehicleInfo, photos, userInfo);
+  } catch (error) {
+    console.error('Error generando PDF:', error);
+    alert('Error al generar el reporte PDF. Inténtalo de nuevo.');
+  }
+};
+
 
   const exportToJSON = () => {
     try {
@@ -573,7 +574,7 @@ const InspectionApp = () => {
               </button>
             )}
             <button
-              onClick={generatePDFReport}
+              onClick={handleGeneratePDFReport}
               className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               <Download className="mr-2" size={16} />
