@@ -82,15 +82,18 @@ const RegisterForm = ({ onToggleMode, onClose, onAuthSuccess }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nombre Completo *
           </label>
-          <input
-            type="text"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Tu nombre completo"
-            required
-          />
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Tu nombre completo"
+              required
+            />
+          </div>
         </div>
 
         <div>

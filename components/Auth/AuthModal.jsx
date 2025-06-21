@@ -5,7 +5,7 @@ import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
-const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
+const AuthModal = ({ isOpen, onClose, initialMode = 'login', onAuthSuccess }) => {
   const [mode, setMode] = useState(initialMode);
 
   if (!isOpen) return null;
@@ -17,6 +17,13 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   const handleClose = () => {
     setMode('login');
     onClose();
+  };
+
+  const handleAuthSuccess = () => {
+    handleClose();
+    if (onAuthSuccess) {
+      onAuthSuccess();
+    }
   };
 
   return (
@@ -33,6 +40,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           <LoginForm 
             onToggleMode={handleToggleMode} 
             onClose={handleClose}
+            onAuthSuccess={handleAuthSuccess}
           />
         )}
         
@@ -40,6 +48,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           <RegisterForm 
             onToggleMode={handleToggleMode} 
             onClose={handleClose}
+            onAuthSuccess={handleAuthSuccess}
           />
         )}
         

@@ -24,14 +24,13 @@ import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
-import { generatePDFReport, generateJSONReport } from '../utils/ReportGenerator';
+import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 
-// Resto del código permanece exactamente igual...
 const InspectionApp = () => {
   const { user, loading } = useAuth();
   
   // Estados principales
-  const [showLanding, setShowLanding] = useState(true);
+  const [showLanding, setShowLanding] = useState(!user); // Inicializar basado en el usuario
   const [showInspectionManager, setShowInspectionManager] = useState(false);
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
@@ -68,10 +67,16 @@ const InspectionApp = () => {
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // El resto del código del componente permanece idéntico al archivo actual...
-  // Solo cambiamos los imports de arriba para que coincidan con los archivos existentes
+  // Manejo automático de la navegación basado en el estado de autenticación
+  useEffect(() => {
+    if (user && showLanding) {
+      setShowLanding(false);
+    } else if (!user && !showLanding) {
+      setShowLanding(true);
+    }
+  }, [user, showLanding]);
 
-  // Efectos
+  // Listeners para detectar conexión
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -85,53 +90,30 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Calcular totales cuando inspectionData cambia
+  // Calcular totales cuando cambian los datos de inspección
   useEffect(() => {
-    let totalPoints = 0;
+    let score = 0;
+    let cost = 0;
+    let evaluatedItems = 0;
     let totalItems = 0;
-    let repairTotal = 0;
 
-    Object.values(inspectionData).forEach(category => {
-      Object.values(category).forEach(item => {
-        if (item.evaluated && item.score > 0) {
-          totalPoints += item.score;
-          totalItems++;
-        }
-        if (item.repairCost) {
-          repairTotal += parseFloat(item.repairCost) || 0;
+    Object.keys(inspectionData).forEach(category => {
+      Object.keys(inspectionData[category]).forEach(itemKey => {
+        const item = inspectionData[category][itemKey];
+        totalItems++;
+        if (item.evaluated) {
+          evaluatedItems++;
+          score += item.score;
+          cost += parseFloat(item.repairCost) || 0;
         }
       });
     });
 
-    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
-    setTotalRepairCost(repairTotal);
+    setTotalScore(evaluatedItems > 0 ? Math.round(score / evaluatedItems) : 0);
+    setTotalRepairCost(cost);
   }, [inspectionData]);
 
-  // Si el usuario está autenticado, no mostrar landing
-  useEffect(() => {
-    if (user && showLanding) {
-      setShowLanding(false);
-    }
-  }, [user, showLanding]);
-
-  // Resto del código del componente...
-  
-  // Renderizado condicional para diferentes vistas
-  if (showLanding && !user) {
-    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
-  }
-
-  // Si está cargando la autenticación
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  };
-
-  // Funciones auxiliares
-  const updateInspectionItem = (category, itemName, field, value) => {
+  const updateInspectionData = (category, itemName, field, value) => {
     setInspectionData(prev => ({
       ...prev,
       [category]: {
@@ -139,76 +121,107 @@ const InspectionApp = () => {
         [itemName]: {
           ...prev[category][itemName],
           [field]: value,
-          evaluated: field === 'score' ? value > 0 : prev[category][itemName].evaluated || field === 'notes' || field === 'repairCost'
+          evaluated: true
         }
       }
     }));
   };
 
-  const addPhoto = (category, itemName, photoData) => {
-    const key = `${category}_${itemName}`;
-    setPhotos(prev => ({
-      ...prev,
-      [key]: [...(prev[key] || []), photoData]
-    }));
+  const addPhoto = (category, itemName, file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotos(prev => ({
+        ...prev,
+        [`${category}_${itemName}`]: {
+          file: e.target.result,
+          name: file.name,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const removePhoto = (category, itemName, photoIndex) => {
-    const key = `${category}_${itemName}`;
-    setPhotos(prev => ({
-      ...prev,
-      [key]: prev[key]?.filter((_, index) => index !== photoIndex) || []
-    }));
+  const removePhoto = (photoKey) => {
+    setPhotos(prev => {
+      const newPhotos = { ...prev };
+      delete newPhotos[photoKey];
+      return newPhotos;
+    });
   };
 
-  const handleSave = async () => {
+  const saveToCloud = async () => {
     if (!user) {
-      alert('Debes iniciar sesión para guardar inspecciones en la nube');
+      alert('Debes iniciar sesión para guardar en la nube');
       return;
     }
 
     setSaving(true);
     try {
-      const inspectionToSave = {
+      const inspectionRecord = {
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
         photos: photos,
-        total_score: parseFloat(totalScore),
+        total_score: totalScore,
         total_repair_cost: totalRepairCost,
-        completed_items: Object.values(inspectionData).reduce((acc, cat) => 
-          acc + Object.values(cat).filter(item => item.evaluated).length, 0
-        )
+        created_at: new Date().toISOString(),
+        user_id: user.id
       };
 
-      // Simular guardado (reemplazar con API real)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('Inspección guardada exitosamente en la nube');
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`
+        },
+        body: JSON.stringify(inspectionRecord)
+      });
+
+      if (response.ok) {
+        alert('Inspección guardada exitosamente en la nube');
+      } else {
+        throw new Error('Error al guardar en la nube');
+      }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar la inspección. Verifica tu conexión.');
+      alert('Error al guardar en la nube. Revisa tu conexión.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleReset = () => {
-    if (confirm('¿Estás seguro de que quieres reiniciar toda la inspección?')) {
-      setInspectionData(() => {
-        const initialData = {};
-        Object.keys(checklistStructure).forEach(category => {
-          initialData[category] = {};
-          checklistStructure[category].forEach(item => {
-            initialData[category][item.name] = {
-              score: 0,
-              repairCost: 0,
-              notes: '',
-              evaluated: false
-            };
-          });
-        });
-        return initialData;
-      });
-      setPhotos({});
+  const saveToLocal = () => {
+    try {
+      const inspectionRecord = {
+        vehicle_info: vehicleInfo,
+        inspection_data: inspectionData,
+        photos: photos,
+        total_score: totalScore,
+        total_repair_cost: totalRepairCost,
+        created_at: new Date().toISOString()
+      };
+
+      const dataStr = JSON.stringify(inspectionRecord);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inspeccion_${vehicleInfo.placa || 'vehiculo'}_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert('Inspección guardada localmente');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al guardar localmente');
+    }
+  };
+
+  const resetInspection = () => {
+    if (confirm('¿Estás seguro de que quieres reiniciar la inspección? Se perderán todos los datos.')) {
       setVehicleInfo({
         marca: '',
         modelo: '',
@@ -219,181 +232,295 @@ const InspectionApp = () => {
         telefono: '',
         fecha: new Date().toISOString().split('T')[0]
       });
+      
+      const initialData = {};
+      Object.keys(checklistStructure).forEach(category => {
+        initialData[category] = {};
+        checklistStructure[category].forEach(item => {
+          initialData[category][item.name] = {
+            score: 0,
+            repairCost: 0,
+            notes: '',
+            evaluated: false
+          };
+        });
+      });
+      setInspectionData(initialData);
+      setPhotos({});
+      setActiveCategory(null);
     }
   };
 
-const handleGeneratePDFReport = async () => {
-  try {
-    const userInfo = user ? {
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.full_name || user.email
-    } : null;
-
-    await generatePDFReport(inspectionData, vehicleInfo, photos, userInfo);
-  } catch (error) {
-    console.error('Error generando PDF:', error);
-    alert('Error al generar el reporte PDF. Inténtalo de nuevo.');
-  }
-};
-
-
-  const exportToJSON = () => {
+  const downloadPDF = () => {
     try {
-      const userInfo = user ? {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || user.email
-      } : null;
-
-      generateJSONReport(inspectionData, vehicleInfo, photos, userInfo);
+      generatePDFReport({
+        vehicleInfo,
+        inspectionData,
+        checklistStructure,
+        photos,
+        totalScore,
+        totalRepairCost
+      });
     } catch (error) {
-      console.error('Error exportando JSON:', error);
-      alert('Error al exportar los datos. Inténtalo de nuevo.');
+      console.error('Error generating PDF:', error);
+      alert('Error al generar el PDF');
     }
   };
 
-  const getOverallCondition = () => {
-    const score = parseFloat(totalScore);
-    if (score >= 8) return { text: 'Excelente', color: 'text-green-600' };
-    if (score >= 6) return { text: 'Bueno', color: 'text-yellow-600' };
-    if (score >= 4) return { text: 'Regular', color: 'text-orange-600' };
-    return { text: 'Malo', color: 'text-red-600' };
+  const downloadJSON = () => {
+    try {
+      generateJSONReport({
+        vehicleInfo,
+        inspectionData,
+        photos,
+        totalScore,
+        totalRepairCost
+      });
+    } catch (error) {
+      console.error('Error generating JSON:', error);
+      alert('Error al generar el archivo JSON');
+    }
   };
 
-  // Componente de item de inspección
-  const InspectionItem = ({ category, item, itemNumber }) => {
-    const itemData = inspectionData[category]?.[item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
-    const photoKey = `${category}_${item.name}`;
-    const itemPhotos = photos[photoKey] || [];
+  // Componente para mostrar información del vehículo
+  const VehicleInfoCard = () => (
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
+        Información del Vehículo
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+          <input
+            type="text"
+            value={vehicleInfo.marca}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, marca: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Toyota"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+          <input
+            type="text"
+            value={vehicleInfo.modelo}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, modelo: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Land Cruiser"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+          <input
+            type="number"
+            value={vehicleInfo.año}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, año: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="2020"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
+          <input
+            type="text"
+            value={vehicleInfo.placa}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, placa: e.target.value.toUpperCase()})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="ABC-123"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kilometraje</label>
+          <input
+            type="number"
+            value={vehicleInfo.kilometraje}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, kilometraje: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="50000"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
+          <input
+            type="text"
+            value={vehicleInfo.vendedor}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, vendedor: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Juan Pérez"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+          <input
+            type="tel"
+            value={vehicleInfo.telefono}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, telefono: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="+1234567890"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+          <input
+            type="date"
+            value={vehicleInfo.fecha}
+            onChange={(e) => setVehicleInfo({...vehicleInfo, fecha: e.target.value})}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+    </div>
+  );
 
+  // Componente para cada item de inspección
+  const InspectionItem = ({ category, item, itemNumber }) => {
+    const currentData = inspectionData[category][item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
+    const photoKey = `${category}_${item.name}`;
+    const hasPhoto = photos[photoKey];
+    
     return (
-      <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4">
+      <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <div className="flex items-center mb-2">
-              <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full mr-2">
+            <h3 className="font-medium text-gray-900 flex items-center">
+              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full mr-2">
                 {itemNumber}
               </span>
-              <h4 className="font-medium text-gray-900 text-sm sm:text-base">{item.name}</h4>
-            </div>
+              {item.name}
+            </h3>
             {item.description && (
-              <div className="flex items-start text-xs sm:text-sm text-gray-600 mb-2">
-                <Info className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" />
-                <span>{item.description}</span>
+              <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Calificación */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Calificación (1-5)
+            </label>
+            <div className="flex space-x-1">
+              {[1, 2, 3, 4, 5].map((score) => (
+                <button
+                  key={score}
+                  onClick={() => updateInspectionData(category, item.name, 'score', score)}
+                  className={`p-1 rounded transition-colors ${
+                    currentData.score >= score
+                      ? 'text-yellow-400 hover:text-yellow-500'
+                      : 'text-gray-300 hover:text-gray-400'
+                  }`}
+                >
+                  {currentData.score >= score ? <Star size={24} fill="currentColor" /> : <StarOff size={24} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Costo de reparación */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Costo de Reparación ($)
+            </label>
+            <input
+              type="number"
+              value={currentData.repairCost}
+              onChange={(e) => updateInspectionData(category, item.name, 'repairCost', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0"
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          {/* Foto */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Evidencia Fotográfica
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    addPhoto(category, item.name, e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id={`photo-${category}-${item.name}`}
+              />
+              <label
+                htmlFor={`photo-${category}-${item.name}`}
+                className={`flex items-center px-3 py-2 text-sm border rounded-md cursor-pointer transition-colors ${
+                  hasPhoto 
+                    ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Camera size={16} className="mr-1" />
+                {hasPhoto ? 'Cambiar' : 'Tomar'}
+              </label>
+              
+              {hasPhoto && (
+                <button
+                  onClick={() => removePhoto(photoKey)}
+                  className="flex items-center px-2 py-2 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+                  title="Eliminar foto"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            
+            {hasPhoto && (
+              <div className="mt-2">
+                <img
+                  src={photos[photoKey].file}
+                  alt={`Evidencia de ${item.name}`}
+                  className="w-full h-24 object-cover rounded-md border"
+                />
               </div>
             )}
           </div>
         </div>
 
-        {/* Puntuación */}
-        <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Puntuación (1-10):
-          </label>
-          <div className="flex space-x-1">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(star => (
-              <button
-                key={star}
-                onClick={() => updateInspectionItem(category, item.name, 'score', star)}
-                className={`p-1 transition-colors ${
-                  star <= itemData.score ? 'text-yellow-400' : 'text-gray-300'
-                }`}
-              >
-                {star <= itemData.score ? <Star fill="currentColor" size={20} /> : <StarOff size={20} />}
-              </button>
-            ))}
-          </div>
-          {itemData.score > 0 && (
-            <span className="text-sm text-gray-600 mt-1 block">
-              Puntuación: {itemData.score}/10
-            </span>
-          )}
-        </div>
-
-        {/* Costo de reparación */}
-        {itemData.score > 0 && itemData.score < 8 && (
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Costo estimado de reparación:
-            </label>
-            <input
-              type="number"
-              placeholder="0"
-              value={itemData.repairCost}
-              onChange={(e) => updateInspectionItem(category, item.name, 'repairCost', e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        )}
-
         {/* Notas */}
-        <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notas:
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notas y Observaciones
           </label>
           <textarea
-            placeholder="Observaciones adicionales..."
-            value={itemData.notes}
-            onChange={(e) => updateInspectionItem(category, item.name, 'notes', e.target.value)}
-            className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={currentData.notes}
+            onChange={(e) => updateInspectionData(category, item.name, 'notes', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Observaciones específicas sobre este componente..."
             rows="2"
           />
-        </div>
-
-        {/* Fotos */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Fotos ({itemPhotos.length}):
-          </label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {itemPhotos.map((photo, index) => (
-              <div key={index} className="relative">
-                <img
-                  src={photo}
-                  alt={`Foto ${index + 1}`}
-                  className="w-16 h-16 object-cover rounded border"
-                />
-                <button
-                  onClick={() => removePhoto(category, item.name, index)}
-                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => addPhoto(category, item.name, e.target.result);
-                reader.readAsDataURL(file);
-              }
-            }}
-            className="hidden"
-            id={`photo-${category}-${item.name}`}
-          />
-          <label
-            htmlFor={`photo-${category}-${item.name}`}
-            className="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded cursor-pointer hover:bg-gray-700 transition-colors"
-          >
-            <Camera className="mr-2" size={16} />
-            Agregar Foto
-          </label>
         </div>
       </div>
     );
   };
 
-  // Renderizar categoría
-  const renderCategory = (categoryName, items) => {
-    const startIndex = Object.values(checklistStructure)
-      .slice(0, Object.keys(checklistStructure).indexOf(categoryName))
-      .reduce((acc, cat) => acc + cat.length, 0);
+  // Componente para resumen de categoría
+  const CategorySummary = ({ categoryName, items }) => {
+    const categoryData = inspectionData[categoryName] || {};
+    const evaluatedItems = Object.values(categoryData).filter(item => item.evaluated).length;
+    const totalItems = items.length;
+    const avgScore = evaluatedItems > 0 
+      ? Object.values(categoryData).filter(item => item.evaluated).reduce((sum, item) => sum + item.score, 0) / evaluatedItems 
+      : 0;
+    const totalCost = Object.values(categoryData).reduce((sum, item) => sum + (parseFloat(item.repairCost) || 0), 0);
+    
+    const startIndex = Object.keys(checklistStructure).slice(0, Object.keys(checklistStructure).indexOf(categoryName))
+      .reduce((acc, cat) => acc + checklistStructure[cat].length, 0);
 
     return (
       <div key={categoryName} className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
@@ -414,8 +541,17 @@ const handleGeneratePDFReport = async () => {
     );
   };
 
+  // Si está cargando la autenticación
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   // Renderizado condicional para diferentes vistas
-  if (showLanding) {
+  if (showLanding && !user) {
     return <LandingPage onEnterApp={() => setShowLanding(false)} />;
   }
 
@@ -452,7 +588,7 @@ const handleGeneratePDFReport = async () => {
           {user && (
             <button
               onClick={() => setShowInspectionManager(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <FolderOpen className="mr-2" size={16} />
               Mis Inspecciones
@@ -460,216 +596,194 @@ const handleGeneratePDFReport = async () => {
           )}
         </div>
 
-        {/* Resumen de la inspección */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{totalScore}</div>
-              <div className="text-sm text-gray-600">Puntuación General</div>
-              <div className={`text-sm font-medium ${getOverallCondition().color}`}>
-                {getOverallCondition().text}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">
-                ${totalRepairCost.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600">Costo Total Reparaciones</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                {Object.values(inspectionData).reduce((acc, cat) => 
-                  acc + Object.values(cat).filter(item => item.evaluated).length, 0
+        {/* Barra de estado */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                {isOnline ? (
+                  <>
+                    <Wifi className="text-green-500 mr-2" size={20} />
+                    <span className="text-sm text-green-600">En línea</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="text-red-500 mr-2" size={20} />
+                    <span className="text-sm text-red-600">Sin conexión</span>
+                  </>
                 )}
               </div>
-              <div className="text-sm text-gray-600">Ítems Evaluados</div>
+              
+              <div className="bg-blue-100 px-3 py-1 rounded-full">
+                <span className="text-sm font-medium text-blue-800">
+                  Puntuación: {totalScore}/5
+                </span>
+              </div>
+              
+              <div className="bg-red-100 px-3 py-1 rounded-full">
+                <span className="text-sm font-medium text-red-800">
+                  Costo estimado: ${totalRepairCost.toLocaleString()}
+                </span>
+              </div>
             </div>
-            <div className="text-center flex items-center justify-center">
-              {isOnline ? (
-                <div className="flex items-center text-green-600">
-                  <Wifi className="mr-1" size={16} />
-                  <span className="text-sm">En línea</span>
-                </div>
-              ) : (
-                <div className="flex items-center text-red-600">
-                  <WifiOff className="mr-1" size={16} />
-                  <span className="text-sm">Sin conexión</span>
-                </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={saveToLocal}
+                className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="mr-2" size={16} />
+                Guardar Local
+              </button>
+              
+              {user && (
+                <button
+                  onClick={saveToCloud}
+                  disabled={saving}
+                  className="flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? (
+                    <RefreshCw className="mr-2 animate-spin" size={16} />
+                  ) : (
+                    <Upload className="mr-2" size={16} />
+                  )}
+                  {saving ? 'Guardando...' : 'Guardar en la Nube'}
+                </button>
               )}
+              
+              <button
+                onClick={downloadPDF}
+                className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <FileText className="mr-2" size={16} />
+                PDF
+              </button>
+              
+              <button
+                onClick={downloadJSON}
+                className="flex items-center px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Share2 className="mr-2" size={16} />
+                JSON
+              </button>
+              
+              <button
+                onClick={resetInspection}
+                className="flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <RefreshCw className="mr-2" size={16} />
+                Reiniciar
+              </button>
             </div>
           </div>
         </div>
 
         {/* Información del vehículo */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Información del Vehículo</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Marca"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.marca}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, marca: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="Modelo"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.modelo}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, modelo: e.target.value})}
-            />
-            <input
-              type="number"
-              placeholder="Año"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.año}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, año: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="Placa"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.placa}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, placa: e.target.value})}
-            />
-            <input
-              type="number"
-              placeholder="Kilometraje"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.kilometraje}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, kilometraje: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="Vendedor"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.vendedor}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, vendedor: e.target.value})}
-            />
-            <input
-              type="tel"
-              placeholder="Teléfono"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.telefono}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, telefono: e.target.value})}
-            />
-            <input
-              type="date"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.fecha}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, fecha: e.target.value})}
-            />
-          </div>
+        <VehicleInfoCard />
 
-          {/* Botones de acción */}
-          <div className="flex flex-wrap gap-3">
-            {user && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {saving ? <RefreshCw className="mr-2 animate-spin" size={16} /> : <Upload className="mr-2" size={16} />}
-                {saving ? 'Guardando...' : 'Guardar en la Nube'}
-              </button>
-            )}
-            <button
-              onClick={handleGeneratePDFReport}
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              <Download className="mr-2" size={16} />
-              Generar PDF
-            </button>
-            <button
-              onClick={exportToJSON}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Share2 className="mr-2" size={16} />
-              Exportar JSON
-            </button>
-            <button
-              onClick={handleReset}
-              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <RefreshCw className="mr-2" size={16} />
-              Reiniciar
-            </button>
-          </div>
-        </div>
-
-        {/* Menú móvil para categorías */}
-        <div className="lg:hidden mb-4">
+        {/* Navegación por categorías en móvil */}
+        <div className="lg:hidden mb-6">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow-lg"
+            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow-lg border"
           >
-            <span className="font-medium">
-              {activeCategory || 'Seleccionar categoría'}
+            <span className="font-medium text-gray-900">
+              {activeCategory || 'Seleccionar Categoría'}
             </span>
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            <Menu size={20} />
           </button>
-
+          
           {mobileMenuOpen && (
-            <div className="mt-2 bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="max-h-60 overflow-y-auto">
+            <div className="mt-2 bg-white rounded-lg shadow-lg border">
+              {Object.keys(checklistStructure).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 ${
+                    activeCategory === category ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar de categorías - Desktop */}
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-lg p-4 sticky top-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Categorías de Inspección</h3>
+              <nav className="space-y-2">
                 {Object.keys(checklistStructure).map((category) => (
                   <button
                     key={category}
-                    onClick={() => {
-                      setActiveCategory(category);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 transition-colors ${
-                      activeCategory === category 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'hover:bg-gray-100'
+                    onClick={() => setActiveCategory(category)}
+                    className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+                      activeCategory === category
+                        ? 'bg-blue-100 text-blue-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     {category}
                   </button>
                 ))}
+              </nav>
+            </div>
+          </div>
+
+          {/* Contenido principal */}
+          <div className="flex-1">
+            {activeCategory ? (
+              <CategorySummary 
+                categoryName={activeCategory} 
+                items={checklistStructure[activeCategory]} 
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+                <Info className="mx-auto text-gray-400 mb-4" size={48} />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Selecciona una categoría para comenzar
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Elige una categoría del menú lateral para empezar la inspección del vehículo.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+                  {Object.keys(checklistStructure).slice(0, 4).map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setActiveCategory(category)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Formulario de inspección */}
-        <div className="lg:hidden">
-          {activeCategory && checklistStructure[activeCategory] && 
-            renderCategory(activeCategory, checklistStructure[activeCategory])
-          }
-          {!activeCategory && (
-            <div className="text-center py-8 text-gray-500">
-              Selecciona una categoría para comenzar la inspección
-            </div>
-          )}
-        </div>
-
-        <div className="hidden lg:block">
-          {Object.entries(checklistStructure).map(([categoryName, items]) => 
-            renderCategory(categoryName, items)
-          )}
-        </div>
-
-        {/* Instrucciones de uso */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-8">
-          <div className="flex items-start">
-            <AlertCircle className="text-yellow-600 mr-2 flex-shrink-0" size={20} />
-            <div className="text-xs sm:text-sm">
-              <p className="font-semibold mb-2">Instrucciones de uso:</p>
-              <ul className="list-disc list-inside space-y-1 text-gray-700">
-                <li>En móvil: usa el menú superior para navegar entre categorías</li>
-                <li>Cada ítem tiene un número consecutivo y botón de información</li>
-                <li>Asigna una puntuación del 1 al 10 tocando las estrellas</li>
-                <li>Si requiere reparación, ingresa el costo estimado</li>
-                <li>Puedes agregar fotos y notas para cada ítem</li>
-                <li>La puntuación general se calcula automáticamente</li>
-                <li>La app funciona offline y sincroniza cuando hay internet</li>
-                <li>Descarga reportes en PDF o exporta en formato JSON</li>
+        {/* Información adicional */}
+        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-start space-x-4">
+            <AlertCircle className="text-blue-500 flex-shrink-0 mt-1" size={20} />
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Instrucciones de Uso</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Completa la información del vehículo antes de comenzar</li>
+                <li>• Evalúa cada componente con una calificación del 1 al 5 (5 = excelente)</li>
+                <li>• Toma fotos como evidencia de los problemas encontrados</li>
+                <li>• Estima los costos de reparación para cada problema identificado</li>
+                <li>• Usa "Guardar Local" para descargar los datos sin conexión</li>
                 {user ? (
-                  <li>Usa "Guardar en la Nube" para sincronizar con tu cuenta</li>
+                  <li>• Usa "Guardar en la Nube" para sincronizar con tu cuenta</li>
                 ) : (
-                  <li>Inicia sesión para guardar tus inspecciones en la nube</li>
+                  <li>• Inicia sesión para guardar tus inspecciones en la nube</li>
                 )}
               </ul>
             </div>

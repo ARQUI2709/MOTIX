@@ -30,7 +30,7 @@ const LoginForm = ({ onToggleMode, onClose, onAuthSuccess }) => {
         : signInError.message);
       setLoading(false);
     } else {
-      // LOGIN EXITOSO - LLAMAR A onAuthSuccess
+      // LOGIN EXITOSO - LLAMAR A onAuthSuccess para navegar a la app
       if (onAuthSuccess) {
         onAuthSuccess();
       } else {
