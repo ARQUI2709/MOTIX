@@ -40,19 +40,27 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
     setLoading(true);
     try {
       const response = await fetch('/api/inspections', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${user.access_token}`
+          'Authorization': `Bearer ${user.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setInspections(data.data || []);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setInspections(result.data || []);
       } else {
-        console.error('Error cargando inspecciones');
+        throw new Error(result.error || 'Error al cargar inspecciones');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error loading inspections:', error);
+      alert(`Error al cargar inspecciones: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -67,19 +75,26 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
       const response = await fetch(`/api/inspections/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user.access_token}`
+          'Authorization': `Bearer ${user.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
         setInspections(prev => prev.filter(inspection => inspection.id !== id));
         alert('Inspección eliminada exitosamente');
       } else {
-        alert('Error al eliminar la inspección');
+        throw new Error(result.error || 'Error al eliminar la inspección');
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error al eliminar la inspección');
+      console.error('Error deleting inspection:', error);
+      alert(`Error al eliminar la inspección: ${error.message}`);
     }
   };
 

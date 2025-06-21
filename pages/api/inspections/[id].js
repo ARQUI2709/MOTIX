@@ -1,14 +1,17 @@
-import { supabase } from '../../../lib/supabase'
+// pages/api/inspections/[id].js - API para operaciones individuales
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 export default async function handler(req, res) {
-  // Configurar CORS
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true)
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  )
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE')
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization')
 
   if (req.method === 'OPTIONS') {
     res.status(200).end()
@@ -17,129 +20,132 @@ export default async function handler(req, res) {
 
   const { id } = req.query
 
-  try {
-    // Obtener el token del header Authorization
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    let userId = null
+  if (!id) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'ID de inspección requerido' 
+    })
+  }
 
-    if (token) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-      if (!authError && user) {
-        userId = user.id
-      }
+  try {
+    // Obtener y validar el token de autorización
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Token de autorización requerido' 
+      })
     }
 
+    const token = authHeader.replace('Bearer ', '')
+    
+    // Verificar el usuario con el token
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    
+    if (authError || !user) {
+      console.error('Error de autenticación:', authError)
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Token inválido o usuario no encontrado' 
+      })
+    }
+
+    // Configurar el cliente de Supabase con el token del usuario
+    const supabaseWithAuth = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    })
+
     if (req.method === 'GET') {
-      let query = supabase
+      // Obtener inspección específica
+      const { data, error } = await supabaseWithAuth
         .from('inspections')
         .select('*')
         .eq('id', id)
-
-      // Si hay usuario autenticado, verificar que sea el propietario
-      if (userId) {
-        query = query.eq('user_id', userId)
-      }
-
-      const { data, error } = await query.single()
+        .single()
 
       if (error) {
-        console.error('Supabase error:', error)
         if (error.code === 'PGRST116') {
-          return res.status(404).json({ success: false, error: 'Inspección no encontrada' })
+          return res.status(404).json({ 
+            success: false, 
+            error: 'Inspección no encontrada' 
+          })
         }
         throw error
       }
 
-      res.status(200).json({ success: true, data })
-    }
-    else if (req.method === 'DELETE') {
-      if (!userId) {
-        return res.status(401).json({ success: false, error: 'Autenticación requerida' })
-      }
+      return res.status(200).json({ 
+        success: true, 
+        data 
+      })
 
-      // Verificar que el usuario sea el propietario antes de eliminar
-      const { data: inspection, error: fetchError } = await supabase
-        .from('inspections')
-        .select('user_id')
-        .eq('id', id)
-        .single()
-
-      if (fetchError) {
-        console.error('Fetch error:', fetchError)
-        if (fetchError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, error: 'Inspección no encontrada' })
-        }
-        throw fetchError
-      }
-
-      if (inspection.user_id !== userId) {
-        return res.status(403).json({ success: false, error: 'No tienes permiso para eliminar esta inspección' })
-      }
-
-      const { error } = await supabase
+    } else if (req.method === 'DELETE') {
+      // Eliminar inspección
+      const { error } = await supabaseWithAuth
         .from('inspections')
         .delete()
         .eq('id', id)
-        .eq('user_id', userId) // Doble verificación
 
       if (error) {
-        console.error('Delete error:', error)
-        throw error
+        console.error('Error eliminando inspección:', error)
+        return res.status(500).json({ 
+          success: false, 
+          error: `Error eliminando inspección: ${error.message}` 
+        })
       }
 
-      res.status(200).json({ success: true, message: 'Inspección eliminada exitosamente' })
-    }
-    else if (req.method === 'PUT' || req.method === 'PATCH') {
-      if (!userId) {
-        return res.status(401).json({ success: false, error: 'Autenticación requerida' })
-      }
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Inspección eliminada exitosamente' 
+      })
 
-      // Verificar que el usuario sea el propietario antes de actualizar
-      const { data: inspection, error: fetchError } = await supabase
-        .from('inspections')
-        .select('user_id')
-        .eq('id', id)
-        .single()
-
-      if (fetchError) {
-        console.error('Fetch error:', fetchError)
-        if (fetchError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, error: 'Inspección no encontrada' })
-        }
-        throw fetchError
-      }
-
-      if (inspection.user_id !== userId) {
-        return res.status(403).json({ success: false, error: 'No tienes permiso para modificar esta inspección' })
-      }
-
+    } else if (req.method === 'PUT' || req.method === 'PATCH') {
+      // Actualizar inspección
       const updateData = {
         ...req.body,
         updated_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      // No permitir cambio de user_id
+      delete updateData.user_id
+
+      const { data, error } = await supabaseWithAuth
         .from('inspections')
         .update(updateData)
         .eq('id', id)
-        .eq('user_id', userId) // Doble verificación
         .select()
+        .single()
 
       if (error) {
-        console.error('Update error:', error)
-        throw error
+        console.error('Error actualizando inspección:', error)
+        return res.status(500).json({ 
+          success: false, 
+          error: `Error actualizando inspección: ${error.message}` 
+        })
       }
 
-      res.status(200).json({ success: true, data })
+      return res.status(200).json({ 
+        success: true, 
+        data,
+        message: 'Inspección actualizada exitosamente'
+      })
+
+    } else {
+      return res.status(405).json({ 
+        success: false, 
+        error: 'Método no permitido' 
+      })
     }
-    else {
-      res.status(405).json({ success: false, error: 'Método no permitido' })
-    }
+
   } catch (error) {
-    console.error('API Error:', error)
-    res.status(500).json({ 
+    console.error('Error general en API:', error)
+    return res.status(500).json({ 
       success: false, 
-      error: error.message || 'Error interno del servidor' 
+      error: 'Error interno del servidor',
+      details: error.message
     })
   }
 }

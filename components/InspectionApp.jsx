@@ -1,5 +1,5 @@
 // components/InspectionApp.jsx - VERSIÓN CORREGIDA
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Save, 
   Download, 
@@ -98,82 +98,50 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
 
 // Componente para subir fotos mejorado
 const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
-  const fileInputRef = useRef(null);
-  
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    
     files.forEach(file => {
-      // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        alert('Solo se permiten archivos de imagen');
-        return;
+      if (file.type.startsWith('image/')) {
+        onPhotoAdd(categoryName, itemName, file);
       }
-      
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('La imagen es muy grande. Máximo 5MB permitido.');
-        return;
-      }
-      
-      onPhotoAdd(categoryName, itemName, file);
     });
-    
-    // Limpiar el input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    e.target.value = ''; // Reset input
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
         Fotos
       </label>
-      
-      {/* Input de archivo */}
-      <div className="flex items-center space-x-2">
+      <div className="space-y-2">
         <input
-          ref={fileInputRef}
           type="file"
           multiple
           accept="image/*"
           onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-      </div>
-      
-      {/* Vista previa de fotos */}
-      {photos && photos.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          {photos.map((photo, index) => (
-            <div key={index} className="relative group">
-              <img
-                src={photo.url}
-                alt={`Foto ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg border border-gray-200"
-              />
-              <button
-                type="button"
-                onClick={() => onPhotoRemove(categoryName, itemName, index)}
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Eliminar foto"
-              >
-                ×
-              </button>
-              <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                {index + 1}
+        {photos && photos.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            {photos.map((photo, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={photo.url}
+                  alt={`Foto ${index + 1}`}
+                  className="w-full h-20 object-cover rounded border"
+                />
+                <button
+                  type="button"
+                  onClick={() => onPhotoRemove(categoryName, itemName, index)}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                >
+                  <X size={12} />
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {photos && photos.length === 0 && (
-        <div className="text-sm text-gray-500 italic">
-          No hay fotos agregadas
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -368,7 +336,7 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para guardar inspección - CORREGIDA
+  // Función para guardar inspección - CORREGIDA PARA USAR API
   const handleSaveInspection = async () => {
     if (!user) {
       alert('Debe estar autenticado para guardar inspecciones');
@@ -394,18 +362,28 @@ const InspectionApp = () => {
 
       console.log('Saving inspection:', inspectionRecord);
 
-      const { data, error } = await supabase
-        .from('inspections')
-        .insert([inspectionRecord])
-        .select();
+      // USAR NUESTRA API EN LUGAR DE SUPABASE DIRECTAMENTE
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}` // Usar el token del usuario
+        },
+        body: JSON.stringify(inspectionRecord)
+      });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al guardar la inspección');
       }
 
       alert('Inspección guardada exitosamente');
-      console.log('Saved inspection:', data);
+      console.log('Saved inspection:', result.data);
     } catch (error) {
       console.error('Error saving inspection:', error);
       alert(`Error al guardar la inspección: ${error.message}`);
