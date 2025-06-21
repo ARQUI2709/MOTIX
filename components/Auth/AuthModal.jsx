@@ -8,29 +8,26 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 const AuthModal = ({ isOpen, onClose, initialMode = 'login', onAuthSuccess }) => {
   const [mode, setMode] = useState(initialMode);
 
-  // Actualizar el modo cuando cambie initialMode
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
-
-  // No renderizar si no está abierto
-  if (!isOpen) return null;
-
   const handleToggleMode = (newMode) => {
     setMode(newMode);
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setMode(initialMode); // Reset al modo inicial
     onClose();
-  };
+  }, [initialMode, onClose]);
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = React.useCallback(() => {
     handleClose();
     if (onAuthSuccess) {
       onAuthSuccess();
     }
-  };
+  }, [handleClose, onAuthSuccess]);
+
+  // Actualizar el modo cuando cambie initialMode
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   // Prevent scrolling when modal is open
   useEffect(() => {
@@ -60,7 +57,10 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login', onAuthSuccess }) =>
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
+
+  // No renderizar si no está abierto
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
