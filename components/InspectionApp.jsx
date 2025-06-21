@@ -1,5 +1,26 @@
 // components/InspectionApp.jsx
 import React, { useState, useEffect } from 'react';
+import { 
+  Shield, 
+  CheckCircle, 
+  Users, 
+  FileText, 
+  Smartphone, 
+  Award,
+  Car,
+  Search,
+  Star,
+  ArrowRight,
+  Play,
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Twitter,
+  Instagram,
+  LogIn,
+  UserPlus
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Layout/Header';
 import LandingPage from './LandingPage';
