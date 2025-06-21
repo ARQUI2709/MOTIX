@@ -10,20 +10,24 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Obtener sesión inicial
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
-        } else {
+        } else if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -32,14 +36,32 @@ export const AuthProvider = ({ children }) => {
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         console.log('Auth state changed:', event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        if (event === 'INITIAL_SESSION') {
+          // Solo procesar si no tenemos sesión ya
+          if (!session) {
+            setSession(null);
+            setUser(null);
+          }
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setSession(session);
+          setUser(session?.user ?? null);
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+        }
+        
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Función para registrar usuario
