@@ -1,3 +1,5 @@
+
+// pages/api/inspections.js
 import { supabase } from '../../lib/supabase'
 
 export default async function handler(req, res) {
@@ -7,7 +9,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   )
 
   if (req.method === 'OPTIONS') {
@@ -16,6 +18,17 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Obtener el token del header Authorization
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    let userId = null
+
+    if (token) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+      if (!authError && user) {
+        userId = user.id
+      }
+    }
+
     if (req.method === 'POST') {
       // Validar datos requeridos
       if (!req.body.vehicle_info || !req.body.vehicle_info.placa) {
@@ -25,9 +38,16 @@ export default async function handler(req, res) {
         })
       }
 
+      // Preparar datos para insertar
+      const inspectionData = {
+        ...req.body,
+        user_id: userId, // Asociar con el usuario autenticado
+        created_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('inspections')
-        .insert([req.body])
+        .insert([inspectionData])
         .select()
 
       if (error) {
@@ -38,11 +58,20 @@ export default async function handler(req, res) {
       res.status(200).json({ success: true, data })
     } 
     else if (req.method === 'GET') {
-      const { data, error } = await supabase
+      let query = supabase
         .from('inspections')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50) // Limitar a 50 registros más recientes
+
+      // Si hay usuario autenticado, filtrar por sus inspecciones
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      // Limitar resultados
+      query = query.limit(50)
+
+      const { data, error } = await query
 
       if (error) {
         console.error('Supabase error:', error)
