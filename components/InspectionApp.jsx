@@ -1,25 +1,23 @@
 // components/InspectionApp.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Shield, 
-  CheckCircle, 
-  Users, 
-  FileText, 
-  Smartphone, 
-  Award,
-  Car,
-  Search,
-  Star,
-  ArrowRight,
-  Play,
-  Mail,
-  Phone,
-  MapPin,
-  Facebook,
-  Twitter,
-  Instagram,
-  LogIn,
-  UserPlus
+  Save, 
+  Download, 
+  RefreshCw, 
+  Star, 
+  StarOff, 
+  Camera, 
+  X, 
+  Menu,
+  AlertCircle,
+  Info,
+  Home,
+  FolderOpen,
+  Wifi,
+  WifiOff,
+  Upload,
+  FileText,
+  Share2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Layout/Header';
