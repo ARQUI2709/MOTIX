@@ -1,25 +1,27 @@
-// pages/api/inspections.js - IMPROVED VERSION WITH BETTER ERROR HANDLING
+// pages/api/inspections.js - VERSIÓN CORREGIDA PARA EVITAR PROBLEMAS RLS
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Validate environment variables
+// Validar variables de entorno
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-  console.error('Missing required environment variables:', {
+  console.error('❌ Missing environment variables:', {
     supabaseUrl: !!supabaseUrl,
     supabaseServiceKey: !!supabaseServiceKey,
     supabaseAnonKey: !!supabaseAnonKey
   })
-  throw new Error('Missing required Supabase environment variables')
 }
 
-// Admin client for token verification and privileged operations
+// Cliente admin con configuración específica para bypasser RLS
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
+  },
+  db: {
+    schema: 'public'
   }
 })
 
@@ -30,24 +32,18 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE')
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization')
 
-  // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     res.status(200).end()
     return
   }
 
-  // Log request details for debugging
-  console.log(`API Request: ${req.method} /api/inspections`)
-  console.log('Headers:', {
-    authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'Missing',
-    'content-type': req.headers['content-type']
-  })
+  console.log(`🔄 API Request: ${req.method} /api/inspections`)
 
   try {
-    // Extract and validate authorization token
+    // Extraer y validar token de autorización
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Missing or invalid authorization header')
+      console.error('❌ Missing authorization header')
       return res.status(401).json({ 
         success: false, 
         error: 'Token de autorización requerido. Formato: Bearer <token>'
@@ -57,19 +53,19 @@ export default async function handler(req, res) {
     const token = authHeader.replace('Bearer ', '').trim()
     
     if (!token || token.length < 10) {
-      console.error('Invalid token format')
+      console.error('❌ Invalid token format')
       return res.status(401).json({ 
         success: false, 
         error: 'Token de autorización inválido'
       })
     }
 
-    // Verify user with admin client
-    console.log('Verifying user token...')
+    // Verificar usuario con el admin client
+    console.log('🔐 Verifying user token...')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError) {
-      console.error('Auth verification failed:', authError.message)
+      console.error('❌ Auth verification failed:', authError.message)
       return res.status(401).json({ 
         success: false, 
         error: 'Token inválido o expirado',
@@ -78,16 +74,16 @@ export default async function handler(req, res) {
     }
 
     if (!user) {
-      console.error('No user found for token')
+      console.error('❌ No user found for token')
       return res.status(401).json({ 
         success: false, 
         error: 'Usuario no encontrado'
       })
     }
 
-    console.log('User authenticated:', user.id, user.email)
+    console.log('✅ User authenticated:', user.id, user.email)
 
-    // Handle different HTTP methods
+    // Manejar diferentes métodos HTTP
     if (req.method === 'POST') {
       return await handlePost(req, res, user)
     } else if (req.method === 'GET') {
@@ -100,19 +96,18 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error('Unexpected API error:', error)
+    console.error('💥 Unexpected API error:', error)
     return res.status(500).json({ 
       success: false, 
       error: 'Error interno del servidor',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal error'
     })
   }
 }
 
-// Handle POST request - Create new inspection
+// Manejar POST request - Crear nueva inspección
 async function handlePost(req, res, user) {
-  console.log('Processing POST request for user:', user.id)
+  console.log('📝 Processing POST request for user:', user.id)
   
   try {
     const { 
@@ -124,7 +119,7 @@ async function handlePost(req, res, user) {
       completed_items = 0 
     } = req.body
 
-    // Validate required fields
+    // Validar campos requeridos
     if (!vehicle_info || typeof vehicle_info !== 'object') {
       return res.status(400).json({ 
         success: false, 
@@ -139,7 +134,7 @@ async function handlePost(req, res, user) {
       })
     }
 
-    // Prepare inspection record
+    // Preparar registro de inspección
     const inspectionRecord = {
       user_id: user.id,
       vehicle_info,
@@ -148,48 +143,61 @@ async function handlePost(req, res, user) {
       total_score: parseFloat(total_score) || 0,
       total_repair_cost: parseFloat(total_repair_cost) || 0,
       completed_items: parseInt(completed_items) || 0,
+      status: 'completed',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
 
-    console.log('Inserting inspection record for user:', user.id)
+    console.log('💾 Inserting inspection record for user:', user.id)
 
-    // Use admin client to bypass RLS and ensure insertion
-    const { data, error } = await supabaseAdmin
-      .from('inspections')
-      .insert([inspectionRecord])
-      .select()
-      .single()
+    // SOLUCION 1: Usar RPC function que bypasse RLS
+    const { data, error } = await supabaseAdmin.rpc('insert_inspection', {
+      p_user_id: user.id,
+      p_vehicle_info: vehicle_info,
+      p_inspection_data: inspection_data,
+      p_photos: photos,
+      p_total_score: parseFloat(total_score) || 0,
+      p_total_repair_cost: parseFloat(total_repair_cost) || 0,
+      p_completed_items: parseInt(completed_items) || 0
+    })
 
-    if (error) {
-      console.error('Supabase insertion error:', error)
+    // SOLUCION 2: Si no funciona RPC, usar admin client con session override
+    if (error && error.code !== '42883') { // Si RPC no existe
+      console.log('🔄 RPC not found, using direct admin insert...')
       
-      // Handle specific database errors
-      if (error.code === '42501') {
-        return res.status(403).json({ 
+      const { data: directData, error: directError } = await supabaseAdmin
+        .from('inspections')
+        .insert([inspectionRecord])
+        .select()
+        .single()
+
+      if (directError) {
+        console.error('💥 Direct insertion error:', directError)
+        return res.status(500).json({ 
           success: false, 
-          error: 'Permisos insuficientes en la base de datos. Contacte al administrador.',
-          code: error.code
+          error: `Error insertando inspección: ${directError.message}`,
+          code: directError.code
         })
       }
-      
-      if (error.code === '23503') {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Usuario no válido para crear inspecciones',
-          code: error.code
-        })
-      }
 
-      return res.status(500).json({ 
-        success: false, 
-        error: `Error guardando inspección: ${error.message}`,
-        code: error.code,
-        details: error.details
+      console.log('✅ Inspection saved successfully (direct):', directData.id)
+      return res.status(201).json({ 
+        success: true, 
+        data: directData,
+        message: 'Inspección guardada exitosamente'
       })
     }
 
-    console.log('Inspection saved successfully:', data.id)
+    if (error) {
+      console.error('💥 RPC insertion error:', error)
+      return res.status(500).json({ 
+        success: false, 
+        error: `Error guardando inspección: ${error.message}`,
+        code: error.code
+      })
+    }
+
+    console.log('✅ Inspection saved successfully (RPC):', data)
     return res.status(201).json({ 
       success: true, 
       data,
@@ -197,7 +205,7 @@ async function handlePost(req, res, user) {
     })
 
   } catch (error) {
-    console.error('Error in handlePost:', error)
+    console.error('💥 Error in handlePost:', error)
     return res.status(500).json({ 
       success: false, 
       error: 'Error procesando la solicitud de guardado',
@@ -206,30 +214,46 @@ async function handlePost(req, res, user) {
   }
 }
 
-// Handle GET request - Retrieve user's inspections
+// Manejar GET request - Obtener inspecciones del usuario
 async function handleGet(req, res, user) {
-  console.log('Processing GET request for user:', user.id)
+  console.log('📋 Processing GET request for user:', user.id)
   
   try {
-    const { data, error } = await supabaseAdmin
-      .from('inspections')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(100)
+    // SOLUCION 1: Usar RPC function
+    const { data, error } = await supabaseAdmin.rpc('get_user_inspections', {
+      p_user_id: user.id
+    })
 
-    if (error) {
-      console.error('Error fetching inspections:', error)
+    // SOLUCION 2: Si RPC no existe, usar admin client directo
+    if (error && error.code === '42883') { // RPC no existe
+      console.log('🔄 RPC not found, using direct admin query...')
       
-      // Handle specific database errors
-      if (error.code === '42501') {
-        return res.status(403).json({ 
+      const { data: directData, error: directError } = await supabaseAdmin
+        .from('inspections')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (directError) {
+        console.error('💥 Direct query error:', directError)
+        return res.status(500).json({ 
           success: false, 
-          error: 'Permisos insuficientes para leer inspecciones',
-          code: error.code
+          error: `Error obteniendo inspecciones: ${directError.message}`,
+          code: directError.code
         })
       }
 
+      console.log(`✅ Found ${directData?.length || 0} inspections for user ${user.id}`)
+      return res.status(200).json({ 
+        success: true, 
+        data: directData || [],
+        count: directData?.length || 0
+      })
+    }
+
+    if (error) {
+      console.error('💥 RPC query error:', error)
       return res.status(500).json({ 
         success: false, 
         error: `Error obteniendo inspecciones: ${error.message}`,
@@ -237,7 +261,7 @@ async function handleGet(req, res, user) {
       })
     }
 
-    console.log(`Found ${data?.length || 0} inspections for user ${user.id}`)
+    console.log(`✅ Found ${data?.length || 0} inspections for user ${user.id}`)
     return res.status(200).json({ 
       success: true, 
       data: data || [],
@@ -245,7 +269,7 @@ async function handleGet(req, res, user) {
     })
 
   } catch (error) {
-    console.error('Error in handleGet:', error)
+    console.error('💥 Error in handleGet:', error)
     return res.status(500).json({ 
       success: false, 
       error: 'Error procesando la solicitud de lectura',
