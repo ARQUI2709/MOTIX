@@ -98,8 +98,6 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
 };
 
 // Componente para subir fotos - VERSIÓN CORREGIDA CON TEXTOS EN ESPAÑOL
-// Reemplazar en InspectionApp.jsx
-
 const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
   const fileInputRef = useRef(null);
   
@@ -128,32 +126,39 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
     }
   };
 
+  const handleIconClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">
         Fotos
       </label>
       
-      {/* Input de archivo */}
-      <div className="flex items-center space-x-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500 
-                     file:mr-4 file:py-2 file:px-4 
-                     file:rounded-lg file:border-0 
-                     file:text-sm file:font-medium 
-                     file:bg-blue-50 file:text-blue-700 
-                     hover:file:bg-blue-100
-                     file:cursor-pointer"
-        />
-      </div>
+      {/* Input de archivo oculto */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
       
-      <div className="text-xs text-gray-500">
-        Selecciona una o más imágenes (máximo 5MB cada una)
+      {/* Botón con icono para seleccionar fotos */}
+      <div className="flex items-center space-x-3">
+        <button
+          type="button"
+          onClick={handleIconClick}
+          className="flex items-center justify-center w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          title="Seleccionar fotos"
+        >
+          <Camera size={20} />
+        </button>
+        <span className="text-sm text-gray-600">
+          Agregar fotos (máximo 5MB cada una)
+        </span>
       </div>
       
       {/* Vista previa de fotos */}
@@ -164,17 +169,17 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
               <img
                 src={photo.url}
                 alt={`Foto ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                className="w-full h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
               />
               <button
                 type="button"
                 onClick={() => onPhotoRemove(categoryName, itemName, index)}
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                 title="Eliminar foto"
               >
-                ×
+                <X size={12} />
               </button>
-              <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+              <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                 {index + 1}
               </div>
             </div>
