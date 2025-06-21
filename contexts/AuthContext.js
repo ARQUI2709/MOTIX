@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Función para registrar usuario (simplificada)
+  // Función para registrar usuario
   const signUp = async (email, password, userData = {}) => {
     try {
       setLoading(true);
@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Función para actualizar perfil (simplificada)
+  // Función para actualizar perfil
   const updateProfile = async (updates) => {
     try {
       const { data, error } = await supabase.auth.updateUser({ data: updates });
