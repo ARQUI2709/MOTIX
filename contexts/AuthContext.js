@@ -40,9 +40,13 @@ export const AuthProvider = ({ children }) => {
         
         console.log('Auth state changed:', event, session);
         
+        // Evitar actualizar el estado si es el mismo evento de sesión inicial
         if (event === 'INITIAL_SESSION') {
-          // Solo procesar si no tenemos sesión ya
-          if (!session) {
+          // Solo actualizar si realmente cambió algo
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+          } else {
             setSession(null);
             setUser(null);
           }
@@ -54,7 +58,9 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
         }
         
-        setLoading(false);
+        if (loading) {
+          setLoading(false);
+        }
       }
     );
 
@@ -62,7 +68,7 @@ export const AuthProvider = ({ children }) => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loading]);
 
   // Función para registrar usuario
   const signUp = async (email, password, userData = {}) => {

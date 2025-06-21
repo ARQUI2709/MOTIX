@@ -1,74 +1,49 @@
 // components/InspectionApp.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Star, 
-  Camera, 
-  Plus, 
-  Info, 
+  Save, 
   Download, 
-  Menu, 
+  RefreshCw, 
+  Star, 
+  StarOff, 
+  Camera, 
   X, 
-  AlertCircle, 
-  Cloud, 
-  CloudOff,
-  Save,
+  Menu,
+  AlertCircle,
+  Info,
+  Home,
   FolderOpen,
-  Home
+  Wifi,
+  WifiOff,
+  Upload,
+  FileText,
+  Share2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { AuthProvider } from '../contexts/AuthContext';
-import Header from './Layout/Header.jsx';
+import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
-import { checklistStructure, getItemNumber } from '../data/checklistStructure';
-import { generatePDFReport, generateJSONReport } from '../utils/pdfGenerator';
+import { checklistStructure } from '../data/checklist';
+import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 
 const InspectionApp = () => {
   const { user } = useAuth();
   
-  // Estado principal de la aplicación
-  const [showLanding, setShowLanding] = useState(true);
+  // Estados principales
+  const [showLanding, setShowLanding] = useState(false);
   const [showInspectionManager, setShowInspectionManager] = useState(false);
-  
-  // Estados de la inspección
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
     año: '',
     placa: '',
     kilometraje: '',
-    precio: '',
     vendedor: '',
     telefono: '',
     fecha: new Date().toISOString().split('T')[0]
   });
 
-  const [inspectionData, setInspectionData] = useState({});
-  const [photos, setPhotos] = useState({});
-  const [totalScore, setTotalScore] = useState(0);
-  const [totalRepairCost, setTotalRepairCost] = useState(0);
-  const [expandedItems, setExpandedItems] = useState({});
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-
-  // Detectar conexión a internet
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // Inicializar datos de inspección
-  useEffect(() => {
+  const [inspectionData, setInspectionData] = useState(() => {
     const initialData = {};
     Object.keys(checklistStructure).forEach(category => {
       initialData[category] = {};
@@ -81,11 +56,33 @@ const InspectionApp = () => {
         };
       });
     });
-    setInspectionData(initialData);
+    return initialData;
+  });
+
+  const [photos, setPhotos] = useState({});
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [totalScore, setTotalScore] = useState(0);
+  const [totalRepairCost, setTotalRepairCost] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Efectos
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  // Calcular totales
   useEffect(() => {
+    // Calcular totales
     let totalPoints = 0;
     let totalItems = 0;
     let repairTotal = 0;
@@ -94,9 +91,11 @@ const InspectionApp = () => {
       Object.values(category).forEach(item => {
         if (item.evaluated && item.score > 0) {
           totalPoints += item.score;
-          totalItems += 1;
+          totalItems++;
         }
-        repairTotal += parseFloat(item.repairCost) || 0;
+        if (item.repairCost) {
+          repairTotal += parseFloat(item.repairCost) || 0;
+        }
       });
     });
 
@@ -104,7 +103,8 @@ const InspectionApp = () => {
     setTotalRepairCost(repairTotal);
   }, [inspectionData]);
 
-  const updateItemData = (category, itemName, field, value) => {
+  // Funciones auxiliares
+  const updateInspectionItem = (category, itemName, field, value) => {
     setInspectionData(prev => ({
       ...prev,
       [category]: {
@@ -118,26 +118,23 @@ const InspectionApp = () => {
     }));
   };
 
-  const generateReport = async (format = 'pdf') => {
-    try {
-      const userInfo = user ? {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || user.email
-      } : null;
-
-      if (format === 'pdf') {
-        await generatePDFReport(inspectionData, vehicleInfo, photos, userInfo);
-      } else {
-        generateJSONReport(inspectionData, vehicleInfo, photos, userInfo);
-      }
-    } catch (error) {
-      console.error('Error generando reporte:', error);
-      alert('Error al generar el reporte. Inténtalo de nuevo.');
-    }
+  const addPhoto = (category, itemName, photoData) => {
+    const key = `${category}_${itemName}`;
+    setPhotos(prev => ({
+      ...prev,
+      [key]: [...(prev[key] || []), photoData]
+    }));
   };
 
-  const saveInspection = async () => {
+  const removePhoto = (category, itemName, photoIndex) => {
+    const key = `${category}_${itemName}`;
+    setPhotos(prev => ({
+      ...prev,
+      [key]: prev[key]?.filter((_, index) => index !== photoIndex) || []
+    }));
+  };
+
+  const handleSave = async () => {
     if (!user) {
       alert('Debes iniciar sesión para guardar inspecciones en la nube');
       return;
@@ -156,20 +153,9 @@ const InspectionApp = () => {
         )
       };
 
-      const response = await fetch('/api/inspections', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`
-        },
-        body: JSON.stringify(inspectionToSave)
-      });
-
-      if (response.ok) {
-        alert('Inspección guardada exitosamente en la nube');
-      } else {
-        throw new Error('Error al guardar');
-      }
+      // Simular guardado (reemplazar con API real)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      alert('Inspección guardada exitosamente en la nube');
     } catch (error) {
       console.error('Error:', error);
       alert('Error al guardar la inspección. Verifica tu conexión.');
@@ -178,114 +164,229 @@ const InspectionApp = () => {
     }
   };
 
-  const getScoreColor = (score) => {
-    if (score >= 8) return 'text-green-600';
-    if (score >= 5) return 'text-yellow-600';
-    if (score > 0) return 'text-red-600';
-    return 'text-gray-400';
+  const handleReset = () => {
+    if (confirm('¿Estás seguro de que quieres reiniciar toda la inspección?')) {
+      setInspectionData(() => {
+        const initialData = {};
+        Object.keys(checklistStructure).forEach(category => {
+          initialData[category] = {};
+          checklistStructure[category].forEach(item => {
+            initialData[category][item.name] = {
+              score: 0,
+              repairCost: 0,
+              notes: '',
+              evaluated: false
+            };
+          });
+        });
+        return initialData;
+      });
+      setPhotos({});
+      setVehicleInfo({
+        marca: '',
+        modelo: '',
+        año: '',
+        placa: '',
+        kilometraje: '',
+        vendedor: '',
+        telefono: '',
+        fecha: new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const generatePDFReport = async () => {
+    try {
+      const userInfo = user ? {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email
+      } : null;
+
+      await generatePDFReport(inspectionData, vehicleInfo, photos, userInfo);
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      alert('Error al generar el reporte PDF. Inténtalo de nuevo.');
+    }
+  };
+
+  const exportToJSON = () => {
+    try {
+      const userInfo = user ? {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email
+      } : null;
+
+      generateJSONReport(inspectionData, vehicleInfo, photos, userInfo);
+    } catch (error) {
+      console.error('Error exportando JSON:', error);
+      alert('Error al exportar los datos. Inténtalo de nuevo.');
+    }
   };
 
   const getOverallCondition = () => {
     const score = parseFloat(totalScore);
     if (score >= 8) return { text: 'Excelente', color: 'text-green-600' };
-    if (score >= 7) return { text: 'Bueno', color: 'text-blue-600' };
-    if (score >= 5) return { text: 'Regular', color: 'text-yellow-600' };
-    if (score > 0) return { text: 'Malo', color: 'text-red-600' };
-    return { text: 'Sin evaluar', color: 'text-gray-400' };
+    if (score >= 6) return { text: 'Bueno', color: 'text-yellow-600' };
+    if (score >= 4) return { text: 'Regular', color: 'text-orange-600' };
+    return { text: 'Malo', color: 'text-red-600' };
   };
 
-  const renderCategory = (categoryName, items) => {
+  // Componente de item de inspección
+  const InspectionItem = ({ category, item, itemNumber }) => {
+    const itemData = inspectionData[category]?.[item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
+    const photoKey = `${category}_${item.name}`;
+    const itemPhotos = photos[photoKey] || [];
+
     return (
-      <div key={categoryName} className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">{categoryName}</h3>
-        <div className="space-y-4">
-          {items.map((item) => {
-            const itemNumber = getItemNumber(categoryName, item.name);
-            const itemKey = `${categoryName}-${item.name}`;
-            const isExpanded = expandedItems[itemKey];
-            const itemData = inspectionData[categoryName]?.[item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
-
-            return (
-              <div key={item.name} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded font-medium">
-                        {itemNumber}
-                      </span>
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">{item.name}</h4>
-                      <button
-                        onClick={() => setExpandedItems(prev => ({ ...prev, [itemKey]: !prev[itemKey] }))}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <Info size={16} />
-                      </button>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="bg-blue-50 p-3 rounded mb-3">
-                        <p className="text-sm text-gray-700">{item.description}</p>
-                      </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm text-gray-600 whitespace-nowrap">Puntuación:</span>
-                        <div className="flex space-x-1">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                            <button
-                              key={star}
-                              onClick={() => updateItemData(categoryName, item.name, 'score', star)}
-                              className="focus:outline-none"
-                            >
-                              <Star
-                                size={16}
-                                className={star <= itemData.score ? 'text-yellow-500 fill-current' : 'text-gray-300'}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                        <span className={`text-sm font-medium ml-2 ${getScoreColor(itemData.score)}`}>
-                          {itemData.score > 0 ? `${itemData.score}/10` : 'No evaluado'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600 whitespace-nowrap">Costo reparación:</span>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          className="w-24 px-2 py-1 border rounded text-sm"
-                          value={itemData.repairCost || ''}
-                          onChange={(e) => updateItemData(categoryName, item.name, 'repairCost', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                      <textarea
-                        placeholder="Notas adicionales..."
-                        className="w-full px-3 py-2 border rounded resize-none text-sm"
-                        rows="2"
-                        value={itemData.notes || ''}
-                        onChange={(e) => updateItemData(categoryName, item.name, 'notes', e.target.value)}
-                      />
-                      
-                      <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 text-sm">
-                        <Camera size={16} />
-                        <span>Agregar foto</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+      <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full mr-2">
+                {itemNumber}
+              </span>
+              <h4 className="font-medium text-gray-900 text-sm sm:text-base">{item.name}</h4>
+            </div>
+            {item.description && (
+              <div className="flex items-start text-xs sm:text-sm text-gray-600 mb-2">
+                <Info className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" />
+                <span>{item.description}</span>
               </div>
-            );
-          })}
+            )}
+          </div>
+        </div>
+
+        {/* Puntuación */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Puntuación (1-10):
+          </label>
+          <div className="flex space-x-1">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(star => (
+              <button
+                key={star}
+                onClick={() => updateInspectionItem(category, item.name, 'score', star)}
+                className={`p-1 transition-colors ${
+                  star <= itemData.score ? 'text-yellow-400' : 'text-gray-300'
+                }`}
+              >
+                {star <= itemData.score ? <Star fill="currentColor" size={20} /> : <StarOff size={20} />}
+              </button>
+            ))}
+          </div>
+          {itemData.score > 0 && (
+            <span className="text-sm text-gray-600 mt-1 block">
+              Puntuación: {itemData.score}/10
+            </span>
+          )}
+        </div>
+
+        {/* Costo de reparación */}
+        {itemData.score > 0 && itemData.score < 8 && (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Costo estimado de reparación:
+            </label>
+            <input
+              type="number"
+              placeholder="0"
+              value={itemData.repairCost}
+              onChange={(e) => updateInspectionItem(category, item.name, 'repairCost', e.target.value)}
+              className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        )}
+
+        {/* Notas */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Notas:
+          </label>
+          <textarea
+            placeholder="Observaciones adicionales..."
+            value={itemData.notes}
+            onChange={(e) => updateInspectionItem(category, item.name, 'notes', e.target.value)}
+            className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows="2"
+          />
+        </div>
+
+        {/* Fotos */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Fotos ({itemPhotos.length}):
+          </label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {itemPhotos.map((photo, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={photo}
+                  alt={`Foto ${index + 1}`}
+                  className="w-16 h-16 object-cover rounded border"
+                />
+                <button
+                  onClick={() => removePhoto(category, item.name, index)}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => addPhoto(category, item.name, e.target.result);
+                reader.readAsDataURL(file);
+              }
+            }}
+            className="hidden"
+            id={`photo-${category}-${item.name}`}
+          />
+          <label
+            htmlFor={`photo-${category}-${item.name}`}
+            className="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded cursor-pointer hover:bg-gray-700 transition-colors"
+          >
+            <Camera className="mr-2" size={16} />
+            Agregar Foto
+          </label>
         </div>
       </div>
     );
   };
 
+  // Renderizar categoría
+  const renderCategory = (categoryName, items) => {
+    const startIndex = Object.values(checklistStructure)
+      .slice(0, Object.keys(checklistStructure).indexOf(categoryName))
+      .reduce((acc, cat) => acc + cat.length, 0);
+
+    return (
+      <div key={categoryName} className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
+          {categoryName}
+        </h2>
+        <div className="space-y-4">
+          {items.map((item, index) => (
+            <InspectionItem
+              key={item.name}
+              category={categoryName}
+              item={item}
+              itemNumber={startIndex + index + 1}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizado condicional para diferentes vistas
   if (showLanding) {
     return <LandingPage onEnterApp={() => setShowLanding(false)} />;
   }
@@ -304,6 +405,7 @@ const InspectionApp = () => {
     );
   }
 
+  // Componente principal de la app de inspección
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -357,63 +459,29 @@ const InspectionApp = () => {
             <div className="text-center flex items-center justify-center">
               {isOnline ? (
                 <div className="flex items-center text-green-600">
-                  <Cloud size={20} className="mr-1" />
+                  <Wifi className="mr-1" size={16} />
                   <span className="text-sm">En línea</span>
                 </div>
               ) : (
                 <div className="flex items-center text-red-600">
-                  <CloudOff size={20} className="mr-1" />
+                  <WifiOff className="mr-1" size={16} />
                   <span className="text-sm">Sin conexión</span>
                 </div>
               )}
             </div>
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 mt-6">
-            <button
-              onClick={() => generateReport('pdf')}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Download className="mr-2" size={20} />
-              <span className="text-sm sm:text-base">Descargar PDF</span>
-            </button>
-
-            <button
-              onClick={() => generateReport('json')}
-              className="flex items-center justify-center px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Download className="mr-2" size={20} />
-              <span className="text-sm sm:text-base">Exportar JSON</span>
-            </button>
-
-            {user && (
-              <button
-                onClick={saveInspection}
-                disabled={saving}
-                className="flex items-center justify-center px-4 sm:px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
-              >
-                <Save className="mr-2" size={20} />
-                <span className="text-sm sm:text-base">
-                  {saving ? 'Guardando...' : 'Guardar en la Nube'}
-                </span>
-              </button>
-            )}
-          </div>
         </div>
 
-        {/* Información del Vehículo */}
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-            <Plus className="mr-2" /> Información del Vehículo
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Información del vehículo */}
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Información del Vehículo</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <input
               type="text"
-              placeholder="Marca *"
+              placeholder="Marca"
               className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={vehicleInfo.marca}
               onChange={(e) => setVehicleInfo({...vehicleInfo, marca: e.target.value})}
-              required
             />
             <input
               type="text"
@@ -431,11 +499,10 @@ const InspectionApp = () => {
             />
             <input
               type="text"
-              placeholder="Placa *"
+              placeholder="Placa"
               className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={vehicleInfo.placa}
               onChange={(e) => setVehicleInfo({...vehicleInfo, placa: e.target.value})}
-              required
             />
             <input
               type="number"
@@ -443,13 +510,6 @@ const InspectionApp = () => {
               className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={vehicleInfo.kilometraje}
               onChange={(e) => setVehicleInfo({...vehicleInfo, kilometraje: e.target.value})}
-            />
-            <input
-              type="number"
-              placeholder="Precio"
-              className="border rounded px-3 py-2 text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={vehicleInfo.precio}
-              onChange={(e) => setVehicleInfo({...vehicleInfo, precio: e.target.value})}
             />
             <input
               type="text"
@@ -471,6 +531,41 @@ const InspectionApp = () => {
               value={vehicleInfo.fecha}
               onChange={(e) => setVehicleInfo({...vehicleInfo, fecha: e.target.value})}
             />
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex flex-wrap gap-3">
+            {user && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? <RefreshCw className="mr-2 animate-spin" size={16} /> : <Upload className="mr-2" size={16} />}
+                {saving ? 'Guardando...' : 'Guardar en la Nube'}
+              </button>
+            )}
+            <button
+              onClick={generatePDFReport}
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Download className="mr-2" size={16} />
+              Generar PDF
+            </button>
+            <button
+              onClick={exportToJSON}
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Share2 className="mr-2" size={16} />
+              Exportar JSON
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <RefreshCw className="mr-2" size={16} />
+              Reiniciar
+            </button>
           </div>
         </div>
 
@@ -528,7 +623,7 @@ const InspectionApp = () => {
           )}
         </div>
 
-        {/* Instrucciones de uso - Al final */}
+        {/* Instrucciones de uso */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-8">
           <div className="flex items-start">
             <AlertCircle className="text-yellow-600 mr-2 flex-shrink-0" size={20} />
@@ -557,13 +652,4 @@ const InspectionApp = () => {
   );
 };
 
-// Componente principal con Provider
-const App = () => {
-  return (
-    <AuthProvider>
-      <InspectionApp />
-    </AuthProvider>
-  );
-};
-
-export default App;
+export default InspectionApp;

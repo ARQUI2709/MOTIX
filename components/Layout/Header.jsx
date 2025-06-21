@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User, LogIn, Settings, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { AuthModal } from '../Auth/AuthModal';
+import AuthModal from '../Auth/AuthModal'; // Cambiado: import sin destructuring
 
 const Header = () => {
   const { user, loading, signOut } = useAuth();
@@ -24,6 +24,7 @@ const Header = () => {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <header className="bg-white shadow-lg border-b">
@@ -44,6 +45,7 @@ const Header = () => {
     );
   }
 
+  // Main component - siempre retorna JSX válido
   return (
     <>
       <header className="bg-white shadow-lg border-b">
@@ -61,18 +63,25 @@ const Header = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"
                   >
-                    <User className="h-5 w-5" />
-                    <span className="hidden sm:block">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="hidden md:block text-left">
+                      <div className="text-sm font-medium">
+                        {user.user_metadata?.full_name || user.email}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Inspector
+                      </div>
+                    </div>
                   </button>
 
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                      <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                        {user.user_metadata?.full_name || user.email}
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                      <div className="px-4 py-2 text-xs text-gray-500 border-b">
+                        {user.email}
                       </div>
                       <button
                         onClick={() => {
@@ -95,19 +104,19 @@ const Header = () => {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => handleAuthClick('login')}
-                    className="flex items-center px-4 py-2 text-blue-600 hover:text-blue-700 transition-colors"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                   >
-                    <LogIn className="h-4 w-4 mr-1" />
+                    <LogIn className="w-4 h-4 mr-2" />
                     Iniciar Sesión
                   </button>
                   <button
                     onClick={() => handleAuthClick('register')}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    <User className="h-4 w-4 mr-1" />
+                    <User className="w-4 h-4 mr-2" />
                     Registrarse
                   </button>
                 </div>
@@ -117,11 +126,12 @@ const Header = () => {
         </div>
       </header>
 
+      {/* Modal de Autenticación */}
       {showAuthModal && (
         <AuthModal
-          mode={authMode}
+          isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
-          onSwitchMode={setAuthMode}
+          initialMode={authMode}
         />
       )}
     </>
