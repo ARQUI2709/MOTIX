@@ -85,6 +85,28 @@ const InspectionApp = () => {
     };
   }, []);
 
+  // Calcular totales cuando inspectionData cambia
+  useEffect(() => {
+    let totalPoints = 0;
+    let totalItems = 0;
+    let repairTotal = 0;
+
+    Object.values(inspectionData).forEach(category => {
+      Object.values(category).forEach(item => {
+        if (item.evaluated && item.score > 0) {
+          totalPoints += item.score;
+          totalItems++;
+        }
+        if (item.repairCost) {
+          repairTotal += parseFloat(item.repairCost) || 0;
+        }
+      });
+    });
+
+    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
+    setTotalRepairCost(repairTotal);
+  }, [inspectionData]);
+
   // Si el usuario está autenticado, no mostrar landing
   useEffect(() => {
     if (user && showLanding) {
@@ -107,28 +129,6 @@ const InspectionApp = () => {
       </div>
     );
   };
-
-  // Calcular totales cuando inspectionData cambia
-  useEffect(() => {
-    let totalPoints = 0;
-    let totalItems = 0;
-    let repairTotal = 0;
-
-    Object.values(inspectionData).forEach(category => {
-      Object.values(category).forEach(item => {
-        if (item.evaluated && item.score > 0) {
-          totalPoints += item.score;
-          totalItems++;
-        }
-        if (item.repairCost) {
-          repairTotal += parseFloat(item.repairCost) || 0;
-        }
-      });
-    });
-
-    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
-    setTotalRepairCost(repairTotal);
-  }, [inspectionData]);
 
   // Funciones auxiliares
   const updateInspectionItem = (category, itemName, field, value) => {
