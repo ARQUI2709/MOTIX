@@ -24,7 +24,7 @@ import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import { checklistStructure } from '../data/checklistStructure';
-import { generatePDFReport, generateJSONReport } from '../utils/ReportGenerator';
+import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 
 // Resto del código permanece exactamente igual...
 const InspectionApp = () => {

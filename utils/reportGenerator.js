@@ -1,7 +1,7 @@
 // utils/reportGenerator.js
 // Generador de reportes PDF y JSON para inspecciones de vehículos 4x4
 
-import { checklistStructure } from '../data/checklist.js';
+import { checklistStructure } from '../data/checklistStructure.js';
 
 export const generatePDFReport = async (inspectionData, vehicleInfo, photos = {}, userInfo = null) => {
   // Importar jsPDF dinámicamente desde un módulo CDN compatible
