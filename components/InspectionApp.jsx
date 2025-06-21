@@ -1,5 +1,5 @@
 // components/InspectionApp.jsx - VERSIÓN CORREGIDA
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Save, 
   Download, 
@@ -29,12 +29,13 @@ import InspectionManager from './InspectionManager';
 import { checklistStructure, initializeInspectionData } from '../data/checklistStructure';
 import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
-import { 
-  generateVehicleYears,
-  fetchVehicleMakesWithCache,
-  fetchVehicleModelsWithCache,
-  formatVehicleName
-} from '../utils/vehicleApiUtils';
+// Remover imports de API externa que no funcionan
+// import { 
+//   generateVehicleYears,
+//   fetchVehicleMakesWithCache,
+//   fetchVehicleModelsWithCache,
+//   formatVehicleName
+// } from '../utils/vehicleApiUtils';
 
 // Componente StarRating para calificación con estrellas
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
@@ -96,52 +97,96 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
-// Componente para subir fotos mejorado
+// Componente para subir fotos - VERSIÓN CORREGIDA CON TEXTOS EN ESPAÑOL
+// Reemplazar en InspectionApp.jsx
+
 const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
+  const fileInputRef = useRef(null);
+  
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
+    
     files.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        onPhotoAdd(categoryName, itemName, file);
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        alert('Solo se permiten archivos de imagen');
+        return;
       }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es muy grande. Máximo 5MB permitido.');
+        return;
+      }
+      
+      onPhotoAdd(categoryName, itemName, file);
     });
-    e.target.value = ''; // Reset input
+    
+    // Limpiar el input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
         Fotos
       </label>
-      <div className="space-y-2">
+      
+      {/* Input de archivo */}
+      <div className="flex items-center space-x-2">
         <input
+          ref={fileInputRef}
           type="file"
           multiple
           accept="image/*"
           onChange={handleFileChange}
-          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="block w-full text-sm text-gray-500 
+                     file:mr-4 file:py-2 file:px-4 
+                     file:rounded-lg file:border-0 
+                     file:text-sm file:font-medium 
+                     file:bg-blue-50 file:text-blue-700 
+                     hover:file:bg-blue-100
+                     file:cursor-pointer"
         />
-        {photos && photos.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {photos.map((photo, index) => (
-              <div key={index} className="relative">
-                <img
-                  src={photo.url}
-                  alt={`Foto ${index + 1}`}
-                  className="w-full h-20 object-cover rounded border"
-                />
-                <button
-                  type="button"
-                  onClick={() => onPhotoRemove(categoryName, itemName, index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+      
+      <div className="text-xs text-gray-500">
+        Selecciona una o más imágenes (máximo 5MB cada una)
+      </div>
+      
+      {/* Vista previa de fotos */}
+      {photos && photos.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          {photos.map((photo, index) => (
+            <div key={index} className="relative group">
+              <img
+                src={photo.url}
+                alt={`Foto ${index + 1}`}
+                className="w-full h-24 object-cover rounded-lg border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={() => onPhotoRemove(categoryName, itemName, index)}
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Eliminar foto"
+              >
+                ×
+              </button>
+              <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                {index + 1}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {photos && photos.length === 0 && (
+        <div className="text-sm text-gray-500 italic">
+          No hay fotos agregadas
+        </div>
+      )}
     </div>
   );
 };
@@ -168,12 +213,12 @@ const InspectionApp = () => {
     fecha: new Date().toISOString().split('T')[0]
   });
 
-  // Estados para datos de vehículos
-  const [vehicleMakes, setVehicleMakes] = useState([]);
-  const [vehicleModels, setVehicleModels] = useState([]);
-  const [vehicleYears] = useState(generateVehicleYears());
-  const [loadingMakes, setLoadingMakes] = useState(false);
-  const [loadingModels, setLoadingModels] = useState(false);
+  // Remover estados de API externa que no funcionan
+  // const [vehicleMakes, setVehicleMakes] = useState([]);
+  // const [vehicleModels, setVehicleModels] = useState([]);
+  // const [vehicleYears] = useState(generateVehicleYears());
+  // const [loadingMakes, setLoadingMakes] = useState(false);
+  // const [loadingModels, setLoadingModels] = useState(false);
 
   // Estados de inspección
   const [inspectionData, setInspectionData] = useState(initializeInspectionData());
@@ -217,60 +262,42 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Cargar marcas de vehículos con manejo de errores mejorado
-  useEffect(() => {
-    const loadVehicleMakes = async () => {
-      if (!isOnline) return;
-      
-      setLoadingMakes(true);
-      try {
-        const makes = await fetchVehicleMakesWithCache();
-        setVehicleMakes(makes || []);
-      } catch (error) {
-        console.error('Error loading vehicle makes:', error);
-        // Agregar marcas locales como fallback
-        setVehicleMakes([
-          { MakeId: 1, MakeName: 'Toyota' },
-          { MakeId: 2, MakeName: 'Chevrolet' },
-          { MakeId: 3, MakeName: 'Ford' },
-          { MakeId: 4, MakeName: 'Nissan' },
-          { MakeId: 5, MakeName: 'Volkswagen' },
-          { MakeId: 6, MakeName: 'Renault' },
-          { MakeId: 7, MakeName: 'Mazda' },
-          { MakeId: 8, MakeName: 'Hyundai' },
-          { MakeId: 9, MakeName: 'Kia' },
-          { MakeId: 10, MakeName: 'Suzuki' }
-        ]);
-      } finally {
-        setLoadingMakes(false);
-      }
-    };
+  // Eliminar efectos de carga de API externa
+  // useEffect(() => {
+  //   const loadVehicleMakes = async () => {
+  //     if (!isOnline) return;
+  //     setLoadingMakes(true);
+  //     try {
+  //       const makes = await fetchVehicleMakesWithCache();
+  //       setVehicleMakes(makes || []);
+  //     } catch (error) {
+  //       console.error('Error loading vehicle makes:', error);
+  //     } finally {
+  //       setLoadingMakes(false);
+  //     }
+  //   };
+  //   loadVehicleMakes();
+  // }, [isOnline]);
 
-    loadVehicleMakes();
-  }, [isOnline]);
-
-  // Cargar modelos cuando cambie la marca
-  useEffect(() => {
-    const loadVehicleModels = async () => {
-      if (!vehicleInfo.marca || !isOnline) {
-        setVehicleModels([]);
-        return;
-      }
-
-      setLoadingModels(true);
-      try {
-        const models = await fetchVehicleModelsWithCache(vehicleInfo.marca);
-        setVehicleModels(models || []);
-      } catch (error) {
-        console.error('Error loading vehicle models:', error);
-        setVehicleModels([]);
-      } finally {
-        setLoadingModels(false);
-      }
-    };
-
-    loadVehicleModels();
-  }, [vehicleInfo.marca, isOnline]);
+  // useEffect(() => {
+  //   const loadVehicleModels = async () => {
+  //     if (!vehicleInfo.marca || !isOnline) {
+  //       setVehicleModels([]);
+  //       return;
+  //     }
+  //     setLoadingModels(true);
+  //     try {
+  //       const models = await fetchVehicleModelsWithCache(vehicleInfo.marca);
+  //       setVehicleModels(models || []);
+  //     } catch (error) {
+  //       console.error('Error loading vehicle models:', error);
+  //       setVehicleModels([]);
+  //     } finally {
+  //       setLoadingModels(false);
+  //     }
+  //   };
+  //   loadVehicleModels();
+  // }, [vehicleInfo.marca, isOnline]);
 
   // Actualizar datos de un ítem de inspección
   const updateInspectionItem = (categoryName, itemName, field, value) => {
@@ -576,38 +603,26 @@ const InspectionApp = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Marca
                 </label>
-                <select
+                <input
+                  type="text"
                   value={vehicleInfo.marca}
-                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value, modelo: '' }))}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value.toUpperCase() }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  disabled={loadingMakes}
-                >
-                  <option value="">Seleccione marca</option>
-                  {vehicleMakes.map(make => (
-                    <option key={make.MakeId} value={make.MakeName}>
-                      {make.MakeName}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Ej: TOYOTA, CHEVROLET, FORD"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Modelo
                 </label>
-                <select
+                <input
+                  type="text"
                   value={vehicleInfo.modelo}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, modelo: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  disabled={!vehicleInfo.marca || loadingModels}
-                >
-                  <option value="">Seleccione modelo</option>
-                  {vehicleModels.map(model => (
-                    <option key={model.ModelId || model.Model_Name} value={model.ModelName || model.Model_Name}>
-                      {model.ModelName || model.Model_Name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Ej: Prado, Cherokee, Explorer"
+                />
               </div>
 
               <div>
