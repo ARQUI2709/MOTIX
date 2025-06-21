@@ -1,4 +1,4 @@
-// components/InspectionManager.jsx
+// components/InspectionManager.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -17,10 +17,10 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { generatePDFReport } from '../utils/reportGenerator'; // Fixed import path
+import { generatePDFReport } from '../utils/reportGenerator';
 
 const InspectionManager = ({ onClose, onLoadInspection }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // GET BOTH USER AND SESSION
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,18 +31,17 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
 
   useEffect(() => {
     loadInspections();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadInspections = async () => {
-    if (!user) return;
+    if (!user || !session) return; // CHECK BOTH USER AND SESSION
     
     setLoading(true);
     try {
       const response = await fetch('/api/inspections', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${user.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`, // USE SESSION TOKEN
           'Content-Type': 'application/json'
         }
       });
@@ -75,7 +74,7 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
       const response = await fetch(`/api/inspections/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`, // USE SESSION TOKEN
           'Content-Type': 'application/json'
         }
       });
@@ -137,33 +136,47 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
       if (!searchTerm) return true;
       const searchLower = searchTerm.toLowerCase();
       return (
-        inspection.vehicle_info?.marca?.toLowerCase().includes(searchLower) ||
-        inspection.vehicle_info?.modelo?.toLowerCase().includes(searchLower) ||
-        inspection.vehicle_info?.placa?.toLowerCase().includes(searchLower) ||
-        inspection.vehicle_info?.vendedor?.toLowerCase().includes(searchLower)
+        inspection.vehicle_info?.make?.toLowerCase().includes(searchLower) ||
+        inspection.vehicle_info?.model?.toLowerCase().includes(searchLower) ||
+        inspection.vehicle_info?.year?.toString().includes(searchLower) ||
+        inspection.vehicle_info?.licensePlate?.toLowerCase().includes(searchLower)
       );
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case 'date_desc':
-          return new Date(b.created_at) - new Date(a.created_at);
         case 'date_asc':
           return new Date(a.created_at) - new Date(b.created_at);
-        case 'score_desc':
-          return (b.total_score || 0) - (a.total_score || 0);
+        case 'date_desc':
+          return new Date(b.created_at) - new Date(a.created_at);
         case 'score_asc':
           return (a.total_score || 0) - (b.total_score || 0);
+        case 'score_desc':
+          return (b.total_score || 0) - (a.total_score || 0);
         default:
-          return 0;
+          return new Date(b.created_at) - new Date(a.created_at);
       }
     });
 
-  if (loading) {
+  // Show authentication message if no user or session
+  if (!user || !session) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Cargando inspecciones...</p>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Autenticación Requerida
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Debe estar autenticado para acceder al gestor de inspecciones.
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -171,264 +184,263 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
 
   if (showDetails && selectedInspection) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="mb-6">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              Detalles de Inspección
+            </h3>
             <button
               onClick={() => setShowDetails(false)}
-              className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
+              className="text-gray-500 hover:text-gray-700"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a la lista
+              <ArrowLeft className="h-6 w-6" />
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Detalle de Inspección
-            </h1>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Vehicle Info */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold mb-4 flex items-center">
+              <Car className="h-5 w-5 mr-2" />
+              Información del Vehículo
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Vehículo</label>
-                <p className="text-lg font-semibold">
-                  {selectedInspection.vehicle_info?.marca} {selectedInspection.vehicle_info?.modelo} {selectedInspection.vehicle_info?.año}
-                </p>
+                <span className="text-sm text-gray-600">Marca:</span>
+                <p className="font-medium">{selectedInspection.vehicle_info?.make || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Placa</label>
-                <p className="text-lg">{selectedInspection.vehicle_info?.placa || 'N/A'}</p>
+                <span className="text-sm text-gray-600">Modelo:</span>
+                <p className="font-medium">{selectedInspection.vehicle_info?.model || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Fecha</label>
-                <p className="text-lg">{new Date(selectedInspection.created_at).toLocaleDateString()}</p>
+                <span className="text-sm text-gray-600">Año:</span>
+                <p className="font-medium">{selectedInspection.vehicle_info?.year || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Puntuación total</label>
-                <p className="text-lg font-semibold">{selectedInspection.total_score || 0}/10</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Ítems evaluados</label>
-                <p className="text-lg">{selectedInspection.completed_items || 0}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Costo reparaciones</label>
-                <p className="text-lg">${(selectedInspection.total_repair_cost || 0).toLocaleString()}</p>
+                <span className="text-sm text-gray-600">Placa:</span>
+                <p className="font-medium">{selectedInspection.vehicle_info?.licensePlate || 'N/A'}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 mb-6">
+          {/* Inspection Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600">Puntuación Total</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {selectedInspection.total_score?.toFixed(1) || '0.0'}
+                  </p>
+                </div>
+                <Star className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-red-600">Costo de Reparación</p>
+                  <p className="text-2xl font-bold text-red-900">
+                    ${selectedInspection.total_repair_cost?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <DollarSign className="h-8 w-8 text-red-600" />
+              </div>
+            </div>
+
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600">Items Evaluados</p>
+                  <p className="text-2xl font-bold text-green-900">
+                    {selectedInspection.completed_items || 0}
+                  </p>
+                </div>
+                <FileText className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <button
+              onClick={() => onLoadInspection(selectedInspection)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Abrir Inspección
+            </button>
             <button
               onClick={() => downloadReport(selectedInspection)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
             >
               <Download className="h-4 w-4 mr-2" />
               Descargar Reporte
             </button>
             <button
-              onClick={() => onLoadInspection(selectedInspection)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
+              onClick={() => deleteInspection(selectedInspection.id)}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center"
             >
-              <Eye className="h-4 w-4 mr-2" />
-              Editar Inspección
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar
             </button>
           </div>
-
-          {/* Aquí puedes agregar más detalles de la inspección */}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Gestión de Inspecciones
-            </h1>
-            <p className="text-gray-600">
-              Administra y descarga tus inspecciones guardadas
-            </p>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900">
+            Gestor de Inspecciones
+          </h3>
           <button
             onClick={onClose}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+            className="text-gray-500 hover:text-gray-700"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Inspección
+            <ArrowLeft className="h-6 w-6" />
           </button>
         </div>
 
-        {/* Filtros y búsqueda */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar
-              </label>
-              <div className="relative">
-                <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Marca, modelo, placa..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filtrar por estado
-              </label>
-              <div className="relative">
-                <Filter className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <select
-                  value={filterBy}
-                  onChange={(e) => setFilterBy(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
-                >
-                  <option value="all">Todas</option>
-                  <option value="completed">Completadas</option>
-                  <option value="draft">Borradores</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ordenar por
-              </label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="date_desc">Fecha (más reciente)</option>
-                <option value="date_asc">Fecha (más antigua)</option>
-                <option value="score_desc">Puntuación (mayor)</option>
-                <option value="score_asc">Puntuación (menor)</option>
-              </select>
+        {/* Filters and Search */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por marca, modelo, año o placa..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="date_desc">Más recientes</option>
+            <option value="date_asc">Más antiguos</option>
+            <option value="score_desc">Mayor puntuación</option>
+            <option value="score_asc">Menor puntuación</option>
+          </select>
+
+          <select
+            value={filterBy}
+            onChange={(e) => setFilterBy(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">Todas</option>
+            <option value="completed">Completadas</option>
+            <option value="draft">Borradores</option>
+          </select>
         </div>
 
-        {/* Lista de inspecciones */}
-        {filteredInspections.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Cargando inspecciones...</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredInspections.length === 0 && (
+          <div className="text-center py-12">
+            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
               No hay inspecciones
-            </h3>
-            <p className="text-gray-600 mb-6">
+            </h4>
+            <p className="text-gray-600 mb-4">
               {searchTerm || filterBy !== 'all' 
                 ? 'No se encontraron inspecciones con los filtros aplicados.'
-                : 'Aún no has guardado ninguna inspección. ¡Crea tu primera inspección!'}
+                : 'Aún no has creado ninguna inspección.'
+              }
             </p>
-            <button
-              onClick={onClose}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-            >
-              Crear Primera Inspección
-            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        )}
+
+        {/* Inspections List */}
+        {!loading && filteredInspections.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredInspections.map((inspection) => {
               const condition = getConditionText(inspection.total_score || 0);
-              
               return (
-                <div key={inspection.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {inspection.vehicle_info?.marca} {inspection.vehicle_info?.modelo}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {inspection.vehicle_info?.año} • {inspection.vehicle_info?.placa || 'Sin placa'}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${condition.color}`}>
-                        {condition.text}
-                      </span>
+                <div
+                  key={inspection.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setSelectedInspection(inspection);
+                    setShowDetails(true);
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        {inspection.vehicle_info?.make} {inspection.vehicle_info?.model}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {inspection.vehicle_info?.year} • {inspection.vehicle_info?.licensePlate}
+                      </p>
                     </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${condition.color}`}>
+                      {condition.text}
+                    </span>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600">
-                          {new Date(inspection.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <Star className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600">
-                          {inspection.total_score || 0}/10
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600">
-                          {inspection.completed_items || 0} ítems
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <DollarSign className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600">
-                          ${(inspection.total_repair_cost || 0).toLocaleString()}
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {new Date(inspection.created_at).toLocaleDateString()}
                     </div>
+                    <div className="flex items-center">
+                      <Star className="h-4 w-4 mr-1" />
+                      {inspection.total_score?.toFixed(1) || '0.0'}
+                    </div>
+                  </div>
 
-                    {inspection.vehicle_info?.vendedor && (
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-medium">Vendedor:</span> {inspection.vehicle_info.vendedor}
-                        </p>
-                        {inspection.vehicle_info?.telefono && (
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Teléfono:</span> {inspection.vehicle_info.telefono}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedInspection(inspection);
-                            setShowDetails(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50"
-                          title="Ver detalles"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => downloadReport(inspection)}
-                          className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
-                          title="Descargar reporte"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteInspection(inspection.id)}
-                          className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      {inspection.completed_items || 0} items evaluados
+                    </span>
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => onLoadInspection(inspection)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLoadInspection(inspection);
+                        }}
+                        className="text-blue-600 hover:text-blue-700"
+                        title="Abrir inspección"
                       >
-                        Editar
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadReport(inspection);
+                        }}
+                        className="text-green-600 hover:text-green-700"
+                        title="Descargar reporte"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteInspection(inspection.id);
+                        }}
+                        className="text-red-600 hover:text-red-700"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
