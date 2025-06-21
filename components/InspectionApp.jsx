@@ -23,9 +23,10 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Layout/Header';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
-import { checklistStructure } from '../data/checklist';
+import { checklistStructure } from '../data/checklistStructure';
 import { generatePDFReport, generateJSONReport } from '../utils/ReportGenerator';
 
+// Resto del código permanece exactamente igual...
 const InspectionApp = () => {
   const { user } = useAuth();
   
@@ -66,6 +67,9 @@ const InspectionApp = () => {
   const [totalRepairCost, setTotalRepairCost] = useState(0);
   const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // El resto del código del componente permanece idéntico al archivo actual...
+  // Solo cambiamos los imports de arriba para que coincidan con los archivos existentes
 
   // Efectos
   useEffect(() => {
