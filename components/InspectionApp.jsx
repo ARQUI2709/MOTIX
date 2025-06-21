@@ -1,4 +1,4 @@
-// components/InspectionApp.jsx
+// components/InspectionApp.jsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Save, 
@@ -95,6 +95,56 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
+// Componente para subir fotos mejorado
+const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        onPhotoAdd(categoryName, itemName, file);
+      }
+    });
+    e.target.value = ''; // Reset input
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Fotos
+      </label>
+      <div className="space-y-2">
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleFileChange}
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+        {photos && photos.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            {photos.map((photo, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={photo.url}
+                  alt={`Foto ${index + 1}`}
+                  className="w-full h-20 object-cover rounded border"
+                />
+                <button
+                  type="button"
+                  onClick={() => onPhotoRemove(categoryName, itemName, index)}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const InspectionApp = () => {
   const { user, session, loading } = useAuth();
   
@@ -146,6 +196,9 @@ const InspectionApp = () => {
     if (inspectionData.inspection_data) {
       setInspectionData(inspectionData.inspection_data);
     }
+    if (inspectionData.photos) {
+      setSelectedPhotos(inspectionData.photos);
+    }
     setCurrentView('inspection');
   }, []);
 
@@ -163,7 +216,7 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Cargar marcas de vehículos
+  // Cargar marcas de vehículos con manejo de errores mejorado
   useEffect(() => {
     const loadVehicleMakes = async () => {
       if (!isOnline) return;
@@ -171,9 +224,22 @@ const InspectionApp = () => {
       setLoadingMakes(true);
       try {
         const makes = await fetchVehicleMakesWithCache();
-        setVehicleMakes(makes);
+        setVehicleMakes(makes || []);
       } catch (error) {
         console.error('Error loading vehicle makes:', error);
+        // Agregar marcas locales como fallback
+        setVehicleMakes([
+          { MakeId: 1, MakeName: 'Toyota' },
+          { MakeId: 2, MakeName: 'Chevrolet' },
+          { MakeId: 3, MakeName: 'Ford' },
+          { MakeId: 4, MakeName: 'Nissan' },
+          { MakeId: 5, MakeName: 'Volkswagen' },
+          { MakeId: 6, MakeName: 'Renault' },
+          { MakeId: 7, MakeName: 'Mazda' },
+          { MakeId: 8, MakeName: 'Hyundai' },
+          { MakeId: 9, MakeName: 'Kia' },
+          { MakeId: 10, MakeName: 'Suzuki' }
+        ]);
       } finally {
         setLoadingMakes(false);
       }
@@ -193,7 +259,7 @@ const InspectionApp = () => {
       setLoadingModels(true);
       try {
         const models = await fetchVehicleModelsWithCache(vehicleInfo.marca);
-        setVehicleModels(models);
+        setVehicleModels(models || []);
       } catch (error) {
         console.error('Error loading vehicle models:', error);
         setVehicleModels([]);
@@ -269,33 +335,47 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para guardar inspección
+  // Función para guardar inspección - CORREGIDA
   const handleSaveInspection = async () => {
-    if (!user) return;
+    if (!user) {
+      alert('Debe estar autenticado para guardar inspecciones');
+      return;
+    }
 
     setSaving(true);
     try {
+      // Calcular elementos completados
+      const completedItems = Object.values(inspectionData).reduce((acc, category) => 
+        acc + Object.values(category).filter(item => item.evaluated).length, 0
+      );
+
       const inspectionRecord = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        total_score: totalScore,
-        total_repair_cost: totalRepairCost,
-        completed_items: Object.values(inspectionData).reduce((acc, category) => 
-          acc + Object.values(category).filter(item => item.evaluated).length, 0
-        )
+        photos: selectedPhotos,
+        total_score: parseFloat(totalScore) || 0,
+        total_repair_cost: parseFloat(totalRepairCost) || 0,
+        completed_items: completedItems
       };
 
-      const { error } = await supabase
-        .from('inspections')
-        .insert([inspectionRecord]);
+      console.log('Saving inspection:', inspectionRecord);
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('inspections')
+        .insert([inspectionRecord])
+        .select();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       alert('Inspección guardada exitosamente');
+      console.log('Saved inspection:', data);
     } catch (error) {
       console.error('Error saving inspection:', error);
-      alert('Error al guardar la inspección: ' + error.message);
+      alert(`Error al guardar la inspección: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -305,13 +385,13 @@ const InspectionApp = () => {
   const handleGenerateReport = () => {
     try {
       generatePDFReport(
-        vehicleInfo,
         inspectionData,
+        vehicleInfo,
+        selectedPhotos,
         { 
           name: user?.user_metadata?.full_name || user?.email,
           email: user?.email 
-        },
-        selectedPhotos
+        }
       );
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -421,32 +501,36 @@ const InspectionApp = () => {
               
               <div className="flex items-center">
                 <Star className="h-5 w-5 text-yellow-500 mr-2" />
-                <span className="text-sm font-medium">
+                <span className="text-sm text-gray-600">
                   Puntuación: {totalScore}/10
                 </span>
               </div>
-              
+
               <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-sm font-medium">
-                  Costo reparaciones: {formatCost(totalRepairCost)}
+                <DollarSign className="h-5 w-5 text-red-500 mr-2" />
+                <span className="text-sm text-gray-600">
+                  Reparaciones: ${totalRepairCost.toLocaleString()}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleSaveInspection}
                 disabled={saving || !user}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
               >
-                <Save className="h-4 w-4 mr-2" />
+                {saving ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
 
               <button
                 onClick={handleGenerateReport}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
               >
                 <Download className="h-4 w-4 mr-2" />
                 PDF
@@ -454,7 +538,7 @@ const InspectionApp = () => {
 
               <button
                 onClick={handleExportJSON}
-                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
               >
                 <FileText className="h-4 w-4 mr-2" />
                 JSON
@@ -462,7 +546,7 @@ const InspectionApp = () => {
 
               <button
                 onClick={handleResetInspection}
-                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Reiniciar
@@ -470,9 +554,12 @@ const InspectionApp = () => {
             </div>
           </div>
 
-          {/* Información del vehículo */}
+          {/* Información del Vehículo */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información del Vehículo</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Información del Vehículo
+            </h2>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -505,8 +592,8 @@ const InspectionApp = () => {
                 >
                   <option value="">Seleccione modelo</option>
                   {vehicleModels.map(model => (
-                    <option key={model.ModelId} value={model.ModelName}>
-                      {model.ModelName}
+                    <option key={model.ModelId || model.Model_Name} value={model.ModelName || model.Model_Name}>
+                      {model.ModelName || model.Model_Name}
                     </option>
                   ))}
                 </select>
@@ -516,18 +603,15 @@ const InspectionApp = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Año
                 </label>
-                <select
+                <input
+                  type="number"
+                  min="1990"
+                  max={new Date().getFullYear() + 1}
                   value={vehicleInfo.año}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, año: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Seleccione año</option>
-                  {vehicleYears.map(year => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Ej: 2020"
+                />
               </div>
 
               <div>
@@ -537,7 +621,7 @@ const InspectionApp = () => {
                 <input
                   type="text"
                   value={vehicleInfo.placa}
-                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, placa: e.target.value }))}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, placa: e.target.value.toUpperCase() }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="ABC123"
                 />
@@ -552,7 +636,7 @@ const InspectionApp = () => {
                   value={vehicleInfo.kilometraje}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="150000"
+                  placeholder="0"
                 />
               </div>
 
@@ -562,7 +646,7 @@ const InspectionApp = () => {
                 </label>
                 <input
                   type="text"
-                  value={formatCost(vehicleInfo.precio || 0, false)}
+                  value={formatCost(vehicleInfo.precio)}
                   onChange={handlePriceChange}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="0"
@@ -608,28 +692,27 @@ const InspectionApp = () => {
                 : 0;
 
               return (
-                <div key={categoryName} className="bg-white rounded-lg shadow-sm">
+                <div key={categoryName} className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => toggleCategory(categoryName)}
                   >
-                    <div className="flex items-center space-x-4">
-                      <h3 className="text-lg font-semibold text-gray-900">{categoryName}</h3>
-                      <div className="flex items-center space-x-2">
-                        <Star className="h-4 w-4 text-yellow-500" />
-                        <span className="text-sm text-gray-600">
-                          Promedio: {categoryAverage}/10
-                        </span>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {categoryName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {categoryItems.length} de {items.length} evaluados
+                          {categoryAverage > 0 && ` • Promedio: ${categoryAverage}/10`}
+                        </p>
                       </div>
-                      <span className="text-sm text-gray-500">
-                        ({categoryItems.length}/{items.length} evaluados)
-                      </span>
+                      <ChevronDown 
+                        className={`h-5 w-5 text-gray-400 transition-transform ${
+                          isExpanded ? 'transform rotate-180' : ''
+                        }`}
+                      />
                     </div>
-                    <ChevronDown 
-                      className={`h-5 w-5 text-gray-500 transition-transform ${
-                        isExpanded ? 'transform rotate-180' : ''
-                      }`}
-                    />
                   </div>
 
                   {isExpanded && (
@@ -660,67 +743,39 @@ const InspectionApp = () => {
                               </div>
 
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Costo de reparación
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Costo reparación ($)
                                 </label>
                                 <input
                                   type="text"
-                                  value={formatCost(itemData.repairCost || 0, false)}
+                                  value={formatCost(itemData.repairCost)}
                                   onChange={(e) => handleRepairCostChange(categoryName, item.name, e.target.value)}
                                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                                   placeholder="0"
                                 />
                               </div>
 
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Fotos
-                                </label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  capture="environment"
-                                  onChange={(e) => handlePhotoUpload(categoryName, item.name, e.target.files[0])}
-                                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="mt-3">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Notas
-                              </label>
-                              <input
-                                type="text"
-                                value={itemData.notes || ''}
-                                onChange={(e) => updateInspectionItem(categoryName, item.name, 'notes', e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                placeholder="Observaciones adicionales..."
+                              <PhotoUpload
+                                categoryName={categoryName}
+                                itemName={item.name}
+                                photos={itemPhotos}
+                                onPhotoAdd={handlePhotoUpload}
+                                onPhotoRemove={removePhoto}
                               />
                             </div>
 
-                            {/* Mostrar fotos si las hay */}
-                            {itemPhotos.length > 0 && (
-                              <div className="mt-3">
-                                <div className="flex flex-wrap gap-2">
-                                  {itemPhotos.map((photo, photoIndex) => (
-                                    <div key={photoIndex} className="relative">
-                                      <img
-                                        src={photo.url}
-                                        alt={`${item.name} ${photoIndex + 1}`}
-                                        className="w-20 h-20 object-cover rounded border"
-                                      />
-                                      <button
-                                        onClick={() => removePhoto(categoryName, item.name, photoIndex)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                                      >
-                                        <X size={12} />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Notas adicionales
+                              </label>
+                              <textarea
+                                value={itemData.notes}
+                                onChange={(e) => updateInspectionItem(categoryName, item.name, 'notes', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                rows="2"
+                                placeholder="Observaciones adicionales..."
+                              />
+                            </div>
                           </div>
                         );
                       })}
@@ -729,29 +784,6 @@ const InspectionApp = () => {
                 </div>
               );
             })}
-          </div>
-
-          {/* Resumen final */}
-          <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de la Inspección</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totalScore}/10</div>
-                <div className="text-sm text-gray-600">Puntuación General</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{formatCost(totalRepairCost)}</div>
-                <div className="text-sm text-gray-600">Costo Total Reparaciones</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {Object.values(inspectionData).reduce((acc, category) => 
-                    acc + Object.values(category).filter(item => item.evaluated).length, 0
-                  )}
-                </div>
-                <div className="text-sm text-gray-600">Items Evaluados</div>
-              </div>
-            </div>
           </div>
         </div>
       )}
