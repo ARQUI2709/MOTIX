@@ -1,17 +1,21 @@
-// pages/api/inspections.js - SOLUCIÓN DEFINITIVA
+// pages/api/inspections.js - VERSIÓN SUPER ROBUSTA
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Cliente con service role para bypass RLS cuando sea necesario
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+// Verificar que las variables de entorno estén configuradas
+if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+  console.error('Missing environment variables:', {
+    supabaseUrl: !!supabaseUrl,
+    supabaseServiceKey: !!supabaseServiceKey,
+    supabaseAnonKey: !!supabaseAnonKey
+  })
+}
 
-// Cliente normal para operaciones con RLS
-const supabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+// Cliente admin para verificar tokens y bypass RLS si es necesario
+const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null
 
 export default async function handler(req, res) {
   // CORS headers
@@ -23,6 +27,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.status(200).end()
     return
+  }
+
+  // Verificar configuración
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client not configured')
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Server configuration error: Missing service role key' 
+    })
   }
 
   try {
@@ -37,30 +50,22 @@ export default async function handler(req, res) {
 
     const token = authHeader.replace('Bearer ', '')
     
-    // Verificar el usuario con el token
+    // Verificar el usuario con el token usando admin client
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
       console.error('Error de autenticación:', authError)
       return res.status(401).json({ 
         success: false, 
-        error: 'Token inválido o usuario no encontrado' 
+        error: 'Token inválido o usuario no encontrado',
+        details: authError?.message 
       })
     }
 
-    console.log('Usuario autenticado:', user.id)
-
-    // Configurar el cliente de Supabase con el token del usuario
-    const supabaseWithAuth = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    })
+    console.log('Usuario autenticado:', user.id, user.email)
 
     if (req.method === 'POST') {
-      // Guardar nueva inspección
+      // Guardar nueva inspección usando admin client (bypass RLS)
       const { 
         vehicle_info, 
         inspection_data, 
@@ -85,9 +90,9 @@ export default async function handler(req, res) {
         })
       }
 
-      // Preparar datos - IMPORTANTE: incluir user_id explícitamente
+      // Preparar datos - IMPORTANTE: forzar user_id del token verificado
       const inspectionRecord = {
-        user_id: user.id, // Explícitamente asignar el user_id
+        user_id: user.id, // Forzar el user_id del token verificado
         vehicle_info,
         inspection_data,
         photos,
@@ -100,8 +105,8 @@ export default async function handler(req, res) {
 
       console.log('Insertando inspección para usuario:', user.id)
 
-      // Usar cliente autenticado para respetar RLS
-      const { data, error } = await supabaseWithAuth
+      // Usar admin client para bypass RLS y garantizar inserción
+      const { data, error } = await supabaseAdmin
         .from('inspections')
         .insert([inspectionRecord])
         .select()
@@ -125,13 +130,14 @@ export default async function handler(req, res) {
       })
 
     } else if (req.method === 'GET') {
-      // Obtener inspecciones del usuario
+      // Obtener inspecciones del usuario usando admin client
       console.log('Obteniendo inspecciones para usuario:', user.id)
 
-      // Usar cliente autenticado para respetar RLS
-      const { data, error } = await supabaseWithAuth
+      // Usar admin client con filtro explícito por user_id
+      const { data, error } = await supabaseAdmin
         .from('inspections')
         .select('*')
+        .eq('user_id', user.id) // Filtro explícito por seguridad
         .order('created_at', { ascending: false })
         .limit(100)
 
