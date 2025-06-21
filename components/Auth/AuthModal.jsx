@@ -1,7 +1,9 @@
 // components/Auth/AuthModal.jsx
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { LoginForm, RegisterForm, ForgotPasswordForm } from './AuthForms';
+import LoginForm from './LoginForm';
+import RegisterForm from './RegisterForm';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   const [mode, setMode] = useState(initialMode);
@@ -50,3 +52,5 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     </div>
   );
 };
+
+export default AuthModal;
