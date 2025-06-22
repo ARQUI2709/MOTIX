@@ -1,4 +1,4 @@
-// components/InspectionApp.jsx - VERSIÓN RESPONSIVA CORREGIDA
+// components/InspectionApp.jsx - VERSIÓN FINAL SIN ERRORES
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Save, 
@@ -30,16 +30,25 @@ import { checklistStructure, initializeInspectionData } from '../data/checklistS
 import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
 
-// Función auxiliar para usar Object.values de forma segura
-const safeObjectValues = (obj) => {
-  if (!obj || typeof obj !== 'object') return [];
-  return Object.values(obj);
+// Funciones auxiliares locales para evitar problemas de inicialización
+const safeGetObjectValues = (obj) => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+  try {
+    return Object.values(obj);
+  } catch (error) {
+    console.warn('Error getting object values:', error);
+    return [];
+  }
 };
 
-// Función auxiliar para usar Object.entries de forma segura
-const safeObjectEntries = (obj) => {
-  if (!obj || typeof obj !== 'object') return [];
-  return Object.entries(obj);
+const safeGetObjectEntries = (obj) => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+  try {
+    return Object.entries(obj);
+  } catch (error) {
+    console.warn('Error getting object entries:', error);
+    return [];
+  }
 };
 
 // Componente StarRating para calificación con estrellas - RESPONSIVO
@@ -298,15 +307,15 @@ const InspectionApp = () => {
   }, []);
 
   // Función para alternar categorías expandidas
-  const toggleCategory = (categoryName) => {
+  const toggleCategory = useCallback((categoryName) => {
     setExpandedCategories(prev => ({
       ...prev,
       [categoryName]: !prev[categoryName]
     }));
-  };
+  }, []);
 
   // Función para actualizar un ítem de inspección
-  const updateInspectionItem = (categoryName, itemName, field, value) => {
+  const updateInspectionItem = useCallback((categoryName, itemName, field, value) => {
     setInspectionData(prev => {
       const newData = { ...prev };
       
@@ -333,22 +342,22 @@ const InspectionApp = () => {
       
       return newData;
     });
-  };
+  }, []);
 
   // Función para manejar cambios en costo de reparación
-  const handleRepairCostChange = (categoryName, itemName, value) => {
+  const handleRepairCostChange = useCallback((categoryName, itemName, value) => {
     const numericValue = parseCostFromFormatted(value);
     updateInspectionItem(categoryName, itemName, 'repairCost', numericValue);
-  };
+  }, [updateInspectionItem]);
 
   // Función para manejar cambios en precio del vehículo
-  const handlePriceChange = (e) => {
+  const handlePriceChange = useCallback((e) => {
     const numericValue = parseCostFromFormatted(e.target.value);
     setVehicleInfo(prev => ({ ...prev, precio: numericValue }));
-  };
+  }, []);
 
   // Función para manejar subida de fotos
-  const handlePhotoUpload = (categoryName, itemName, files) => {
+  const handlePhotoUpload = useCallback((categoryName, itemName, files) => {
     const photoKey = `${categoryName}_${itemName}`;
     const currentPhotos = selectedPhotos[photoKey] || [];
     
@@ -367,19 +376,19 @@ const InspectionApp = () => {
       };
       reader.readAsDataURL(file);
     });
-  };
+  }, [selectedPhotos]);
 
   // Función para remover foto
-  const removePhoto = (categoryName, itemName, photoIndex) => {
+  const removePhoto = useCallback((categoryName, itemName, photoIndex) => {
     const photoKey = `${categoryName}_${itemName}`;
     setSelectedPhotos(prev => ({
       ...prev,
       [photoKey]: (prev[photoKey] || []).filter((_, index) => index !== photoIndex)
     }));
-  };
+  }, []);
 
   // Función para guardar inspección
-  const handleSaveInspection = async () => {
+  const handleSaveInspection = useCallback(async () => {
     if (!user) {
       alert('Debe iniciar sesión para guardar la inspección');
       return;
@@ -400,8 +409,8 @@ const InspectionApp = () => {
       let evaluatedItems = 0;
 
       // Usar funciones seguras para iterar
-      safeObjectValues(inspectionData).forEach(category => {
-        safeObjectValues(category).forEach(item => {
+      safeGetObjectValues(inspectionData).forEach(category => {
+        safeGetObjectValues(category).forEach(item => {
           if (item && item.evaluated && item.score > 0) {
             totalPoints += item.score;
             totalItems += 1;
@@ -444,10 +453,10 @@ const InspectionApp = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, vehicleInfo, inspectionData, selectedPhotos]);
 
   // Función para generar reporte PDF
-  const handleGenerateReport = () => {
+  const handleGenerateReport = useCallback(() => {
     try {
       generatePDFReport(
         inspectionData,
@@ -462,20 +471,20 @@ const InspectionApp = () => {
       console.error('Error generating PDF:', error);
       alert('Error al generar el reporte PDF');
     }
-  };
+  }, [inspectionData, vehicleInfo, selectedPhotos, user]);
 
   // Función para exportar JSON
-  const handleExportJSON = () => {
+  const handleExportJSON = useCallback(() => {
     try {
       generateJSONReport(inspectionData, vehicleInfo, selectedPhotos);
     } catch (error) {
       console.error('Error exporting JSON:', error);
       alert('Error al exportar JSON');
     }
-  };
+  }, [inspectionData, vehicleInfo, selectedPhotos]);
 
   // Función para reiniciar inspección
-  const handleResetInspection = () => {
+  const handleResetInspection = useCallback(() => {
     if (window.confirm('¿Está seguro de que desea reiniciar la inspección? Se perderán todos los datos.')) {
       setInspectionData(initializeInspectionData() || {});
       setSelectedPhotos({});
@@ -492,7 +501,7 @@ const InspectionApp = () => {
       });
       setExpandedCategories({});
     }
-  };
+  }, []);
 
   // Calcular totales cuando cambien los datos de inspección - VERSIÓN SEGURA
   useEffect(() => {
@@ -501,8 +510,8 @@ const InspectionApp = () => {
     let repairTotal = 0;
 
     try {
-      safeObjectValues(inspectionData).forEach(category => {
-        safeObjectValues(category).forEach(item => {
+      safeGetObjectValues(inspectionData).forEach(category => {
+        safeGetObjectValues(category).forEach(item => {
           if (item && item.evaluated && item.score > 0) {
             totalPoints += item.score;
             totalItems += 1;
@@ -768,10 +777,10 @@ const InspectionApp = () => {
 
           {/* Lista de inspección - RESPONSIVO */}
           <div className="space-y-4 sm:space-y-6">
-            {safeObjectEntries(checklistStructure).map(([categoryName, items]) => {
+            {safeGetObjectEntries(checklistStructure).map(([categoryName, items]) => {
               const isExpanded = expandedCategories[categoryName];
               const categoryData = inspectionData[categoryName] || {};
-              const categoryItems = safeObjectValues(categoryData).filter(item => 
+              const categoryItems = safeGetObjectValues(categoryData).filter(item => 
                 item && item.evaluated && item.score > 0
               );
               const categoryAverage = categoryItems.length > 0 
