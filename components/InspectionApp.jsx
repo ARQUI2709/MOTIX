@@ -19,7 +19,8 @@ import {
   Share2,
   Search,
   ChevronDown,
-  DollarSign
+  DollarSign,
+  Car
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
