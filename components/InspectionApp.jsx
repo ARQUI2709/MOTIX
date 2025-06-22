@@ -29,13 +29,18 @@ import InspectionManager from './InspectionManager';
 import { checklistStructure, initializeInspectionData } from '../data/checklistStructure';
 import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
-// Remover imports de API externa que no funcionan
-// import { 
-//   generateVehicleYears,
-//   fetchVehicleMakesWithCache,
-//   fetchVehicleModelsWithCache,
-//   formatVehicleName
-// } from '../utils/vehicleApiUtils';
+
+// Función auxiliar para usar Object.values de forma segura
+const safeObjectValues = (obj) => {
+  if (!obj || typeof obj !== 'object') return [];
+  return Object.values(obj);
+};
+
+// Función auxiliar para usar Object.entries de forma segura
+const safeObjectEntries = (obj) => {
+  if (!obj || typeof obj !== 'object') return [];
+  return Object.entries(obj);
+};
 
 // Componente StarRating para calificación con estrellas
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
@@ -91,85 +96,67 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
         </button>
       ))}
       <span className="ml-2 text-sm font-medium text-gray-700">
-        {score}/10
+        {score || 0}/10
       </span>
     </div>
   );
 };
 
-// Componente para subir fotos - VERSIÓN CORREGIDA CON TEXTOS EN ESPAÑOL
+// Componente PhotoUpload para manejo de fotos
 const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
   const fileInputRef = useRef(null);
-  
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    
-    files.forEach(file => {
-      // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        alert('Solo se permiten archivos de imagen');
-        return;
-      }
-      
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('La imagen es muy grande. Máximo 5MB permitido.');
-        return;
-      }
-      
-      onPhotoAdd(categoryName, itemName, file);
-    });
-    
-    // Limpiar el input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      onPhotoAdd(categoryName, itemName, files);
+      event.target.value = '';
     }
   };
 
-  const handleIconClick = () => {
+  const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Fotos
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Fotos ({photos.length}/5)
       </label>
       
-      {/* Input de archivo oculto */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-      
-      {/* Botón con icono para seleccionar fotos */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2 mb-3">
         <button
           type="button"
-          onClick={handleIconClick}
-          className="flex items-center justify-center w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-          title="Seleccionar fotos"
+          onClick={triggerFileInput}
+          disabled={photos.length >= 5}
+          className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <Camera size={20} />
+          <Camera size={16} />
+          <span>Agregar foto</span>
         </button>
-        <span className="text-sm text-gray-600">
-          Agregar fotos (máximo 5MB cada una)
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        
+        <span className="text-xs text-gray-500">
+          Máximo 5 fotos
         </span>
       </div>
-      
-      {/* Vista previa de fotos */}
+
       {photos && photos.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="grid grid-cols-3 gap-2">
           {photos.map((photo, index) => (
             <div key={index} className="relative group">
-              <img
-                src={photo.url}
+              <img 
+                src={photo} 
                 alt={`Foto ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
+                className="w-full h-20 object-cover rounded-lg border border-gray-200 shadow-sm"
               />
               <button
                 type="button"
@@ -197,7 +184,7 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
 };
 
 const InspectionApp = () => {
-  const { user, session, loading } = useAuth(); // Agregar session aquí
+  const { user, session, loading } = useAuth();
   
   // Estados principales
   const [currentView, setCurrentView] = useState('inspection');
@@ -218,15 +205,16 @@ const InspectionApp = () => {
     fecha: new Date().toISOString().split('T')[0]
   });
 
-  // Remover estados de API externa que no funcionan
-  // const [vehicleMakes, setVehicleMakes] = useState([]);
-  // const [vehicleModels, setVehicleModels] = useState([]);
-  // const [vehicleYears] = useState(generateVehicleYears());
-  // const [loadingMakes, setLoadingMakes] = useState(false);
-  // const [loadingModels, setLoadingModels] = useState(false);
-
-  // Estados de inspección
-  const [inspectionData, setInspectionData] = useState(initializeInspectionData());
+  // Estados de inspección - INICIALIZACIÓN SEGURA
+  const [inspectionData, setInspectionData] = useState(() => {
+    try {
+      return initializeInspectionData() || {};
+    } catch (error) {
+      console.error('Error initializing inspection data:', error);
+      return {};
+    }
+  });
+  
   const [totalScore, setTotalScore] = useState(0);
   const [totalRepairCost, setTotalRepairCost] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState({});
@@ -267,100 +255,7 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Eliminar efectos de carga de API externa
-  // useEffect(() => {
-  //   const loadVehicleMakes = async () => {
-  //     if (!isOnline) return;
-  //     setLoadingMakes(true);
-  //     try {
-  //       const makes = await fetchVehicleMakesWithCache();
-  //       setVehicleMakes(makes || []);
-  //     } catch (error) {
-  //       console.error('Error loading vehicle makes:', error);
-  //     } finally {
-  //       setLoadingMakes(false);
-  //     }
-  //   };
-  //   loadVehicleMakes();
-  // }, [isOnline]);
-
-  // useEffect(() => {
-  //   const loadVehicleModels = async () => {
-  //     if (!vehicleInfo.marca || !isOnline) {
-  //       setVehicleModels([]);
-  //       return;
-  //     }
-  //     setLoadingModels(true);
-  //     try {
-  //       const models = await fetchVehicleModelsWithCache(vehicleInfo.marca);
-  //       setVehicleModels(models || []);
-  //     } catch (error) {
-  //       console.error('Error loading vehicle models:', error);
-  //       setVehicleModels([]);
-  //     } finally {
-  //       setLoadingModels(false);
-  //     }
-  //   };
-  //   loadVehicleModels();
-  // }, [vehicleInfo.marca, isOnline]);
-
-  // Actualizar datos de un ítem de inspección
-  const updateInspectionItem = (categoryName, itemName, field, value) => {
-    setInspectionData(prev => ({
-      ...prev,
-      [categoryName]: {
-        ...prev[categoryName],
-        [itemName]: {
-          ...prev[categoryName][itemName],
-          [field]: value,
-          evaluated: field === 'score' ? value > 0 : prev[categoryName][itemName].evaluated || false
-        }
-      }
-    }));
-  };
-
-  // Función para manejar cambio en el campo de precio
-  const handlePriceChange = (e) => {
-    const numericValue = parseCostFromFormatted(e.target.value);
-    setVehicleInfo(prev => ({ ...prev, precio: numericValue }));
-  };
-
-  // Función para manejar cambios en costos de reparación
-  const handleRepairCostChange = (categoryName, itemName, value) => {
-    const numericValue = parseCostFromFormatted(value);
-    updateInspectionItem(categoryName, itemName, 'repairCost', numericValue);
-  };
-
-  // Función para manejar fotos
-  const handlePhotoUpload = (categoryName, itemName, file) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const photoKey = `${categoryName}_${itemName}`;
-        setSelectedPhotos(prev => ({
-          ...prev,
-          [photoKey]: [...(prev[photoKey] || []), {
-            url: e.target.result,
-            file: file,
-            name: file.name,
-            timestamp: new Date().toISOString()
-          }]
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Función para eliminar foto
-  const removePhoto = (categoryName, itemName, photoIndex) => {
-    const photoKey = `${categoryName}_${itemName}`;
-    setSelectedPhotos(prev => ({
-      ...prev,
-      [photoKey]: prev[photoKey]?.filter((_, index) => index !== photoIndex) || []
-    }));
-  };
-
-  // Función para alternar expansión de categorías
+  // Función para alternar categorías expandidas
   const toggleCategory = (categoryName) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -368,54 +263,139 @@ const InspectionApp = () => {
     }));
   };
 
-  // Función para guardar inspección - CORREGIDA PARA USAR TOKEN DE SESIÓN
+  // Función para actualizar un ítem de inspección
+  const updateInspectionItem = (categoryName, itemName, field, value) => {
+    setInspectionData(prev => {
+      const newData = { ...prev };
+      
+      // Asegurar que la categoría existe
+      if (!newData[categoryName]) {
+        newData[categoryName] = {};
+      }
+      
+      // Asegurar que el ítem existe
+      if (!newData[categoryName][itemName]) {
+        newData[categoryName][itemName] = {
+          score: 0,
+          repairCost: 0,
+          notes: '',
+          evaluated: false
+        };
+      }
+      
+      newData[categoryName][itemName] = {
+        ...newData[categoryName][itemName],
+        [field]: value,
+        evaluated: true
+      };
+      
+      return newData;
+    });
+  };
+
+  // Función para manejar cambios en costo de reparación
+  const handleRepairCostChange = (categoryName, itemName, value) => {
+    const numericValue = parseCostFromFormatted(value);
+    updateInspectionItem(categoryName, itemName, 'repairCost', numericValue);
+  };
+
+  // Función para manejar cambios en precio del vehículo
+  const handlePriceChange = (e) => {
+    const numericValue = parseCostFromFormatted(e.target.value);
+    setVehicleInfo(prev => ({ ...prev, precio: numericValue }));
+  };
+
+  // Función para manejar subida de fotos
+  const handlePhotoUpload = (categoryName, itemName, files) => {
+    const photoKey = `${categoryName}_${itemName}`;
+    const currentPhotos = selectedPhotos[photoKey] || [];
+    
+    if (currentPhotos.length + files.length > 5) {
+      alert('Máximo 5 fotos por ítem');
+      return;
+    }
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSelectedPhotos(prev => ({
+          ...prev,
+          [photoKey]: [...(prev[photoKey] || []), e.target.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Función para remover foto
+  const removePhoto = (categoryName, itemName, photoIndex) => {
+    const photoKey = `${categoryName}_${itemName}`;
+    setSelectedPhotos(prev => ({
+      ...prev,
+      [photoKey]: (prev[photoKey] || []).filter((_, index) => index !== photoIndex)
+    }));
+  };
+
+  // Función para guardar inspección
   const handleSaveInspection = async () => {
-    if (!user || !session) {
-      alert('Debe estar autenticado para guardar inspecciones');
+    if (!user) {
+      alert('Debe iniciar sesión para guardar la inspección');
       return;
     }
 
     setSaving(true);
     try {
-      // Calcular elementos completados
-      const completedItems = Object.values(inspectionData).reduce((acc, category) => 
-        acc + Object.values(category).filter(item => item.evaluated).length, 0
-      );
+      // Validar datos mínimos
+      if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
+        alert('Por favor complete al menos marca, modelo y placa del vehículo');
+        return;
+      }
+
+      // Calcular métricas para guardar
+      let totalPoints = 0;
+      let totalItems = 0;
+      let repairTotal = 0;
+      let evaluatedItems = 0;
+
+      // Usar funciones seguras para iterar
+      safeObjectValues(inspectionData).forEach(category => {
+        safeObjectValues(category).forEach(item => {
+          if (item && item.evaluated && item.score > 0) {
+            totalPoints += item.score;
+            totalItems += 1;
+          }
+          if (item && item.evaluated) {
+            evaluatedItems += 1;
+          }
+          repairTotal += parseFloat(item?.repairCost) || 0;
+        });
+      });
+
+      const finalScore = totalItems > 0 ? (totalPoints / totalItems) : 0;
 
       const inspectionRecord = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
         photos: selectedPhotos,
-        total_score: parseFloat(totalScore) || 0,
-        total_repair_cost: parseFloat(totalRepairCost) || 0,
-        completed_items: completedItems
+        total_score: finalScore,
+        total_repair_cost: repairTotal,
+        completed_items: evaluatedItems,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
-      console.log('Saving inspection:', inspectionRecord);
+      const { data, error } = await supabase
+        .from('inspections')
+        .insert([inspectionRecord])
+        .select();
 
-      // USAR EL TOKEN DE LA SESIÓN EN LUGAR DE user.access_token
-      const response = await fetch('/api/inspections', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}` // Usar session.access_token
-        },
-        body: JSON.stringify(inspectionRecord)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al guardar la inspección');
+      if (error) {
+        throw error;
       }
 
       alert('Inspección guardada exitosamente');
-      console.log('Saved inspection:', result.data);
+      console.log('Saved inspection:', data);
     } catch (error) {
       console.error('Error saving inspection:', error);
       alert(`Error al guardar la inspección: ${error.message}`);
@@ -445,7 +425,7 @@ const InspectionApp = () => {
   // Función para exportar JSON
   const handleExportJSON = () => {
     try {
-      generateJSONReport(vehicleInfo, inspectionData, selectedPhotos);
+      generateJSONReport(inspectionData, vehicleInfo, selectedPhotos);
     } catch (error) {
       console.error('Error exporting JSON:', error);
       alert('Error al exportar JSON');
@@ -455,7 +435,7 @@ const InspectionApp = () => {
   // Función para reiniciar inspección
   const handleResetInspection = () => {
     if (window.confirm('¿Está seguro de que desea reiniciar la inspección? Se perderán todos los datos.')) {
-      setInspectionData(initializeInspectionData());
+      setInspectionData(initializeInspectionData() || {});
       setSelectedPhotos({});
       setVehicleInfo({
         marca: '',
@@ -472,138 +452,74 @@ const InspectionApp = () => {
     }
   };
 
-  // Calcular totales cuando cambien los datos de inspección
+  // Calcular totales cuando cambien los datos de inspección - VERSIÓN SEGURA
   useEffect(() => {
     let totalPoints = 0;
     let totalItems = 0;
     let repairTotal = 0;
 
-    Object.values(inspectionData).forEach(category => {
-      Object.values(category).forEach(item => {
-        if (item.evaluated && item.score > 0) {
-          totalPoints += item.score;
-          totalItems += 1;
-        }
-        repairTotal += parseFloat(item.repairCost) || 0;
+    try {
+      safeObjectValues(inspectionData).forEach(category => {
+        safeObjectValues(category).forEach(item => {
+          if (item && item.evaluated && item.score > 0) {
+            totalPoints += item.score;
+            totalItems += 1;
+          }
+          repairTotal += parseFloat(item?.repairCost) || 0;
+        });
       });
-    });
 
-    setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
-    setTotalRepairCost(repairTotal);
+      setTotalScore(totalItems > 0 ? (totalPoints / totalItems).toFixed(1) : 0);
+      setTotalRepairCost(repairTotal);
+    } catch (error) {
+      console.error('Error calculating totals:', error);
+      setTotalScore(0);
+      setTotalRepairCost(0);
+    }
   }, [inspectionData]);
 
-  // Si está cargando la autenticación
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando aplicación...</p>
-        </div>
-      </div>
-    );
+  // Mostrar página de bienvenida si no hay usuario
+  if (!loading && !user && showLanding) {
+    return <LandingPage onGetStarted={() => setShowLanding(false)} />;
   }
 
-  // Si no hay usuario, mostrar landing
-  if (showLanding || !user) {
-    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
-  }
-
-  // Renderizado principal
+  // Renderizar componente principal
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader 
-        onNavigate={handleNavigation}
+        user={user}
         currentView={currentView}
+        onNavigation={handleNavigation}
+        isOnline={isOnline}
       />
 
-      {/* Vista de Gestor de Inspecciones */}
-      {currentView === 'manager' && (
-        <InspectionManager
-          onClose={() => setCurrentView('inspection')}
-          onLoadInspection={handleLoadInspection}
-        />
+      {/* Indicador de estado offline */}
+      {!isOnline && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4">
+          <div className="flex items-center">
+            <WifiOff className="h-5 w-5 text-yellow-500 mr-2" />
+            <p className="text-yellow-700">
+              Sin conexión a internet. Los datos se guardarán localmente.
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Vista principal de inspección */}
-      {currentView === 'inspection' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Status Bar */}
-          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white rounded-lg shadow-sm p-4 space-y-4 sm:space-y-0">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center">
-                {isOnline ? (
-                  <Wifi className="h-5 w-5 text-green-500 mr-2" />
-                ) : (
-                  <WifiOff className="h-5 w-5 text-red-500 mr-2" />
-                )}
-                <span className="text-sm text-gray-600">
-                  {isOnline ? 'Conectado' : 'Sin conexión'}
-                </span>
-              </div>
-              
-              <div className="flex items-center">
-                <Star className="h-5 w-5 text-yellow-500 mr-2" />
-                <span className="text-sm text-gray-600">
-                  Puntuación: {totalScore}/10
-                </span>
-              </div>
-
-              <div className="flex items-center">
-                <DollarSign className="h-5 w-5 text-red-500 mr-2" />
-                <span className="text-sm text-gray-600">
-                  Reparaciones: ${totalRepairCost.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={handleSaveInspection}
-                disabled={saving || !user}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-              >
-                {saving ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-
-              <button
-                onClick={handleGenerateReport}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                PDF
-              </button>
-
-              <button
-                onClick={handleExportJSON}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                JSON
-              </button>
-
-              <button
-                onClick={handleResetInspection}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Reiniciar
-              </button>
-            </div>
-          </div>
-
-          {/* Información del Vehículo */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      {/* Contenido principal */}
+      {currentView === 'manager' ? (
+        <InspectionManager 
+          onLoadInspection={handleLoadInspection}
+          onNavigation={handleNavigation}
+        />
+      ) : (
+        <div className="container mx-auto px-4 py-6 max-w-4xl">
+          {/* Panel de información del vehículo */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
               Información del Vehículo
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Marca
@@ -611,9 +527,9 @@ const InspectionApp = () => {
                 <input
                   type="text"
                   value={vehicleInfo.marca}
-                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value.toUpperCase() }))}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ej: TOYOTA, CHEVROLET, FORD"
+                  placeholder="Toyota, Nissan, etc."
                 />
               </div>
 
@@ -626,7 +542,7 @@ const InspectionApp = () => {
                   value={vehicleInfo.modelo}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, modelo: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ej: Prado, Cherokee, Explorer"
+                  placeholder="Hilux, Frontier, etc."
                 />
               </div>
 
@@ -636,12 +552,12 @@ const InspectionApp = () => {
                 </label>
                 <input
                   type="number"
-                  min="1990"
-                  max={new Date().getFullYear() + 1}
                   value={vehicleInfo.año}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, año: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Ej: 2020"
+                  placeholder="2020"
+                  min="1990"
+                  max={new Date().getFullYear() + 1}
                 />
               </div>
 
@@ -712,14 +628,97 @@ const InspectionApp = () => {
             </div>
           </div>
 
+          {/* Panel de resumen */}
+          {totalScore > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Inspección</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-600">Puntuación Total</p>
+                      <p className="text-2xl font-bold text-blue-900">{totalScore}</p>
+                    </div>
+                    <Star className="h-8 w-8 text-blue-600" />
+                  </div>
+                </div>
+
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-red-600">Costo de Reparación</p>
+                      <p className="text-2xl font-bold text-red-900">{formatCost(totalRepairCost)}</p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-red-600" />
+                  </div>
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-green-600">Estado General</p>
+                      <p className="text-lg font-bold text-green-900">
+                        {totalScore >= 8 ? 'Excelente' : 
+                         totalScore >= 6 ? 'Bueno' : 
+                         totalScore >= 4 ? 'Regular' : 'Malo'}
+                      </p>
+                    </div>
+                    <Info className="h-8 w-8 text-green-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleSaveInspection}
+                disabled={saving || !user}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Save size={16} />
+                <span>{saving ? 'Guardando...' : 'Guardar Inspección'}</span>
+              </button>
+
+              <button
+                onClick={handleGenerateReport}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download size={16} />
+                <span>Generar PDF</span>
+              </button>
+
+              <button
+                onClick={handleExportJSON}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <FileText size={16} />
+                <span>Exportar JSON</span>
+              </button>
+
+              <button
+                onClick={handleResetInspection}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw size={16} />
+                <span>Reiniciar</span>
+              </button>
+            </div>
+          </div>
+
           {/* Lista de inspección */}
           <div className="space-y-6">
-            {Object.entries(checklistStructure).map(([categoryName, items]) => {
+            {safeObjectEntries(checklistStructure).map(([categoryName, items]) => {
               const isExpanded = expandedCategories[categoryName];
-              const categoryData = inspectionData[categoryName];
-              const categoryItems = Object.values(categoryData).filter(item => item.evaluated && item.score > 0);
+              const categoryData = inspectionData[categoryName] || {};
+              const categoryItems = safeObjectValues(categoryData).filter(item => 
+                item && item.evaluated && item.score > 0
+              );
               const categoryAverage = categoryItems.length > 0 
-                ? (categoryItems.reduce((sum, item) => sum + item.score, 0) / categoryItems.length).toFixed(1)
+                ? (categoryItems.reduce((sum, item) => sum + (item?.score || 0), 0) / categoryItems.length).toFixed(1)
                 : 0;
 
               return (
@@ -734,7 +733,7 @@ const InspectionApp = () => {
                           {categoryName}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {categoryItems.length} de {items.length} evaluados
+                          {categoryItems.length} de {items?.length || 0} evaluados
                           {categoryAverage > 0 && ` • Promedio: ${categoryAverage}/10`}
                         </p>
                       </div>
@@ -748,8 +747,13 @@ const InspectionApp = () => {
 
                   {isExpanded && (
                     <div className="border-t border-gray-200">
-                      {items.map((item, index) => {
-                        const itemData = categoryData[item.name] || { score: 0, repairCost: 0, notes: '', evaluated: false };
+                      {(items || []).map((item, index) => {
+                        const itemData = categoryData[item.name] || { 
+                          score: 0, 
+                          repairCost: 0, 
+                          notes: '', 
+                          evaluated: false 
+                        };
                         const photoKey = `${categoryName}_${item.name}`;
                         const itemPhotos = selectedPhotos[photoKey] || [];
 
