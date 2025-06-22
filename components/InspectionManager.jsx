@@ -1,5 +1,5 @@
 // components/InspectionManager.jsx - VERSIÓN CORREGIDA Y RESPONSIVA
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Filter, 
@@ -34,12 +34,10 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    if (user && session) {
-      loadInspections();
-    }
-  }, [user, session]);
+    loadInspections();
+  }, [loadInspections]);
 
-  const loadInspections = async () => {
+  const loadInspections = useCallback(async () => {
     if (!user || !session) {
       console.warn('No user or session available');
       setLoading(false);
@@ -65,7 +63,7 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, session]);
 
   const deleteInspection = async (id) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta inspección?')) {

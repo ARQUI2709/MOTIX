@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Info,
   Wifi,
-  WifiOff
+  WifiOff,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
