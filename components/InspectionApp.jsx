@@ -40,10 +40,7 @@ import {
   isValidObject 
 } from '../utils/safeUtils';
 
-// CORRECCIÓN: Remover todas las redefiniciones locales de funciones
-// que causaban conflictos con las importaciones
-
-// Componente StarRating para calificación con estrellas - RESPONSIVO
+// CORRECCIÓN: Componente StarRating separado para evitar conflictos
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
   const [hoveredScore, setHoveredScore] = useState(0);
 
@@ -76,13 +73,6 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
     return 'text-gray-300';
   };
 
-  const getResponsiveStarSize = () => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 640 ? 16 : 20;
-    }
-    return 20;
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-1 sm:gap-2">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
@@ -96,102 +86,21 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
           className={`transition-colors duration-150 ${
             disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-110'
           }`}
-          aria-label={`Calificar ${starIndex} estrellas`}
         >
           <Star 
-            size={getResponsiveStarSize()} 
+            size={window.innerWidth < 640 ? 16 : 20}
             className={getStarColor(starIndex)}
           />
         </button>
       ))}
-      <span className="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-600 font-medium">
-        {hoveredScore || score || 0}/10
+      <span className="ml-2 text-sm font-medium text-gray-600">
+        {score > 0 ? score : 'Sin calificar'}
       </span>
     </div>
   );
 };
 
-// Componente ImageUpload para subir fotos
-const ImageUpload = ({ onImageCapture, disabled = false }) => {
-  const fileInputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileSelect = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('La imagen es muy grande. Máximo 5MB permitido.');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target.result;
-        
-        const response = await fetch('/api/upload-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image: base64,
-            fileName: file.name
-          })
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-          onImageCapture(data.url);
-        } else {
-          throw new Error(data.error);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Error al subir la imagen: ' + error.message);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        disabled={disabled || uploading}
-        className="hidden"
-      />
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={disabled || uploading}
-        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {uploading ? (
-          <RefreshCw size={12} className="animate-spin" />
-        ) : (
-          <Camera size={12} />
-        )}
-        <span className="hidden sm:inline">
-          {uploading ? 'Subiendo...' : 'Foto'}
-        </span>
-      </button>
-    </div>
-  );
-};
-
-// Componente principal InspectionApp
+// Componente principal InspectionApp - CORREGIDO
 const InspectionApp = () => {
   // Estados principales
   const { user, loading } = useAuth();
@@ -216,6 +125,29 @@ const InspectionApp = () => {
   const [loading_state, setLoadingState] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+
+  // NUEVA FUNCIÓN: Validación obligatoria de campos mínimos
+  const validateRequiredFields = useCallback(() => {
+    const errors = [];
+    
+    if (!vehicleInfo.marca?.trim()) {
+      errors.push('La marca es obligatoria');
+    }
+    
+    if (!vehicleInfo.modelo?.trim()) {
+      errors.push('El modelo es obligatorio');
+    }
+    
+    if (!vehicleInfo.placa?.trim()) {
+      errors.push('La placa es obligatoria');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }, [vehicleInfo]);
 
   // Detectar estado de conexión
   useEffect(() => {
@@ -231,14 +163,35 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Inicializar datos de inspección
+  // Inicializar datos de inspección de forma segura
   useEffect(() => {
     if (user && !inspectionData) {
-      setInspectionData(initializeInspectionData());
+      try {
+        const initialData = initializeInspectionData();
+        if (initialData && isValidObject(initialData)) {
+          setInspectionData(initialData);
+        }
+      } catch (initError) {
+        console.error('Error inicializando datos de inspección:', initError);
+        setError('Error al inicializar la inspección. Recarga la página.');
+      }
     }
   }, [user, inspectionData]);
 
-  // Función para manejar cambios en los elementos del checklist
+  // CORRECCIÓN: Función para manejar cambios en información del vehículo
+  const handleVehicleInfoChange = useCallback((field, value) => {
+    setVehicleInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Limpiar errores de validación al cambiar datos
+    if (showValidationErrors) {
+      setShowValidationErrors(false);
+    }
+  }, [showValidationErrors]);
+
+  // CORRECCIÓN: Función para manejar cambios en los elementos del checklist
   const handleItemChange = useCallback((sectionKey, itemKey, field, value) => {
     setInspectionData(prev => {
       if (!prev || !isValidObject(prev)) return prev;
@@ -272,234 +225,335 @@ const InspectionApp = () => {
     });
   }, []);
 
-  // Función para agregar imagen a un elemento
-  const handleImageAdd = useCallback((sectionKey, itemKey, imageUrl) => {
-    setInspectionData(prev => {
-      if (!prev || !isValidObject(prev)) return prev;
-
-      const newData = { ...prev };
-      
-      if (!newData.sections?.[sectionKey]?.items?.[itemKey]) {
-        return prev;
-      }
-
-      const currentImages = newData.sections[sectionKey].items[itemKey].images || [];
-      newData.sections[sectionKey].items[itemKey].images = [...currentImages, imageUrl];
-
-      return newData;
-    });
-  }, []);
-
-  // Función para guardar inspección
+  // NUEVA FUNCIÓN: Guardar inspección con validación obligatoria
   const handleSaveInspection = useCallback(async () => {
-    if (!user || !inspectionData) {
-      setError('No hay datos para guardar');
+    setError(null);
+    
+    // Validar campos requeridos antes de guardar
+    const validation = validateRequiredFields();
+    if (!validation.isValid) {
+      setError(`Campos obligatorios faltantes: ${validation.errors.join(', ')}`);
+      setShowValidationErrors(true);
       return;
     }
 
     setLoadingState(true);
-    setError(null);
-
+    
     try {
-      const inspectionToSave = {
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      if (!inspectionData || !isValidObject(inspectionData)) {
+        throw new Error('Datos de inspección inválidos');
+      }
+
+      const dataToSave = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        created_at: new Date().toISOString(),
-        status: 'draft'
+        total_score: calculateTotalScore(inspectionData),
+        created_at: new Date().toISOString()
       };
 
       const { data, error: saveError } = await supabase
         .from('inspections')
-        .insert([inspectionToSave])
+        .insert([dataToSave])
         .select();
 
-      if (saveError) throw saveError;
+      if (saveError) {
+        throw saveError;
+      }
 
       setSuccess('Inspección guardada exitosamente');
-      setTimeout(() => setSuccess(null), 3000);
-
-    } catch (error) {
-      console.error('Error saving inspection:', error);
-      setError('Error al guardar: ' + error.message);
+      setShowValidationErrors(false);
+      
+    } catch (saveError) {
+      console.error('Error guardando inspección:', saveError);
+      setError(`Error al guardar: ${saveError.message}`);
     } finally {
       setLoadingState(false);
     }
-  }, [user, inspectionData, vehicleInfo]);
+  }, [user, vehicleInfo, inspectionData, validateRequiredFields]);
 
-  // Función para exportar a PDF
-  const handleExportPDF = useCallback(async () => {
-    if (!inspectionData || !vehicleInfo) {
-      setError('No hay datos suficientes para exportar');
-      return;
-    }
-
-    setLoadingState(true);
-    try {
-      await generatePDFReport(inspectionData, vehicleInfo);
-      setSuccess('PDF generado exitosamente');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      setError('Error al generar PDF: ' + error.message);
-    } finally {
-      setLoadingState(false);
-    }
-  }, [inspectionData, vehicleInfo]);
-
-  // Función para manejar cambios en información del vehículo
-  const handleVehicleInfoChange = useCallback((field, value) => {
-    setVehicleInfo(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Función helper para calcular puntaje total
+  const calculateTotalScore = useCallback((data) => {
+    if (!data || !isValidObject(data)) return 0;
+    
+    let totalPoints = 0;
+    let totalItems = 0;
+    
+    safeObjectValues(data.sections || {}).forEach(section => {
+      if (isValidObject(section)) {
+        safeObjectValues(section.items || {}).forEach(item => {
+          if (isValidObject(item) && item.evaluated && item.score > 0) {
+            totalPoints += item.score;
+            totalItems += 1;
+          }
+        });
+      }
+    });
+    
+    return totalItems > 0 ? parseFloat((totalPoints / totalItems).toFixed(1)) : 0;
   }, []);
 
-  // Renderizar página de inicio si no hay usuario
+  // Función para navegar a inspecciones
+  const handleNavigateToInspections = useCallback(() => {
+    setCurrentView('inspections');
+    setSelectedSection(null);
+    setSidebarOpen(false);
+  }, []);
+
+  // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando aplicación...</p>
+        </div>
       </div>
     );
   }
 
+  // Vista sin autenticación
   if (!user) {
     return <LandingPage />;
   }
 
-  // Filtrar secciones según búsqueda
-  const filteredSections = searchTerm 
-    ? safeObjectEntries(checklistStructure).filter(([key, section]) => 
-        section.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        safeObjectValues(section.items || {}).some(item => 
-          item.name?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      )
-    : safeObjectEntries(checklistStructure);
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header corregido con navegación funcional */}
       <AppHeader 
-        isOnline={isOnline}
-        onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-        onSave={handleSaveInspection}
-        onExport={handleExportPDF}
-        loading={loading_state}
+        onNavigateToInspections={handleNavigateToInspections}
+        currentView={currentView}
       />
 
-      {/* Indicadores de estado */}
+      {/* Estado de conexión */}
+      {!isOnline && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4">
+          <div className="flex items-center">
+            <WifiOff className="h-5 w-5 text-yellow-400 mr-2" />
+            <p className="text-yellow-700">Sin conexión a internet. Trabajando en modo offline.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Mensajes de error y éxito */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
-          <div className="flex">
-            <AlertCircle className="text-red-400" size={20} />
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+        <div className="bg-red-100 border-l-4 border-red-500 p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+            <p className="text-red-700">{error}</p>
             <button 
               onClick={() => setError(null)}
               className="ml-auto text-red-400 hover:text-red-600"
             >
-              <X size={16} />
+              <X size={20} />
             </button>
           </div>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
-          <div className="flex">
-            <Info className="text-green-400" size={20} />
-            <div className="ml-3">
-              <p className="text-sm text-green-700">{success}</p>
-            </div>
+        <div className="bg-green-100 border-l-4 border-green-500 p-4">
+          <div className="flex items-center">
+            <Info className="h-5 w-5 text-green-400 mr-2" />
+            <p className="text-green-700">{success}</p>
+            <button 
+              onClick={() => setSuccess(null)}
+              className="ml-auto text-green-400 hover:text-green-600"
+            >
+              <X size={20} />
+            </button>
           </div>
         </div>
       )}
 
-      {/* Layout principal */}
-      <div className="flex">
+      <div className="flex h-screen pt-16">
         {/* Sidebar */}
-        <div className={`
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          fixed lg:relative lg:translate-x-0 z-30 w-64 h-screen bg-white border-r border-gray-200
-          transition-transform duration-300 ease-in-out
-        `}>
-          {/* Sidebar content */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Buscar secciones..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+        <div className={`fixed inset-y-0 left-0 pt-16 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          <div className="flex flex-col h-full">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <nav className="mt-5 flex-1 px-2 space-y-1">
+                {/* Botón de Overview */}
+                <button
+                  onClick={() => {
+                    setCurrentView('overview');
+                    setSelectedSection(null);
+                    setSidebarOpen(false);
+                  }}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left ${
+                    currentView === 'overview' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Home className="mr-3 h-5 w-5" />
+                  Resumen General
+                </button>
 
-          <div className="overflow-y-auto h-full pb-20">
-            <nav className="p-4 space-y-2">
-              <button
-                onClick={() => {
-                  setCurrentView('overview');
-                  setSelectedSection(null);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  currentView === 'overview' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Home size={16} />
-                <span>Resumen General</span>
-              </button>
+                {/* Botón de Mis Inspecciones - CORREGIDO */}
+                <button
+                  onClick={handleNavigateToInspections}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left ${
+                    currentView === 'inspections' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <FolderOpen className="mr-3 h-5 w-5" />
+                  Mis Inspecciones
+                </button>
 
-              <button
-                onClick={() => {
-                  setCurrentView('inspections');
-                  setSelectedSection(null);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  currentView === 'inspections' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <FolderOpen size={16} />
-                <span>Mis Inspecciones</span>
-              </button>
+                <div className="border-t border-gray-200 my-4"></div>
 
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Secciones de Inspección
+                {/* Información del vehículo con validación */}
+                <div className="px-3 py-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Información del Vehículo
+                  </h3>
+                  
+                  {showValidationErrors && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                      Completa los campos obligatorios: marca, modelo y placa
+                    </div>
+                  )}
+
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">
+                        Marca *
+                      </label>
+                      <input
+                        type="text"
+                        value={vehicleInfo.marca}
+                        onChange={(e) => handleVehicleInfoChange('marca', e.target.value)}
+                        className={`mt-1 block w-full px-3 py-2 border rounded-md text-sm ${
+                          showValidationErrors && !vehicleInfo.marca?.trim()
+                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
+                        placeholder="Ej: Toyota"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">
+                        Modelo *
+                      </label>
+                      <input
+                        type="text"
+                        value={vehicleInfo.modelo}
+                        onChange={(e) => handleVehicleInfoChange('modelo', e.target.value)}
+                        className={`mt-1 block w-full px-3 py-2 border rounded-md text-sm ${
+                          showValidationErrors && !vehicleInfo.modelo?.trim()
+                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
+                        placeholder="Ej: Prado"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">
+                        Placa *
+                      </label>
+                      <input
+                        type="text"
+                        value={vehicleInfo.placa}
+                        onChange={(e) => handleVehicleInfoChange('placa', e.target.value.toUpperCase())}
+                        className={`mt-1 block w-full px-3 py-2 border rounded-md text-sm uppercase ${
+                          showValidationErrors && !vehicleInfo.placa?.trim()
+                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
+                        placeholder="Ej: ABC123"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">
+                        Año
+                      </label>
+                      <input
+                        type="number"
+                        value={vehicleInfo.año}
+                        onChange={(e) => handleVehicleInfoChange('año', e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="2020"
+                        min="1990"
+                        max={new Date().getFullYear() + 1}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">
+                        Kilometraje
+                      </label>
+                      <input
+                        type="number"
+                        value={vehicleInfo.kilometraje}
+                        onChange={(e) => handleVehicleInfoChange('kilometraje', e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="50000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 my-4"></div>
+
+                {/* Secciones del checklist */}
+                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Checklist de Inspección
                 </h3>
                 
-                {filteredSections.map(([sectionKey, section]) => (
+                {safeObjectEntries(checklistStructure || {}).map(([sectionKey, section]) => (
                   <button
                     key={sectionKey}
                     onClick={() => {
-                      setCurrentView('inspection');
                       setSelectedSection(sectionKey);
+                      setCurrentView('inspection');
                       setSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                      selectedSection === sectionKey && currentView === 'inspection'
+                    className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md w-full text-left ${
+                      selectedSection === sectionKey 
                         ? 'bg-blue-100 text-blue-700' 
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <span className="truncate">{section.title}</span>
+                    <span className="truncate">{sectionKey}</span>
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
-                      {Object.keys(section.items || {}).length}
+                      {Array.isArray(section) ? section.length : 0}
                     </span>
                   </button>
                 ))}
-              </div>
-            </nav>
+              </nav>
+            </div>
+
+            {/* Botón de guardar con validación */}
+            <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+              <button
+                onClick={handleSaveInspection}
+                disabled={loading_state}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading_state ? (
+                  <>
+                    <RefreshCw className="animate-spin mr-2" size={16} />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2" size={16} />
+                    Guardar Inspección
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -512,126 +566,115 @@ const InspectionApp = () => {
         )}
 
         {/* Contenido principal */}
-        <div className="flex-1 min-h-screen">
+        <div className="flex-1 min-h-screen overflow-auto">
           {currentView === 'inspections' ? (
             <InspectionManager />
           ) : currentView === 'overview' ? (
             <div className="p-6">
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Resumen General</h1>
-              {/* Contenido del resumen */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <p className="text-gray-600">
+                  Aquí aparecerá un resumen de todas tus inspecciones una vez que comiences a usar la aplicación.
+                </p>
+              </div>
             </div>
-          ) : (
+          ) : selectedSection ? (
             <div className="p-6">
-              {selectedSection ? (
-                <div>
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                      {checklistStructure[selectedSection]?.title}
-                    </h1>
-                    <p className="text-gray-600">
-                      {checklistStructure[selectedSection]?.description}
-                    </p>
-                  </div>
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  {selectedSection}
+                </h1>
+                <p className="text-gray-600">
+                  Evalúa cada componente usando la escala de 1 a 10
+                </p>
+              </div>
 
-                  {/* Items de la sección */}
-                  <div className="space-y-4">
-                    {safeObjectEntries(checklistStructure[selectedSection]?.items || {}).map(([itemKey, item]) => {
-                      const itemData = inspectionData?.sections?.[selectedSection]?.items?.[itemKey] || {};
-                      
-                      return (
-                        <div key={itemKey} className="bg-white p-4 rounded-lg border border-gray-200">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <h3 className="font-medium text-gray-900 mb-1">{item.name}</h3>
-                              {item.description && (
-                                <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                              )}
-                              
-                              {/* Rating */}
-                              <StarRating
-                                score={itemData.score || 0}
-                                onScoreChange={(score) => handleItemChange(selectedSection, itemKey, 'score', score)}
-                              />
-                            </div>
+              {/* Items de la sección */}
+              <div className="space-y-4">
+                {Array.isArray(checklistStructure[selectedSection]) && 
+                  checklistStructure[selectedSection].map((item, index) => {
+                    const itemData = inspectionData?.sections?.[selectedSection]?.items?.[index] || {};
+                    
+                    return (
+                      <div key={index} className="bg-white rounded-lg shadow p-6">
+                        <div className="mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {item.name}
+                          </h3>
+                          <p className="text-gray-600 text-sm">
+                            {item.description}
+                          </p>
+                        </div>
 
-                            <div className="flex items-center gap-2">
-                              {/* Campo de costo */}
-                              {item.canHaveCost && (
-                                <div className="flex items-center gap-1">
-                                  <DollarSign size={16} className="text-gray-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="$0"
-                                    value={formatCost(itemData.cost || 0)}
-                                    onChange={(e) => handleItemChange(selectedSection, itemKey, 'cost', e.target.value)}
-                                    className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  />
-                                </div>
-                              )}
-
-                              {/* Upload de imagen */}
-                              <ImageUpload
-                                onImageCapture={(url) => handleImageAdd(selectedSection, itemKey, url)}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Comentarios */}
-                          <div className="mt-4">
-                            <textarea
-                              placeholder="Comentarios adicionales..."
-                              value={itemData.comments || ''}
-                              onChange={(e) => handleItemChange(selectedSection, itemKey, 'comments', e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              rows={2}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Calificación (1-10)
+                            </label>
+                            <StarRating
+                              score={itemData.score || 0}
+                              onScoreChange={(score) => handleItemChange(selectedSection, index, 'score', score)}
                             />
                           </div>
 
-                          {/* Imágenes */}
-                          {itemData.images && itemData.images.length > 0 && (
-                            <div className="mt-4">
-                              <div className="flex flex-wrap gap-2">
-                                {itemData.images.map((imageUrl, index) => (
-                                  <div key={index} className="relative">
-                                    <img 
-                                      src={imageUrl} 
-                                      alt={`${item.name} ${index + 1}`}
-                                      className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        const newImages = itemData.images.filter((_, i) => i !== index);
-                                        handleItemChange(selectedSection, itemKey, 'images', newImages);
-                                      }}
-                                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Observaciones
+                            </label>
+                            <textarea
+                              value={itemData.observations || ''}
+                              onChange={(e) => handleItemChange(selectedSection, index, 'observations', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                              rows="3"
+                              placeholder="Describe el estado del componente..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Costo estimado de reparación (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={formatCost(itemData.repairCost || 0)}
+                              onChange={(e) => handleItemChange(selectedSection, index, 'repairCost', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="$0"
+                            />
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Car size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                    Selecciona una sección
-                  </h2>
-                  <p className="text-gray-600">
-                    Elige una sección del menú lateral para comenzar la inspección
-                  </p>
-                </div>
-              )}
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="text-center py-12">
+                <Car className="h-24 w-24 text-gray-300 mx-auto mb-4" />
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                  Bienvenido a InspectApp
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Selecciona una sección del menú lateral para comenzar tu inspección vehicular
+                </p>
+                <p className="text-sm text-gray-500">
+                  Asegúrate de completar la información básica del vehículo antes de continuar
+                </p>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Botón flotante para abrir sidebar en móvil */}
+      <button
+        className="fixed top-20 left-4 z-40 lg:hidden bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+      >
+        <Menu size={20} />
+      </button>
     </div>
   );
 };

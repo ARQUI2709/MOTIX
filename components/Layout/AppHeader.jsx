@@ -1,389 +1,318 @@
-// components/Layout/AppHeader.jsx - VERSIÓN CORREGIDA
+// components/Layout/AppHeader.jsx - CORREGIDO
 import React, { useState } from 'react';
 import { 
-  Shield, 
-  User, 
-  LogOut, 
-  Settings, 
   Menu, 
-  X, 
-  FolderOpen, 
-  Home,
-  AlertCircle,
-  Info,
-  Wifi,
-  WifiOff,
-  ChevronDown
+  Bell, 
+  Settings, 
+  User,
+  LogOut,
+  FileText,
+  HelpCircle,
+  FolderOpen,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AppHeader = ({ onNavigate, onLogout, currentView = 'inspection', isOnline = true }) => {
+const AppHeader = ({ onNavigateToInspections, currentView }) => {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
   const handleSignOut = async () => {
     try {
-      setShowUserMenu(false);
-      setMobileMenuOpen(false);
-      
-      // Usar el callback de logout del componente padre si existe
-      if (onLogout) {
-        await onLogout();
-      } else {
-        // Fallback al método directo del contexto
-        await signOut();
-      }
+      await signOut();
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-      alert('Error al cerrar sesión. Intente nuevamente.');
+      console.error('Error signing out:', error);
     }
   };
 
-  const handleNavigation = (view) => {
-    if (onNavigate) {
-      onNavigate(view);
+  // CORRECCIÓN: Función para navegar a "Mis inspecciones" - FUNCIONAL
+  const handleNavigateToInspections = () => {
+    if (onNavigateToInspections) {
+      onNavigateToInspections();
     }
-    setMobileMenuOpen(false);
     setShowUserMenu(false);
   };
 
-  const getUserDisplayName = () => {
-    if (user?.user_metadata?.fullName) {
-      return user.user_metadata.fullName;
-    }
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name;
-    }
-    if (user?.email) {
-      return user.email.split('@')[0];
-    }
-    return 'Usuario';
-  };
-
-  const toggleInstructions = () => {
-    setShowInstructions(!showInstructions);
-    setMobileMenuOpen(false);
-  };
-
-  // Cerrar menús al hacer click fuera
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showUserMenu && !event.target.closest('.user-menu-container')) {
-        setShowUserMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showUserMenu]);
-
   return (
     <>
-      <header className="bg-white shadow-lg border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
-            {/* Logo y Título */}
-            <div className="flex items-center min-w-0">
-              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mr-2 sm:mr-3 flex-shrink-0" />
-              <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
-                <span className="hidden sm:inline">Inspección de Vehículos 4x4</span>
-                <span className="sm:hidden">Inspección 4x4</span>
-              </h1>
+      <header className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 border-b border-gray-200">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo y título */}
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-blue-600">
+                  InspectApp
+                </h1>
+              </div>
+              <div className="hidden md:block ml-6">
+                <span className="text-sm text-gray-500">
+                  Sistema de Inspección Vehicular 4x4
+                </span>
+              </div>
             </div>
 
-            {/* Indicador de conexión */}
-            <div className="hidden sm:flex items-center mr-4">
-              {isOnline ? (
-                <div className="flex items-center text-green-600">
-                  <Wifi className="w-4 h-4 mr-1" />
-                  <span className="text-xs">Online</span>
-                </div>
-              ) : (
-                <div className="flex items-center text-red-600">
-                  <WifiOff className="w-4 h-4 mr-1" />
-                  <span className="text-xs">Offline</span>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-4">
+            {/* Navegación central */}
+            <nav className="hidden lg:flex space-x-6">
               <button
-                onClick={() => handleNavigation('inspection')}
-                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  currentView === 'inspection' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                onClick={() => window.location.reload()}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'overview' 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                <Home className="w-4 h-4 mr-2" />
-                Nueva Inspección
+                <Home className="mr-2" size={16} />
+                Inicio
               </button>
               
+              {/* CORRECCIÓN: Botón "Mis inspecciones" ahora funcional */}
               <button
-                onClick={() => handleNavigation('manager')}
-                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  currentView === 'manager' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                onClick={handleNavigateToInspections}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'inspections' 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                <FolderOpen className="w-4 h-4 mr-2" />
+                <FolderOpen className="mr-2" size={16} />
                 Mis Inspecciones
               </button>
 
               <button
-                onClick={toggleInstructions}
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setShowInstructions(true)}
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               >
-                <Info className="w-4 h-4 mr-2" />
+                <HelpCircle className="mr-2" size={16} />
                 Ayuda
               </button>
             </nav>
 
-            {/* Desktop User Menu */}
-            <div className="hidden lg:flex items-center space-x-4">
-              <div className="relative user-menu-container">
+            {/* Área del usuario */}
+            <div className="flex items-center space-x-4">
+              {/* Notificaciones */}
+              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                <Bell size={20} />
+              </button>
+
+              {/* Menu del usuario */}
+              <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
+                  className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-medium hidden xl:block">{getUserDisplayName()}</span>
-                  <ChevronDown className="w-4 h-4" />
+                  <span className="hidden md:block ml-2 text-gray-700">
+                    {user?.email?.split('@')[0] || 'Usuario'}
+                  </span>
                 </button>
 
+                {/* Dropdown del usuario */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 border z-50">
-                    <div className="px-4 py-3 border-b">
-                      <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                      <p className="font-medium">{user?.user_metadata?.full_name || 'Usuario'}</p>
+                      <p className="text-gray-500 text-xs">{user?.email}</p>
                     </div>
+                    
+                    {/* CORRECCIÓN: Opción "Mis inspecciones" en el menú desplegable */}
+                    <button
+                      onClick={handleNavigateToInspections}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <FolderOpen className="mr-3" size={16} />
+                      Mis Inspecciones
+                    </button>
+                    
                     <button
                       onClick={() => {
+                        setShowInstructions(true);
                         setShowUserMenu(false);
-                        // TODO: Implementar configuración
-                        alert('Configuración próximamente');
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      <Settings className="w-4 h-4 mr-3" />
+                      <HelpCircle className="mr-3" size={16} />
+                      Ayuda e Instrucciones
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <Settings className="mr-3" size={16} />
                       Configuración
                     </button>
+                    
+                    <div className="border-t border-gray-200 my-1"></div>
+                    
                     <button
                       onClick={handleSignOut}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                     >
-                      <LogOut className="w-4 h-4 mr-3" />
+                      <LogOut className="mr-3" size={16} />
                       Cerrar Sesión
                     </button>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Mobile Menu Button */}
-            <div className="lg:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-gray-700 hover:text-blue-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
           </div>
+        </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="lg:hidden bg-white border-t border-gray-200">
-              <nav className="px-4 py-4 space-y-2">
-                {/* Indicador de conexión móvil */}
-                <div className="flex items-center justify-center py-2 mb-2">
-                  {isOnline ? (
-                    <div className="flex items-center text-green-600">
-                      <Wifi className="w-4 h-4 mr-2" />
-                      <span className="text-sm">Conectado</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-red-600">
-                      <WifiOff className="w-4 h-4 mr-2" />
-                      <span className="text-sm">Sin conexión</span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => handleNavigation('inspection')}
-                  className={`w-full text-left flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'inspection' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Home className="w-5 h-5 mr-3" />
-                  Nueva Inspección
-                </button>
-                
-                <button
-                  onClick={() => handleNavigation('manager')}
-                  className={`w-full text-left flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                    currentView === 'manager' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <FolderOpen className="w-5 h-5 mr-3" />
-                  Mis Inspecciones
-                </button>
-
-                <button
-                  onClick={toggleInstructions}
-                  className="w-full text-left flex items-center px-3 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Info className="w-5 h-5 mr-3" />
-                  Ayuda
-                </button>
-
-                <div className="border-t pt-4 mt-4">
-                  <div className="px-3 py-2 mb-2">
-                    <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      alert('Configuración próximamente');
-                    }}
-                    className="w-full text-left flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Settings className="w-5 h-5 mr-3" />
-                    Configuración
-                  </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full text-left flex items-center px-3 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <LogOut className="w-5 h-5 mr-3" />
-                    Cerrar Sesión
-                  </button>
-                </div>
-              </nav>
-            </div>
-          )}
+        {/* Navegación móvil */}
+        <div className="lg:hidden border-t border-gray-200">
+          <div className="px-4 py-2 space-x-4 flex overflow-x-auto">
+            <button
+              onClick={() => window.location.reload()}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
+                currentView === 'overview' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-700 hover:text-blue-600'
+              }`}
+            >
+              <Home className="mr-2" size={16} />
+              Inicio
+            </button>
+            
+            {/* CORRECCIÓN: Botón móvil también funcional */}
+            <button
+              onClick={handleNavigateToInspections}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
+                currentView === 'inspections' 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-700 hover:text-blue-600'
+              }`}
+            >
+              <FolderOpen className="mr-2" size={16} />
+              Mis Inspecciones
+            </button>
+            
+            <button
+              onClick={() => setShowInstructions(true)}
+              className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 whitespace-nowrap"
+            >
+              <HelpCircle className="mr-2" size={16} />
+              Ayuda
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Modal de Instrucciones */}
+      {/* Overlay para cerrar menús */}
+      {showUserMenu && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowUserMenu(false)}
+        />
+      )}
+
+      {/* Modal de instrucciones */}
       {showInstructions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Instrucciones de Uso</h2>
-              <button
-                onClick={() => setShowInstructions(false)}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-            </div>
-            
-            <div className="p-4 sm:p-6 space-y-6">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2 text-blue-600" />
-                  Cómo realizar una inspección
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Instrucciones de Uso
                 </h3>
-                <ol className="space-y-3 text-sm text-gray-600">
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">1.</span>
-                    <span>Complete la información básica del vehículo (marca, modelo, placa)</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">2.</span>
-                    <span>Seleccione una categoría (Motor, Transmisión, etc.) para expandirla</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">3.</span>
-                    <span>Califique cada ítem del 1 al 10 haciendo clic en las estrellas</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">4.</span>
-                    <span>Ingrese el costo estimado de reparación si es necesario</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">5.</span>
-                    <span>Agregue fotos relevantes (máximo 5 por ítem)</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">6.</span>
-                    <span>Añada notas adicionales si es necesario</span>
-                  </li>
-                  <li className="flex">
-                    <span className="font-semibold mr-2 text-blue-600">7.</span>
-                    <span>Guarde la inspección y genere el reporte PDF</span>
-                  </li>
-                </ol>
+                <button
+                  onClick={() => setShowInstructions(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Settings size={24} />
+                </button>
               </div>
+            </div>
 
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">
-                  Criterios de puntuación
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="font-semibold text-green-800 mb-1">8-10 puntos</div>
-                    <div className="text-green-700">Excelente estado, sin problemas</div>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="font-semibold text-blue-800 mb-1">6-7 puntos</div>
-                    <div className="text-blue-700">Buen estado, mantenimiento menor</div>
-                  </div>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <div className="font-semibold text-yellow-800 mb-1">4-5 puntos</div>
-                    <div className="text-yellow-700">Estado regular, requiere atención</div>
-                  </div>
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <div className="font-semibold text-red-800 mb-1">1-3 puntos</div>
-                    <div className="text-red-700">Mal estado, reparación urgente</div>
-                  </div>
+            <div className="px-6 py-4">
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    🚗 Antes de comenzar
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Complete la información básica del vehículo (marca, modelo y placa son obligatorios)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Tenga buena iluminación y herramientas básicas disponibles</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Asegúrese de tener tiempo suficiente para una inspección completa</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    📋 Durante la inspección
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Siga las descripciones detalladas para cada componente</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Use la escala de 1-10 donde 10 = excelente, 1 = muy malo</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Tome fotos de cualquier anomalía o desgaste</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Anote observaciones detalladas en cada sección</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Estime costos de reparación cuando identifique problemas</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    💾 Guardar y gestionar
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Guarde regularmente su progreso usando el botón "Guardar Inspección"</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Acceda a sus inspecciones previas desde "Mis Inspecciones"</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>Genere reportes PDF para compartir o imprimir</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span>La aplicación funciona offline y sincroniza cuando hay conexión</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-amber-800 mb-2">
+                    ⚠️ Importante
+                  </h4>
+                  <p className="text-sm text-amber-700">
+                    Los campos marca, modelo y placa son obligatorios para guardar una inspección. 
+                    Complete esta información antes de continuar con la evaluación.
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">
-                  Consejos útiles
-                </h3>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span>Realice la inspección con buena iluminación</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span>Tome fotos de cualquier anomalía o desgaste</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span>Sea objetivo en sus calificaciones</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span>Consulte con un mecánico si tiene dudas</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-2">•</span>
-                    <span>Guarde regularmente su progreso</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-6">
                 <button
                   onClick={() => setShowInstructions(false)}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

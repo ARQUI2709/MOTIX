@@ -1,249 +1,261 @@
 // contexts/InspectionContext.js - VERSIÓN CORREGIDA
-// Contexto para manejar el estado de inspección de forma segura
-
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { initializeInspectionData } from '../data/checklistStructure';
 import { 
   safeObjectValues, 
   safeObjectEntries, 
-  isValidObject, 
-  validateInspectionData,
-  validateVehicleInfo,
-  cleanInspectionData,
-  safeNumber,
-  safeString,
-  safeBoolean
+  safeGet,
+  isEmpty,
+  isValidObject,
+  safeBoolean 
 } from '../utils/safeUtils';
 
-// Estado inicial seguro
-const initialState = {
-  vehicleInfo: {
-    marca: '',
-    modelo: '',
-    año: '',
-    placa: '',
-    kilometraje: '',
-    precio: '',
-    vendedor: '',
-    telefono: '',
-    fecha: new Date().toISOString().split('T')[0]
-  },
-  inspectionData: {},
-  selectedPhotos: {},
-  expandedCategories: {},
-  totalScore: 0,
-  totalRepairCost: 0,
-  evaluatedItems: 0,
-  isLoading: false,
-  error: null,
-  isDirty: false // Para rastrear cambios no guardados
-};
+// NUEVA IMPORTACIÓN: Validaciones mejoradas
+import { validateInspectionData, validateVehicleInfo } from '../utils/vehicleValidation';
 
 // Tipos de acciones
 const actionTypes = {
   INITIALIZE_INSPECTION: 'INITIALIZE_INSPECTION',
   UPDATE_VEHICLE_INFO: 'UPDATE_VEHICLE_INFO',
-  UPDATE_INSPECTION_ITEM: 'UPDATE_INSPECTION_ITEM',
-  ADD_PHOTO: 'ADD_PHOTO',
-  REMOVE_PHOTO: 'REMOVE_PHOTO',
-  TOGGLE_CATEGORY: 'TOGGLE_CATEGORY',
+  UPDATE_ITEM: 'UPDATE_ITEM',
+  ADD_IMAGE: 'ADD_IMAGE',
+  REMOVE_IMAGE: 'REMOVE_IMAGE',
   LOAD_INSPECTION: 'LOAD_INSPECTION',
   RESET_INSPECTION: 'RESET_INSPECTION',
   CALCULATE_TOTALS: 'CALCULATE_TOTALS',
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
-  MARK_CLEAN: 'MARK_CLEAN'
+  MARK_CLEAN: 'MARK_CLEAN',
+  VALIDATE_DATA: 'VALIDATE_DATA'
 };
 
-// Reducer con manejo seguro de datos
+// Estado inicial mejorado
+const initialState = {
+  inspectionData: {},
+  vehicleInfo: {
+    marca: '',
+    modelo: '',
+    año: '',
+    placa: '',
+    kilometraje: '',
+    combustible: 'Gasolina',
+    transmision: 'Manual',
+    color: '',
+    precio: '',
+    vendedor: '',
+    telefono: ''
+  },
+  totalScore: 0,
+  totalRepairCost: 0,
+  evaluatedItems: 0,
+  completionPercentage: 0,
+  isDirty: false,
+  isLoading: false,
+  error: null,
+  validationErrors: [],
+  validationWarnings: [],
+  canSave: false
+};
+
+// Reducer mejorado con manejo de errores
 const inspectionReducer = (state, action) => {
   try {
     switch (action.type) {
       case actionTypes.INITIALIZE_INSPECTION: {
-        const initializedData = initializeInspectionData();
+        console.log('🔄 Inicializando nueva inspección...');
+        const newData = initializeInspectionData();
+        
+        if (!newData || !isValidObject(newData)) {
+          console.error('❌ Error inicializando datos de inspección');
+          return {
+            ...state,
+            error: 'Error al inicializar la inspección'
+          };
+        }
+
         return {
           ...state,
-          inspectionData: initializedData || {},
+          inspectionData: newData,
+          vehicleInfo: { ...initialState.vehicleInfo },
           totalScore: 0,
           totalRepairCost: 0,
           evaluatedItems: 0,
-          isDirty: false
+          completionPercentage: 0,
+          isDirty: false,
+          error: null,
+          validationErrors: [],
+          validationWarnings: [],
+          canSave: false
         };
       }
 
       case actionTypes.UPDATE_VEHICLE_INFO: {
         const { field, value } = action.payload;
+        
         if (!field || typeof field !== 'string') {
-          console.warn('Invalid field in UPDATE_VEHICLE_INFO');
+          console.warn('Invalid field provided to UPDATE_VEHICLE_INFO');
           return state;
         }
+
+        const newVehicleInfo = {
+          ...state.vehicleInfo,
+          [field]: value || ''
+        };
+
+        // NUEVA VALIDACIÓN: Validar en tiempo real
+        const validation = validateVehicleInfo(newVehicleInfo);
 
         return {
           ...state,
-          vehicleInfo: {
-            ...state.vehicleInfo,
-            [field]: safeString(value, '')
-          },
-          isDirty: true
+          vehicleInfo: newVehicleInfo,
+          validationErrors: validation.errors,
+          validationWarnings: validation.warnings,
+          canSave: validation.canSave,
+          isDirty: true,
+          error: null
         };
       }
 
-      case actionTypes.UPDATE_INSPECTION_ITEM: {
-        const { categoryName, itemName, field, value } = action.payload;
+      case actionTypes.UPDATE_ITEM: {
+        const { sectionKey, itemKey, field, value } = action.payload;
         
-        if (!categoryName || !itemName || !field) {
-          console.warn('Invalid parameters in UPDATE_INSPECTION_ITEM');
+        if (!sectionKey || !itemKey || !field) {
+          console.warn('Invalid parameters provided to UPDATE_ITEM');
           return state;
         }
 
-        const newInspectionData = { ...state.inspectionData };
+        const newData = { ...state.inspectionData };
         
-        // Asegurar que la categoría existe
-        if (!isValidObject(newInspectionData[categoryName])) {
-          newInspectionData[categoryName] = {};
+        // Inicializar estructura si no existe
+        if (!newData.sections) {
+          newData.sections = {};
         }
         
-        // Asegurar que el ítem existe
-        if (!isValidObject(newInspectionData[categoryName][itemName])) {
-          newInspectionData[categoryName][itemName] = {
+        if (!newData.sections[sectionKey]) {
+          newData.sections[sectionKey] = { items: {} };
+        }
+        
+        if (!newData.sections[sectionKey].items) {
+          newData.sections[sectionKey].items = {};
+        }
+        
+        if (!newData.sections[sectionKey].items[itemKey]) {
+          newData.sections[sectionKey].items[itemKey] = {
             score: 0,
+            observations: '',
             repairCost: 0,
-            notes: '',
+            images: [],
             evaluated: false
           };
         }
 
-        // Actualizar el campo con validación
-        let processedValue = value;
-        switch (field) {
-          case 'score':
-            processedValue = safeNumber(value, 0);
-            break;
-          case 'repairCost':
-            processedValue = safeNumber(value, 0);
-            break;
-          case 'notes':
-            processedValue = safeString(value, '');
-            break;
-          case 'evaluated':
-            processedValue = safeBoolean(value, false);
-            break;
-          default:
-            processedValue = value;
+        // Actualizar el campo específico
+        const item = newData.sections[sectionKey].items[itemKey];
+        
+        if (field === 'score') {
+          const numericScore = parseInt(value) || 0;
+          item.score = Math.max(0, Math.min(10, numericScore));
+          item.evaluated = item.score > 0;
+        } else if (field === 'repairCost') {
+          item.repairCost = parseFloat(value) || 0;
+        } else {
+          item[field] = value;
         }
 
-        newInspectionData[categoryName][itemName] = {
-          ...newInspectionData[categoryName][itemName],
-          [field]: processedValue,
-          evaluated: true // Marcar como evaluado cuando se actualiza cualquier campo
-        };
+        // Marcar como evaluado si tiene score u observaciones
+        if (item.score > 0 || item.observations?.trim()) {
+          item.evaluated = true;
+        }
 
         return {
           ...state,
-          inspectionData: newInspectionData,
+          inspectionData: newData,
+          isDirty: true,
+          error: null
+        };
+      }
+
+      case actionTypes.ADD_IMAGE: {
+        const { sectionKey, itemKey, imageUrl } = action.payload;
+        
+        if (!sectionKey || !itemKey || !imageUrl) {
+          console.warn('Invalid parameters provided to ADD_IMAGE');
+          return state;
+        }
+
+        const newData = { ...state.inspectionData };
+        
+        // Verificar estructura
+        if (!newData.sections?.[sectionKey]?.items?.[itemKey]) {
+          console.warn('Item not found for adding image');
+          return state;
+        }
+
+        const item = newData.sections[sectionKey].items[itemKey];
+        if (!item.images) {
+          item.images = [];
+        }
+
+        // Agregar imagen si no existe ya
+        if (!item.images.includes(imageUrl)) {
+          item.images.push(imageUrl);
+        }
+
+        return {
+          ...state,
+          inspectionData: newData,
           isDirty: true
         };
       }
 
-      case actionTypes.ADD_PHOTO: {
-        const { categoryName, itemName, photoUrl } = action.payload;
+      case actionTypes.REMOVE_IMAGE: {
+        const { sectionKey, itemKey, imageIndex } = action.payload;
         
-        if (!categoryName || !itemName || !photoUrl) {
-          console.warn('Invalid parameters in ADD_PHOTO');
+        if (!sectionKey || !itemKey || typeof imageIndex !== 'number') {
+          console.warn('Invalid parameters provided to REMOVE_IMAGE');
           return state;
         }
 
-        const photoKey = `${categoryName}_${itemName}`;
-        const currentPhotos = state.selectedPhotos[photoKey] || [];
+        const newData = { ...state.inspectionData };
+        const item = newData.sections?.[sectionKey]?.items?.[itemKey];
         
-        // Límite de 5 fotos por ítem
-        if (currentPhotos.length >= 5) {
-          return state;
+        if (item?.images && Array.isArray(item.images)) {
+          item.images.splice(imageIndex, 1);
         }
 
         return {
           ...state,
-          selectedPhotos: {
-            ...state.selectedPhotos,
-            [photoKey]: [...currentPhotos, photoUrl]
-          },
+          inspectionData: newData,
           isDirty: true
-        };
-      }
-
-      case actionTypes.REMOVE_PHOTO: {
-        const { categoryName, itemName, photoIndex } = action.payload;
-        
-        if (!categoryName || !itemName || typeof photoIndex !== 'number') {
-          console.warn('Invalid parameters in REMOVE_PHOTO');
-          return state;
-        }
-
-        const photoKey = `${categoryName}_${itemName}`;
-        const currentPhotos = state.selectedPhotos[photoKey] || [];
-        
-        return {
-          ...state,
-          selectedPhotos: {
-            ...state.selectedPhotos,
-            [photoKey]: currentPhotos.filter((_, index) => index !== photoIndex)
-          },
-          isDirty: true
-        };
-      }
-
-      case actionTypes.TOGGLE_CATEGORY: {
-        const { categoryName } = action.payload;
-        
-        if (!categoryName || typeof categoryName !== 'string') {
-          console.warn('Invalid categoryName in TOGGLE_CATEGORY');
-          return state;
-        }
-
-        return {
-          ...state,
-          expandedCategories: {
-            ...state.expandedCategories,
-            [categoryName]: !state.expandedCategories[categoryName]
-          }
         };
       }
 
       case actionTypes.LOAD_INSPECTION: {
-        const { inspectionData } = action.payload;
+        const { inspectionData, vehicleInfo } = action.payload;
         
         if (!isValidObject(inspectionData)) {
-          console.warn('Invalid inspection data in LOAD_INSPECTION');
-          return state;
+          console.warn('Invalid inspection data provided to LOAD_INSPECTION');
+          return {
+            ...state,
+            error: 'Datos de inspección inválidos'
+          };
         }
-
-        const cleanedData = cleanInspectionData(inspectionData.inspection_data || {});
 
         return {
           ...state,
-          vehicleInfo: {
-            ...state.vehicleInfo,
-            ...(inspectionData.vehicle_info || {})
-          },
-          inspectionData: cleanedData,
-          selectedPhotos: {
-            ...state.selectedPhotos,
-            ...(inspectionData.photos || {})
-          },
-          isDirty: false
+          inspectionData: inspectionData || {},
+          vehicleInfo: vehicleInfo || initialState.vehicleInfo,
+          isDirty: false,
+          error: null
         };
       }
 
       case actionTypes.RESET_INSPECTION: {
-        const initializedData = initializeInspectionData();
+        const newData = initializeInspectionData();
         return {
           ...initialState,
-          inspectionData: initializedData || {},
-          vehicleInfo: {
-            ...initialState.vehicleInfo,
-            fecha: new Date().toISOString().split('T')[0]
-          }
+          inspectionData: newData || {}
         };
       }
 
@@ -254,28 +266,66 @@ const inspectionReducer = (state, action) => {
         let evaluatedCount = 0;
 
         try {
-          safeObjectValues(state.inspectionData).forEach(category => {
-            safeObjectValues(category).forEach(item => {
-              if (item && item.evaluated) {
-                evaluatedCount += 1;
-                if (item.score > 0) {
-                  totalPoints += safeNumber(item.score, 0);
-                  totalItems += 1;
+          safeObjectValues(state.inspectionData.sections || {}).forEach(section => {
+            if (isValidObject(section)) {
+              safeObjectValues(section.items || {}).forEach(item => {
+                if (isValidObject(item)) {
+                  if (item.evaluated) {
+                    evaluatedCount += 1;
+                    
+                    if (item.score > 0) {
+                      totalPoints += item.score;
+                      totalItems += 1;
+                    }
+                  }
+                  
+                  const cost = parseFloat(item.repairCost) || 0;
+                  repairTotal += cost;
                 }
-              }
-              repairTotal += safeNumber(item?.repairCost, 0);
-            });
+              });
+            }
           });
         } catch (error) {
           console.error('Error calculating totals:', error);
         }
 
+        const completionPercentage = evaluatedCount > 0 
+          ? Math.round((evaluatedCount / 100) * 100) // Ajustar según total de items
+          : 0;
+
         return {
           ...state,
-          totalScore: totalItems > 0 ? parseFloat((totalPoints / totalItems).toFixed(1)) : 0,
+          totalScore: totalItems > 0 ? 
+            parseFloat((totalPoints / totalItems).toFixed(1)) : 0,
           totalRepairCost: repairTotal,
-          evaluatedItems: evaluatedCount
+          evaluatedItems: evaluatedCount,
+          completionPercentage
         };
+      }
+
+      case actionTypes.VALIDATE_DATA: {
+        const { inspectionData, vehicleInfo } = state;
+        
+        try {
+          const validation = validateInspectionData(inspectionData, vehicleInfo);
+          const vehicleValidation = validateVehicleInfo(vehicleInfo);
+          
+          return {
+            ...state,
+            validationErrors: [
+              ...vehicleValidation.errors,
+              ...validation.errors
+            ],
+            validationWarnings: vehicleValidation.warnings,
+            canSave: validation.isValid && vehicleValidation.canSave
+          };
+        } catch (error) {
+          console.error('Error in validation:', error);
+          return {
+            ...state,
+            error: 'Error validando datos'
+          };
+        }
       }
 
       case actionTypes.SET_LOADING: {
@@ -296,7 +346,9 @@ const inspectionReducer = (state, action) => {
       case actionTypes.CLEAR_ERROR: {
         return {
           ...state,
-          error: null
+          error: null,
+          validationErrors: [],
+          validationWarnings: []
         };
       }
 
@@ -315,7 +367,8 @@ const inspectionReducer = (state, action) => {
     console.error('Error in inspectionReducer:', error);
     return {
       ...state,
-      error: `Error interno: ${error.message}`
+      error: `Error interno: ${error.message}`,
+      isLoading: false
     };
   }
 };
@@ -332,94 +385,83 @@ export const useInspection = () => {
   return context;
 };
 
-// Proveedor del contexto
+// Proveedor del contexto mejorado
 export const InspectionProvider = ({ children }) => {
   const [state, dispatch] = useReducer(inspectionReducer, {
     ...initialState,
     inspectionData: initializeInspectionData() || {}
   });
 
-  // Calcular totales automáticamente cuando cambien los datos de inspección
+  // Calcular totales automáticamente cuando cambien los datos
   useEffect(() => {
     dispatch({ type: actionTypes.CALCULATE_TOTALS });
-  }, [state.inspectionData]);
+    dispatch({ type: actionTypes.VALIDATE_DATA });
+  }, [state.inspectionData, state.vehicleInfo]);
 
-  // Funciones de acción con validación
+  // Funciones de acción con validación mejorada
   const actions = {
     // Inicializar inspección
     initializeInspection: useCallback(() => {
       dispatch({ type: actionTypes.INITIALIZE_INSPECTION });
     }, []),
 
-    // Actualizar información del vehículo
+    // Actualizar información del vehículo con validación
     updateVehicleInfo: useCallback((field, value) => {
       if (!field || typeof field !== 'string') {
         console.warn('Invalid field provided to updateVehicleInfo');
         return;
       }
+      
       dispatch({
         type: actionTypes.UPDATE_VEHICLE_INFO,
         payload: { field, value }
       });
     }, []),
 
-    // Actualizar ítem de inspección
-    updateInspectionItem: useCallback((categoryName, itemName, field, value) => {
-      if (!categoryName || !itemName || !field) {
-        console.warn('Invalid parameters provided to updateInspectionItem');
+    // Actualizar item de inspección
+    updateItem: useCallback((sectionKey, itemKey, field, value) => {
+      if (!sectionKey || !itemKey || !field) {
+        console.warn('Invalid parameters provided to updateItem');
         return;
       }
+      
       dispatch({
-        type: actionTypes.UPDATE_INSPECTION_ITEM,
-        payload: { categoryName, itemName, field, value }
+        type: actionTypes.UPDATE_ITEM,
+        payload: { sectionKey, itemKey, field, value }
       });
     }, []),
 
-    // Agregar foto
-    addPhoto: useCallback((categoryName, itemName, photoUrl) => {
-      if (!categoryName || !itemName || !photoUrl) {
-        console.warn('Invalid parameters provided to addPhoto');
+    // Agregar imagen
+    addImage: useCallback((sectionKey, itemKey, imageUrl) => {
+      if (!sectionKey || !itemKey || !imageUrl) {
+        console.warn('Invalid parameters provided to addImage');
         return;
       }
+      
       dispatch({
-        type: actionTypes.ADD_PHOTO,
-        payload: { categoryName, itemName, photoUrl }
+        type: actionTypes.ADD_IMAGE,
+        payload: { sectionKey, itemKey, imageUrl }
       });
     }, []),
 
-    // Remover foto
-    removePhoto: useCallback((categoryName, itemName, photoIndex) => {
-      if (!categoryName || !itemName || typeof photoIndex !== 'number') {
-        console.warn('Invalid parameters provided to removePhoto');
-        return;
-      }
+    // Remover imagen
+    removeImage: useCallback((sectionKey, itemKey, imageIndex) => {
       dispatch({
-        type: actionTypes.REMOVE_PHOTO,
-        payload: { categoryName, itemName, photoIndex }
-      });
-    }, []),
-
-    // Alternar categoría expandida
-    toggleCategory: useCallback((categoryName) => {
-      if (!categoryName || typeof categoryName !== 'string') {
-        console.warn('Invalid categoryName provided to toggleCategory');
-        return;
-      }
-      dispatch({
-        type: actionTypes.TOGGLE_CATEGORY,
-        payload: { categoryName }
+        type: actionTypes.REMOVE_IMAGE,
+        payload: { sectionKey, itemKey, imageIndex }
       });
     }, []),
 
     // Cargar inspección existente
-    loadInspection: useCallback((inspectionData) => {
+    loadInspection: useCallback((inspectionData, vehicleInfo) => {
       if (!isValidObject(inspectionData)) {
         console.warn('Invalid inspection data provided to loadInspection');
         return;
       }
+      
       dispatch({
         type: actionTypes.LOAD_INSPECTION,
-        payload: { inspectionData }
+        payload: { inspectionData, vehicleInfo }
       });
     }, []),
 
@@ -454,96 +496,53 @@ export const InspectionProvider = ({ children }) => {
       dispatch({ type: actionTypes.MARK_CLEAN });
     }, []),
 
-    // Funciones de utilidad
+    // Validar datos manualmente
+    validateData: useCallback(() => {
+      dispatch({ type: actionTypes.VALIDATE_DATA });
+    }, []),
+
+    // Funciones de utilidad mejoradas
     getInspectionSummary: useCallback(() => {
       try {
-        const summary = {
-          totalCategories: 0,
-          evaluatedCategories: 0,
-          totalItems: 0,
+        const totalCategories = Object.keys(state.inspectionData.sections || {}).length;
+        const completionPercentage = state.evaluatedItems > 0 
+          ? Math.round((state.evaluatedItems / 100) * 100)
+          : 0;
+
+        return {
+          totalCategories,
           evaluatedItems: state.evaluatedItems,
           averageScore: state.totalScore,
           totalRepairCost: state.totalRepairCost,
-          completionPercentage: 0
+          completionPercentage,
+          canSave: state.canSave,
+          hasErrors: state.validationErrors.length > 0,
+          hasWarnings: state.validationWarnings.length > 0
         };
-
-        const categories = safeObjectEntries(state.inspectionData);
-        summary.totalCategories = categories.length;
-
-        categories.forEach(([categoryName, category]) => {
-          const items = safeObjectValues(category);
-          summary.totalItems += items.length;
-          
-          const evaluatedItems = items.filter(item => item && item.evaluated);
-          if (evaluatedItems.length > 0) {
-            summary.evaluatedCategories += 1;
-          }
-        });
-
-        summary.completionPercentage = summary.totalItems > 0 
-          ? parseFloat(((summary.evaluatedItems / summary.totalItems) * 100).toFixed(1))
-          : 0;
-
-        return summary;
       } catch (error) {
         console.error('Error getting inspection summary:', error);
         return {
           totalCategories: 0,
-          evaluatedCategories: 0,
-          totalItems: 0,
           evaluatedItems: 0,
           averageScore: 0,
           totalRepairCost: 0,
-          completionPercentage: 0
+          completionPercentage: 0,
+          canSave: false,
+          hasErrors: true,
+          hasWarnings: false
         };
       }
-    }, [state.inspectionData, state.evaluatedItems, state.totalScore, state.totalRepairCost]),
+    }, [state]),
 
-    // Validar si la inspección está lista para guardar
-    isReadyToSave: useCallback(() => {
-      try {
-        // Verificar información básica del vehículo
-        const hasBasicVehicleInfo = validateVehicleInfo(state.vehicleInfo);
-        
-        // Verificar que haya al menos algunos ítems evaluados
-        const hasEvaluatedItems = state.evaluatedItems > 0;
-        
-        return hasBasicVehicleInfo && hasEvaluatedItems;
-      } catch (error) {
-        console.error('Error checking if ready to save:', error);
-        return false;
-      }
-    }, [state.vehicleInfo, state.evaluatedItems]),
-
-    // Obtener datos para exportar
-    getExportData: useCallback(() => {
-      try {
-        return {
-          vehicle_info: state.vehicleInfo,
-          inspection_data: state.inspectionData,
-          photos: state.selectedPhotos,
-          summary: actions.getInspectionSummary(),
-          export_date: new Date().toISOString(),
-          version: '1.0'
-        };
-      } catch (error) {
-        console.error('Error getting export data:', error);
-        return null;
-      }
-    }, [state.vehicleInfo, state.inspectionData, state.selectedPhotos])
+    // Verificar si se puede guardar
+    canSaveInspection: useCallback(() => {
+      return state.canSave && state.validationErrors.length === 0;
+    }, [state.canSave, state.validationErrors])
   };
 
-  // Valor del contexto
   const contextValue = {
-    // Estado
     ...state,
-    
-    // Acciones
-    ...actions,
-    
-    // Funciones de utilidad adicionales
-    hasUnsavedChanges: state.isDirty,
-    isValid: actions.isReadyToSave()
+    actions
   };
 
   return (
