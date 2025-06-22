@@ -1,4 +1,4 @@
-// components/InspectionApp.jsx - VERSIÓN CORREGIDA
+// components/InspectionApp.jsx - VERSIÓN RESPONSIVA CORREGIDA
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Save, 
@@ -42,7 +42,7 @@ const safeObjectEntries = (obj) => {
   return Object.entries(obj);
 };
 
-// Componente StarRating para calificación con estrellas
+// Componente StarRating para calificación con estrellas - RESPONSIVO
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
   const [hoveredScore, setHoveredScore] = useState(0);
 
@@ -76,7 +76,7 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   };
 
   return (
-    <div className="flex items-center space-x-1">
+    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
         <button
           key={starIndex}
@@ -90,7 +90,7 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
           }`}
         >
           <Star 
-            size={20} 
+            size={window.innerWidth < 640 ? 16 : 20} 
             className={getStarColor(starIndex)}
           />
         </button>
@@ -102,7 +102,7 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
-// Componente PhotoUpload para manejo de fotos
+// Componente PhotoUpload para manejo de fotos - RESPONSIVO
 const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoRemove }) => {
   const fileInputRef = useRef(null);
 
@@ -119,17 +119,17 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
   };
 
   return (
-    <div>
+    <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Fotos ({photos.length}/5)
       </label>
       
-      <div className="flex items-center space-x-2 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
         <button
           type="button"
           onClick={triggerFileInput}
           disabled={photos.length >= 5}
-          className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
         >
           <Camera size={16} />
           <span>Agregar foto</span>
@@ -144,29 +144,29 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
           className="hidden"
         />
         
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 text-center sm:text-left">
           Máximo 5 fotos
         </span>
       </div>
 
       {photos && photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {photos.map((photo, index) => (
             <div key={index} className="relative group">
               <img 
                 src={photo} 
                 alt={`Foto ${index + 1}`}
-                className="w-full h-20 object-cover rounded-lg border border-gray-200 shadow-sm"
+                className="w-full h-16 sm:h-20 object-cover rounded-lg border border-gray-200 shadow-sm"
               />
               <button
                 type="button"
                 onClick={() => onPhotoRemove(categoryName, itemName, index)}
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                 title="Eliminar foto"
               >
-                <X size={12} />
+                <X size={10} />
               </button>
-              <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded">
                 {index + 1}
               </div>
             </div>
@@ -184,7 +184,7 @@ const PhotoUpload = ({ categoryName, itemName, photos = [], onPhotoAdd, onPhotoR
 };
 
 const InspectionApp = () => {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, signOut } = useAuth();
   
   // Estados principales
   const [currentView, setCurrentView] = useState('inspection');
@@ -222,10 +222,52 @@ const InspectionApp = () => {
   // Estados de fotos
   const [selectedPhotos, setSelectedPhotos] = useState({});
 
-  // Función para manejar la navegación
+  // LÓGICA DE NAVEGACIÓN CORREGIDA
+  useEffect(() => {
+    // Si no hay usuario y no está cargando, mostrar landing
+    if (!loading && !user) {
+      setShowLanding(true);
+      setCurrentView('landing');
+    } else if (!loading && user) {
+      // Si hay usuario, ocultar landing y mostrar app
+      setShowLanding(false);
+      if (currentView === 'landing') {
+        setCurrentView('inspection');
+      }
+    }
+  }, [user, loading, currentView]);
+
+  // Función para manejar la navegación - CORREGIDA
   const handleNavigation = useCallback((view) => {
+    console.log('Navigation to:', view);
     setCurrentView(view);
   }, []);
+
+  // Función para manejar logout - CORREGIDA
+  const handleLogout = useCallback(async () => {
+    try {
+      await signOut();
+      // Resetear estados
+      setCurrentView('landing');
+      setShowLanding(true);
+      setInspectionData(initializeInspectionData() || {});
+      setSelectedPhotos({});
+      setVehicleInfo({
+        marca: '',
+        modelo: '',
+        año: '',
+        placa: '',
+        kilometraje: '',
+        precio: '',
+        vendedor: '',
+        telefono: '',
+        fecha: new Date().toISOString().split('T')[0]
+      });
+      setExpandedCategories({});
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  }, [signOut]);
 
   // Función para cargar una inspección guardada
   const handleLoadInspection = useCallback((inspectionData) => {
@@ -478,18 +520,33 @@ const InspectionApp = () => {
     }
   }, [inspectionData]);
 
-  // Mostrar página de bienvenida si no hay usuario
-  if (!loading && !user && showLanding) {
-    return <LandingPage onGetStarted={() => setShowLanding(false)} />;
+  // Mostrar página de bienvenida si no hay usuario - LÓGICA CORREGIDA
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Renderizar componente principal
+  if (!user || showLanding) {
+    return <LandingPage onEnterApp={() => {
+      setShowLanding(false);
+      setCurrentView('inspection');
+    }} />;
+  }
+
+  // Renderizar componente principal - DISEÑO RESPONSIVO
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader 
         user={user}
         currentView={currentView}
-        onNavigation={handleNavigation}
+        onNavigate={handleNavigation}
+        onLogout={handleLogout}
         isOnline={isOnline}
       />
 
@@ -498,7 +555,7 @@ const InspectionApp = () => {
         <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4">
           <div className="flex items-center">
             <WifiOff className="h-5 w-5 text-yellow-500 mr-2" />
-            <p className="text-yellow-700">
+            <p className="text-yellow-700 text-sm">
               Sin conexión a internet. Los datos se guardarán localmente.
             </p>
           </div>
@@ -509,17 +566,17 @@ const InspectionApp = () => {
       {currentView === 'manager' ? (
         <InspectionManager 
           onLoadInspection={handleLoadInspection}
-          onNavigation={handleNavigation}
+          onClose={() => handleNavigation('inspection')}
         />
       ) : (
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
-          {/* Panel de información del vehículo */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl">
+          {/* Panel de información del vehículo - RESPONSIVO */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
               Información del Vehículo
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Marca
@@ -528,7 +585,7 @@ const InspectionApp = () => {
                   type="text"
                   value={vehicleInfo.marca}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="Toyota, Nissan, etc."
                 />
               </div>
@@ -541,7 +598,7 @@ const InspectionApp = () => {
                   type="text"
                   value={vehicleInfo.modelo}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, modelo: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="Hilux, Frontier, etc."
                 />
               </div>
@@ -554,7 +611,7 @@ const InspectionApp = () => {
                   type="number"
                   value={vehicleInfo.año}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, año: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="2020"
                   min="1990"
                   max={new Date().getFullYear() + 1}
@@ -569,7 +626,7 @@ const InspectionApp = () => {
                   type="text"
                   value={vehicleInfo.placa}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, placa: e.target.value.toUpperCase() }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="ABC123"
                 />
               </div>
@@ -582,7 +639,7 @@ const InspectionApp = () => {
                   type="number"
                   value={vehicleInfo.kilometraje}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="0"
                 />
               </div>
@@ -595,7 +652,7 @@ const InspectionApp = () => {
                   type="text"
                   value={formatCost(vehicleInfo.precio)}
                   onChange={handlePriceChange}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="0"
                 />
               </div>
@@ -608,7 +665,7 @@ const InspectionApp = () => {
                   type="text"
                   value={vehicleInfo.vendedor}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, vendedor: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="Nombre del vendedor"
                 />
               </div>
@@ -621,26 +678,26 @@ const InspectionApp = () => {
                   type="tel"
                   value={vehicleInfo.telefono}
                   onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                   placeholder="300 123 4567"
                 />
               </div>
             </div>
           </div>
 
-          {/* Panel de resumen */}
+          {/* Panel de resumen - RESPONSIVO */}
           {totalScore > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Inspección</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-blue-600">Puntuación Total</p>
-                      <p className="text-2xl font-bold text-blue-900">{totalScore}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-900">{totalScore}</p>
                     </div>
-                    <Star className="h-8 w-8 text-blue-600" />
+                    <Star className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                   </div>
                 </div>
 
@@ -648,13 +705,13 @@ const InspectionApp = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-red-600">Costo de Reparación</p>
-                      <p className="text-2xl font-bold text-red-900">{formatCost(totalRepairCost)}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-red-900">{formatCost(totalRepairCost)}</p>
                     </div>
-                    <DollarSign className="h-8 w-8 text-red-600" />
+                    <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
                   </div>
                 </div>
 
-                <div className="bg-green-50 p-4 rounded-lg">
+                <div className="bg-green-50 p-4 rounded-lg sm:col-span-2 lg:col-span-1">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-green-600">Estado General</p>
@@ -664,20 +721,20 @@ const InspectionApp = () => {
                          totalScore >= 4 ? 'Regular' : 'Malo'}
                       </p>
                     </div>
-                    <Info className="h-8 w-8 text-green-600" />
+                    <Info className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Botones de acción */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex flex-wrap gap-3">
+          {/* Botones de acción - RESPONSIVO */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <button
                 onClick={handleSaveInspection}
                 disabled={saving || !user}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center space-x-2 px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 <Save size={16} />
                 <span>{saving ? 'Guardando...' : 'Guardar Inspección'}</span>
@@ -685,7 +742,7 @@ const InspectionApp = () => {
 
               <button
                 onClick={handleGenerateReport}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center justify-center space-x-2 px-4 py-2 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
               >
                 <Download size={16} />
                 <span>Generar PDF</span>
@@ -693,7 +750,7 @@ const InspectionApp = () => {
 
               <button
                 onClick={handleExportJSON}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="flex items-center justify-center space-x-2 px-4 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
               >
                 <FileText size={16} />
                 <span>Exportar JSON</span>
@@ -701,7 +758,7 @@ const InspectionApp = () => {
 
               <button
                 onClick={handleResetInspection}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="flex items-center justify-center space-x-2 px-4 py-2 sm:py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base"
               >
                 <RefreshCw size={16} />
                 <span>Reiniciar</span>
@@ -709,8 +766,8 @@ const InspectionApp = () => {
             </div>
           </div>
 
-          {/* Lista de inspección */}
-          <div className="space-y-6">
+          {/* Lista de inspección - RESPONSIVO */}
+          <div className="space-y-4 sm:space-y-6">
             {safeObjectEntries(checklistStructure).map(([categoryName, items]) => {
               const isExpanded = expandedCategories[categoryName];
               const categoryData = inspectionData[categoryName] || {};
@@ -724,21 +781,28 @@ const InspectionApp = () => {
               return (
                 <div key={categoryName} className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <div 
-                    className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="p-4 sm:p-6 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => toggleCategory(categoryName)}
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
                           {categoryName}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 mt-1">
                           {categoryItems.length} de {items?.length || 0} evaluados
-                          {categoryAverage > 0 && ` • Promedio: ${categoryAverage}/10`}
+                          {categoryAverage > 0 && (
+                            <span className="hidden sm:inline"> • Promedio: {categoryAverage}/10</span>
+                          )}
                         </p>
+                        {categoryAverage > 0 && (
+                          <p className="text-sm text-gray-600 sm:hidden">
+                            Promedio: {categoryAverage}/10
+                          </p>
+                        )}
                       </div>
                       <ChevronDown 
-                        className={`h-5 w-5 text-gray-400 transition-transform ${
+                        className={`h-5 w-5 text-gray-400 transition-transform flex-shrink-0 ml-2 ${
                           isExpanded ? 'transform rotate-180' : ''
                         }`}
                       />
@@ -758,17 +822,16 @@ const InspectionApp = () => {
                         const itemPhotos = selectedPhotos[photoKey] || [];
 
                         return (
-                          <div key={item.name} className="p-4 border-b border-gray-100 last:border-b-0">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                              </div>
+                          <div key={item.name} className="p-4 sm:p-6 border-b border-gray-100 last:border-b-0">
+                            <div className="mb-4">
+                              <h4 className="font-medium text-gray-900 text-base sm:text-lg">{item.name}</h4>
+                              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{item.description}</p>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6">
+                              {/* Puntuación */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
                                   Puntuación (1-10)
                                 </label>
                                 <StarRating
@@ -777,37 +840,42 @@ const InspectionApp = () => {
                                 />
                               </div>
 
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {/* Costo de reparación */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
                                   Costo reparación ($)
                                 </label>
                                 <input
                                   type="text"
                                   value={formatCost(itemData.repairCost)}
                                   onChange={(e) => handleRepairCostChange(categoryName, item.name, e.target.value)}
-                                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                  className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                   placeholder="0"
                                 />
                               </div>
 
-                              <PhotoUpload
-                                categoryName={categoryName}
-                                itemName={item.name}
-                                photos={itemPhotos}
-                                onPhotoAdd={handlePhotoUpload}
-                                onPhotoRemove={removePhoto}
-                              />
+                              {/* Fotos */}
+                              <div className="lg:row-span-2">
+                                <PhotoUpload
+                                  categoryName={categoryName}
+                                  itemName={item.name}
+                                  photos={itemPhotos}
+                                  onPhotoAdd={handlePhotoUpload}
+                                  onPhotoRemove={removePhoto}
+                                />
+                              </div>
                             </div>
 
-                            <div className="mt-4">
+                            {/* Notas adicionales */}
+                            <div className="mt-4 lg:col-span-2">
                               <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Notas adicionales
                               </label>
                               <textarea
                                 value={itemData.notes}
                                 onChange={(e) => updateInspectionItem(categoryName, item.name, 'notes', e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                rows="2"
+                                className="w-full p-2 sm:p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
+                                rows="3"
                                 placeholder="Observaciones adicionales..."
                               />
                             </div>
@@ -819,6 +887,18 @@ const InspectionApp = () => {
                 </div>
               );
             })}
+          </div>
+
+          {/* Botón flotante para móviles - Guardar rápido */}
+          <div className="fixed bottom-4 right-4 sm:hidden">
+            <button
+              onClick={handleSaveInspection}
+              disabled={saving || !user}
+              className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Guardar inspección"
+            >
+              <Save size={24} />
+            </button>
           </div>
         </div>
       )}
