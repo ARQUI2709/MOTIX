@@ -1,32 +1,30 @@
-// pages/api/inspections.js - VERSIÓN CORREGIDA PARA EVITAR PROBLEMAS RLS
+// pages/api/inspections.js - FIXED VERSION
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Validar variables de entorno
+// Validate environment variables
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
   console.error('❌ Missing environment variables:', {
     supabaseUrl: !!supabaseUrl,
     supabaseServiceKey: !!supabaseServiceKey,
     supabaseAnonKey: !!supabaseAnonKey
   })
+  throw new Error('Missing required environment variables')
 }
 
-// Cliente admin con configuración específica para bypasser RLS
+// Admin client with proper configuration
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
-  },
-  db: {
-    schema: 'public'
   }
 })
 
 export default async function handler(req, res) {
-  // CORS headers
+  // Enhanced CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true)
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PUT,DELETE')
@@ -38,12 +36,17 @@ export default async function handler(req, res) {
   }
 
   console.log(`🔄 API Request: ${req.method} /api/inspections`)
+  console.log('🔍 Environment check:', {
+    hasUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+    hasAnonKey: !!supabaseAnonKey
+  })
 
   try {
-    // Extraer y validar token de autorización
+    // Extract and validate authorization token
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('❌ Missing authorization header')
+      console.error('❌ Missing or invalid authorization header')
       return res.status(401).json({ 
         success: false, 
         error: 'Token de autorización requerido. Formato: Bearer <token>'
@@ -60,7 +63,7 @@ export default async function handler(req, res) {
       })
     }
 
-    // Verificar usuario con el admin client
+    // Verify user with admin client
     console.log('🔐 Verifying user token...')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
@@ -83,7 +86,7 @@ export default async function handler(req, res) {
 
     console.log('✅ User authenticated:', user.id, user.email)
 
-    // Manejar diferentes métodos HTTP
+    // Handle different HTTP methods
     if (req.method === 'POST') {
       return await handlePost(req, res, user)
     } else if (req.method === 'GET') {
@@ -100,15 +103,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ 
       success: false, 
       error: 'Error interno del servidor',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal error'
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Contact support'
     })
   }
 }
 
-// Manejar POST request - Crear nueva inspección
+// Handle POST request - Save new inspection
 async function handlePost(req, res, user) {
-  console.log('📝 Processing POST request for user:', user.id)
-  
+  console.log('💾 Processing POST request for user:', user.id)
+
   try {
     const { 
       vehicle_info, 
@@ -119,22 +122,42 @@ async function handlePost(req, res, user) {
       completed_items = 0 
     } = req.body
 
-    // Validar campos requeridos
-    if (!vehicle_info || typeof vehicle_info !== 'object') {
+    // Validate required fields
+    if (!vehicle_info || !inspection_data) {
+      console.error('❌ Missing required fields')
       return res.status(400).json({ 
         success: false, 
-        error: 'Información del vehículo es requerida y debe ser un objeto válido'
+        error: 'Faltan campos requeridos: vehicle_info, inspection_data'
       })
     }
 
-    if (!inspection_data || typeof inspection_data !== 'object') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Datos de inspección son requeridos y deben ser un objeto válido'
+    console.log('📝 Attempting to save inspection...')
+
+    // STRATEGY 1: Try RPC function first
+    console.log('🔄 Trying RPC function...')
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('insert_inspection', {
+      p_user_id: user.id,
+      p_vehicle_info: vehicle_info,
+      p_inspection_data: inspection_data,
+      p_photos: photos,
+      p_total_score: parseFloat(total_score) || 0,
+      p_total_repair_cost: parseFloat(total_repair_cost) || 0,
+      p_completed_items: parseInt(completed_items) || 0
+    })
+
+    if (!rpcError && rpcData) {
+      console.log('✅ Inspection saved successfully via RPC:', rpcData)
+      return res.status(201).json({ 
+        success: true, 
+        data: { id: rpcData },
+        message: 'Inspección guardada exitosamente'
       })
     }
 
-    // Preparar registro de inspección
+    // STRATEGY 2: Direct insertion with admin client
+    console.log('🔄 RPC failed, trying direct insertion...')
+    console.log('RPC Error:', rpcError)
+
     const inspectionRecord = {
       user_id: user.id,
       vehicle_info,
@@ -148,59 +171,26 @@ async function handlePost(req, res, user) {
       updated_at: new Date().toISOString()
     }
 
-    console.log('💾 Inserting inspection record for user:', user.id)
+    const { data: directData, error: directError } = await supabaseAdmin
+      .from('inspections')
+      .insert([inspectionRecord])
+      .select()
+      .single()
 
-    // SOLUCION 1: Usar RPC function que bypasse RLS
-    const { data, error } = await supabaseAdmin.rpc('insert_inspection', {
-      p_user_id: user.id,
-      p_vehicle_info: vehicle_info,
-      p_inspection_data: inspection_data,
-      p_photos: photos,
-      p_total_score: parseFloat(total_score) || 0,
-      p_total_repair_cost: parseFloat(total_repair_cost) || 0,
-      p_completed_items: parseInt(completed_items) || 0
-    })
-
-    // SOLUCION 2: Si no funciona RPC, usar admin client con session override
-    if (error && error.code !== '42883') { // Si RPC no existe
-      console.log('🔄 RPC not found, using direct admin insert...')
-      
-      const { data: directData, error: directError } = await supabaseAdmin
-        .from('inspections')
-        .insert([inspectionRecord])
-        .select()
-        .single()
-
-      if (directError) {
-        console.error('💥 Direct insertion error:', directError)
-        return res.status(500).json({ 
-          success: false, 
-          error: `Error insertando inspección: ${directError.message}`,
-          code: directError.code
-        })
-      }
-
-      console.log('✅ Inspection saved successfully (direct):', directData.id)
-      return res.status(201).json({ 
-        success: true, 
-        data: directData,
-        message: 'Inspección guardada exitosamente'
-      })
-    }
-
-    if (error) {
-      console.error('💥 RPC insertion error:', error)
+    if (directError) {
+      console.error('💥 Direct insertion failed:', directError)
       return res.status(500).json({ 
         success: false, 
-        error: `Error guardando inspección: ${error.message}`,
-        code: error.code
+        error: `Error insertando inspección: ${directError.message}`,
+        code: directError.code,
+        details: directError
       })
     }
 
-    console.log('✅ Inspection saved successfully (RPC):', data)
+    console.log('✅ Inspection saved successfully via direct insert:', directData.id)
     return res.status(201).json({ 
       success: true, 
-      data,
+      data: directData,
       message: 'Inspección guardada exitosamente'
     })
 
@@ -214,58 +204,52 @@ async function handlePost(req, res, user) {
   }
 }
 
-// Manejar GET request - Obtener inspecciones del usuario
+// Handle GET request - Fetch user inspections
 async function handleGet(req, res, user) {
   console.log('📋 Processing GET request for user:', user.id)
-  
+
   try {
-    // SOLUCION 1: Usar RPC function
-    const { data, error } = await supabaseAdmin.rpc('get_user_inspections', {
+    // STRATEGY 1: Try RPC function first
+    console.log('🔄 Trying RPC function...')
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_user_inspections', {
       p_user_id: user.id
     })
 
-    // SOLUCION 2: Si RPC no existe, usar admin client directo
-    if (error && error.code === '42883') { // RPC no existe
-      console.log('🔄 RPC not found, using direct admin query...')
-      
-      const { data: directData, error: directError } = await supabaseAdmin
-        .from('inspections')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (directError) {
-        console.error('💥 Direct query error:', directError)
-        return res.status(500).json({ 
-          success: false, 
-          error: `Error obteniendo inspecciones: ${directError.message}`,
-          code: directError.code
-        })
-      }
-
-      console.log(`✅ Found ${directData?.length || 0} inspections for user ${user.id}`)
+    if (!rpcError && rpcData) {
+      console.log(`✅ Found ${rpcData.length} inspections via RPC`)
       return res.status(200).json({ 
         success: true, 
-        data: directData || [],
-        count: directData?.length || 0
+        data: rpcData,
+        count: rpcData.length
       })
     }
 
-    if (error) {
-      console.error('💥 RPC query error:', error)
+    // STRATEGY 2: Direct query with admin client
+    console.log('🔄 RPC failed, trying direct query...')
+    console.log('RPC Error:', rpcError)
+
+    const { data: directData, error: directError } = await supabaseAdmin
+      .from('inspections')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    if (directError) {
+      console.error('💥 Direct query failed:', directError)
       return res.status(500).json({ 
         success: false, 
-        error: `Error obteniendo inspecciones: ${error.message}`,
-        code: error.code
+        error: `Error obteniendo inspecciones: ${directError.message}`,
+        code: directError.code,
+        details: directError
       })
     }
 
-    console.log(`✅ Found ${data?.length || 0} inspections for user ${user.id}`)
+    console.log(`✅ Found ${directData?.length || 0} inspections via direct query`)
     return res.status(200).json({ 
       success: true, 
-      data: data || [],
-      count: data?.length || 0
+      data: directData || [],
+      count: directData?.length || 0
     })
 
   } catch (error) {
