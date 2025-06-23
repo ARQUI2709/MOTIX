@@ -386,71 +386,69 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
 
   // CORRECCIÓN PRINCIPAL: Función de guardado con nombre de tabla correcto
   const handleSaveInspection = async () => {
-    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      setError('Por favor completa la información básica del vehículo (marca, modelo y placa)');
-      return;
+  if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
+    setError('Por favor completa la información básica del vehículo (marca, modelo y placa)');
+    return;
+  }
+
+  setLoadingState(true);
+  setError('');
+  
+  try {
+    console.log('🔄 Iniciando guardado de inspección...');
+    console.log('👤 Usuario:', user?.id);
+    console.log('🚗 Vehículo:', vehicleInfo);
+
+    // Calcular métricas
+    const totalScore = calculateTotalScore();
+    const totalRepairCost = calculateTotalRepairCost();
+    const completedItems = calculateCompletedItems(); // ✅ Cambio aquí
+
+    const inspectionToSave = {
+      user_id: user.id,
+      vehicle_info: vehicleInfo,
+      inspection_data: inspectionData,
+      total_score: totalScore,
+      total_repair_cost: totalRepairCost,
+      completed_items: completedItems, // ✅ Usar completed_items
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('💾 Datos a guardar:', inspectionToSave);
+
+    const { data, error } = await supabase
+      .from('inspections')
+      .insert([inspectionToSave])
+      .select();
+
+    if (error) {
+      console.error('❌ Error de base de datos:', error);
+      throw error;
     }
 
-    setLoadingState(true);
-    setError('');
+    console.log('✅ Inspección guardada exitosamente:', data);
+    setSaveMessage('✓ Inspección guardada exitosamente');
+    setTimeout(() => setSaveMessage(''), 3000);
     
-    try {
-      console.log('🔄 Iniciando guardado de inspección...');
-      console.log('👤 Usuario:', user?.id);
-      console.log('🚗 Vehículo:', vehicleInfo);
-
-      // Calcular métricas
-      const totalScore = calculateTotalScore();
-      const totalRepairCost = calculateTotalRepairCost();
-      const completionPercentage = calculateCompletionPercentage();
-
-      const inspectionToSave = {
-        user_id: user.id,
-        vehicle_info: vehicleInfo,
-        inspection_data: inspectionData,
-        total_score: totalScore,
-        total_repair_cost: totalRepairCost,
-        completion_percentage: completionPercentage,
-        status: 'completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      console.log('💾 Datos a guardar:', inspectionToSave);
-
-      // CORRECCIÓN: Usar tabla 'inspections' en lugar de 'vehicle_inspections'
-      const { data, error } = await supabase
-        .from('inspections')  // ← CAMBIO AQUÍ: era 'vehicle_inspections'
-        .insert([inspectionToSave])
-        .select();
-
-      if (error) {
-        console.error('❌ Error de base de datos:', error);
-        throw error;
-      }
-
-      console.log('✅ Inspección guardada exitosamente:', data);
-      setSaveMessage('✓ Inspección guardada exitosamente');
-      setTimeout(() => setSaveMessage(''), 3000);
-      
-    } catch (error) {
-      console.error('❌ Error completo al guardar:', error);
-      
-      // Manejo específico de errores
-      if (error.code === '42P01') {
-        setError('Error: La tabla de inspecciones no existe. Contacta al administrador.');
-      } else if (error.code === '23503') {
-        setError('Error: Problema de referencia en la base de datos.');
-      } else if (error.message?.includes('404')) {
-        setError('Error: Servicio de base de datos no disponible.');
-      } else {
-        setError(`Error al guardar la inspección: ${error.message || 'Error desconocido'}`);
-      }
-      
-    } finally {
-      setLoadingState(false);
+  } catch (error) {
+    console.error('❌ Error completo al guardar:', error);
+    
+    if (error.code === '42P01') {
+      setError('Error: La tabla de inspecciones no existe. Contacta al administrador.');
+    } else if (error.code === '23503') {
+      setError('Error: Problema de referencia en la base de datos.');
+    } else if (error.message?.includes('404')) {
+      setError('Error: Servicio de base de datos no disponible.');
+    } else {
+      setError(`Error al guardar la inspección: ${error.message || 'Error desconocido'}`);
     }
-  };
+    
+  } finally {
+    setLoadingState(false);
+  }
+};
 
   const calculateTotalScore = () => {
     let totalScore = 0;
@@ -482,19 +480,15 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     return totalCost;
   };
 
-  const calculateCompletionPercentage = () => {
+  // Agregar esta función después de calculateCompletionPercentage
+  const calculateCompletedItems = () => {
     let evaluatedItems = 0;
-    let totalItems = 0;
 
     Object.keys(checklistStructure).forEach(sectionKey => {
-      const section = checklistStructure[sectionKey];
-      if (Array.isArray(section)) {
-        totalItems += section.length;
-        evaluatedItems += getEvaluatedCount(sectionKey);
-      }
+    evaluatedItems += getEvaluatedCount(sectionKey);
     });
 
-    return totalItems > 0 ? Math.round((evaluatedItems / totalItems) * 100) : 0;
+    return evaluatedItems;
   };
 
   useEffect(() => {
