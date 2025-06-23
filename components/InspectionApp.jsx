@@ -288,7 +288,7 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
 const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
   // Estado principal de navegación
   const [appView, setAppView] = useState('landing');
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   
   // Estados de la aplicación
   const [currentView, setCurrentView] = useState('overview');
@@ -464,7 +464,10 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     setError('');
 
     try {
-      const token = await user.getIdToken();
+      if (!session?.access_token) {
+      throw new Error('No se pudo obtener el token de sesión');
+      }
+      const token = session.access_token;
       
       const inspectionPayload = {
         vehicle_info: vehicleInfo,

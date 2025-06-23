@@ -140,8 +140,8 @@ export const initializeInspectionData = () => {
   const inspectionData = {};
   
   try {
-    safeObjectEntries(checklistStructure).forEach(([categoryName, items]) => {
-      if (!isValidObject(inspectionData[categoryName])) {
+    Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+      if (!inspectionData[categoryName]) {
         inspectionData[categoryName] = {};
       }
       
@@ -152,6 +152,7 @@ export const initializeInspectionData = () => {
               score: 0,
               repairCost: 0,
               notes: '',
+              images: [], // ✅ AGREGAR ESTE CAMPO
               evaluated: false
             };
           }
