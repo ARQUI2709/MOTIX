@@ -33,10 +33,6 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    loadInspections();
-  }, [loadInspections]);
-
   const loadInspections = useCallback(async () => {
     if (!user || !session) {
       console.warn('No user or session available');
@@ -64,6 +60,10 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
       setLoading(false);
     }
   }, [user, session]);
+
+  useEffect(() => {
+    loadInspections();
+  }, [loadInspections]);
 
   const deleteInspection = async (id) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta inspección?')) {
