@@ -779,150 +779,200 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                 </div>
 
                 {/* Lista de categorías de inspección */}
-                <div className="space-y-4">
+                  <div className="space-y-4">
                   {Object.entries(checklistStructure).map(([categoryKey, items]) => {
-                    const isExpanded = expandedSections[categoryKey];
-                    const categoryMetrics = metrics.categories[categoryKey] || {};
+                    const categoryMetrics = metrics.categories[categoryKey];
                     
                     return (
-                      <div key={categoryKey} className="bg-white rounded-lg shadow-sm border">
-                        {/* Header de categoría */}
+                      <div 
+                        key={categoryKey} 
+                        id={`category-${categoryKey}`}
+                        className="bg-white rounded-lg shadow-sm border border-gray-200"
+                      >
                         <button
                           onClick={() => toggleSection(categoryKey)}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                          className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex items-center">
-                            <h3 className="text-lg font-medium text-gray-900 capitalize">
-                              {categoryKey.replace(/_/g, ' ')}
+                            <h3 className="text-lg font-semibold text-gray-900 capitalize mr-4">
+                              {categoryKey}
                             </h3>
-                            <span className="ml-3 px-3 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                              {categoryMetrics.evaluatedItems || 0}/{categoryMetrics.totalItems || 0}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-3">
-                            <div className="text-right">
-                              <div className="text-sm font-medium text-gray-900">
-                                {categoryMetrics.completionPercentage?.toFixed(1) || 0}%
+                            {/* 🔧 NUEVO: Indicadores de progreso por categoría */}
+                            <div className="flex items-center space-x-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                categoryMetrics.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                categoryMetrics.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
+                              </span>
+                              {categoryMetrics.averageScore > 0 && (
+                                <span className={`text-sm font-medium ${
+                                  categoryMetrics.averageScore >= 8 ? 'text-green-600' :
+                                  categoryMetrics.averageScore >= 6 ? 'text-blue-600' :
+                                  categoryMetrics.averageScore >= 4 ? 'text-yellow-600' :
+                                  'text-red-600'
+                                }`}>
+                                  {categoryMetrics.averageScore}/10
+                                </span>
+                              )}
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full transition-all duration-300 ${
+                                    categoryMetrics.completionPercentage >= 100 ? 'bg-green-500' :
+                                    categoryMetrics.completionPercentage >= 50 ? 'bg-blue-500' :
+                                    categoryMetrics.completionPercentage > 0 ? 'bg-yellow-500' :
+                                    'bg-gray-300'
+                                  }`}
+                                  style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                                />
                               </div>
-                              <div className="text-xs text-gray-500">
-                                Promedio: {categoryMetrics.averageScore?.toFixed(1) || 0}/10
-                              </div>
+                              <span className="text-sm text-gray-600">
+                                {categoryMetrics.completionPercentage}%
+                              </span>
                             </div>
-                            <ChevronDown 
-                              size={20} 
-                              className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                            />
                           </div>
+                          {expandedSections[categoryKey] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </button>
-
-                        {/* Contenido de la categoría */}
-                        {isExpanded && (
-                          <div className="border-t">
-                            <div className="p-6 space-y-4">
+                        
+                        {/* 🔧 CRÍTICO: Contenido de la categoría - aquí están los ítems */}
+                        {expandedSections[categoryKey] && (
+                          <div className="px-6 pb-6">
+                            <div className="space-y-4">
                               {items.map((item, index) => {
-                                const itemKey = `${categoryKey}-${item.name}`;
-                                const itemData = inspectionData[categoryKey]?.[item.name] || {
-                                  score: 0,
+                                const itemKey = `${categoryKey}_${index}`;
+                                const itemData = inspectionData[categoryKey]?.[item.name] || { 
+                                  score: 0, 
+                                  notes: '', 
+                                  images: [], 
                                   repairCost: 0,
-                                  notes: '',
-                                  images: [],
-                                  evaluated: false
+                                  evaluated: false 
                                 };
-                                const isItemExpanded = expandedItems[itemKey];
 
                                 return (
-                                  <div key={itemKey} className="border rounded-lg">
-                                    {/* ✅ VISTA COMPACTA - SIEMPRE VISIBLE */}
-                                    <div className="px-4 py-3 bg-gray-50 border-b">
-                                      <div className="flex items-start justify-between mb-3">
-                                        <div className="flex-1 pr-4">
-                                          <h4 className="font-medium text-gray-900 text-sm">
-                                            {item.name}
-                                          </h4>
-                                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                            {item.description}
-                                          </p>
-                                        </div>
-                                        
-                                        <button
-                                          onClick={() => toggleItem(itemKey)}
-                                          className="flex items-center text-blue-600 hover:text-blue-700 p-1 ml-2"
-                                          title={isItemExpanded ? "Contraer detalles" : "Ver detalles"}
-                                        >
-                                          <ChevronDown 
+                                  <div 
+                                    key={itemKey}
+                                    className={`border rounded-lg p-4 transition-all duration-200 ${
+                                      itemData.evaluated ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="font-medium text-gray-900 flex-1">
+                                        {index + 1}. {item.name}
+                                        {/* 🔧 NUEVO: Indicador de evaluación */}
+                                        {itemData.evaluated && (
+                                          <CheckCircle2 
                                             size={16} 
-                                            className={`transform transition-transform ${isItemExpanded ? 'rotate-180' : ''}`}
+                                            className="inline ml-2 text-green-600" 
                                           />
-                                        </button>
-                                      </div>
+                                        )}
+                                      </h4>
+                                      <button
+                                        onClick={() => toggleItem(itemKey)}
+                                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                                      >
+                                        {expandedItems[itemKey] ? 
+                                          <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                      </button>
+                                    </div>
+                                    
+                                    <p className="text-sm text-gray-600 mt-1 mb-3">
+                                      {item.description}
+                                    </p>
 
-                                      {/* Calificación compacta */}
-                                      <div className="mb-3">
-                                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                                          Calificación
-                                        </label>
-                                        <StarRating
-                                          score={itemData.score}
-                                          onScoreChange={(score) => 
-                                            updateInspectionItem(categoryKey, item.name, { score })
-                                          }
-                                          compact={true}
-                                        />
-                                      </div>
+                                    {/* Sistema de calificación */}
+                                    <div className="mb-4">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Calificación
+                                      </label>
+                                      <StarRating
+                                        score={itemData.score}
+                                        onScoreChange={(newScore) => {
+                                          updateInspectionItem(categoryKey, item.name, { 
+                                            score: newScore,
+                                            evaluated: true
+                                          });
+                                        }}
+                                      />
+                                    </div>
 
-                                      {/* Campos principales en fila */}
-                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        {/* Costo de reparación */}
+                                    {/* 🔧 CRÍTICO: Sección expandible con campos adicionales */}
+                                    {expandedItems[itemKey] && (
+                                      <div className="space-y-4 pt-4 border-t border-gray-200">
+                                        {/* Campo de notas */}
                                         <div>
-                                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                                            Costo estimado
+                                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Observaciones
                                           </label>
-                                          <input
-                                            type="text"
-                                            value={typeof itemData.repairCost === 'number' 
-                                              ? formatCost(itemData.repairCost) 
-                                              : itemData.repairCost || ''
-                                            }
+                                          <textarea
+                                            value={itemData.notes}
                                             onChange={(e) => {
-                                              const value = e.target.value;
                                               updateInspectionItem(categoryKey, item.name, { 
-                                                repairCost: value 
+                                                notes: e.target.value,
+                                                evaluated: e.target.value.trim() !== '' || itemData.score > 0
                                               });
                                             }}
-                                            placeholder="$0"
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            rows="3"
+                                            placeholder="Describe el estado del componente, problemas encontrados, etc."
                                           />
                                         </div>
 
-                                        {/* Observaciones compactas */}
+                                        {/* Campo de costo de reparación */}
                                         <div>
-                                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                                            Observaciones ({(itemData.notes || '').length}/255)
+                                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Costo Estimado de Reparación
                                           </label>
-                                          <input
-                                            type="text"
-                                            value={itemData.notes || ''}
-                                            onChange={(e) => 
-                                              updateInspectionItem(categoryKey, item.name, { 
-                                                notes: e.target.value.slice(0, 255)
-                                              })
-                                            }
-                                            placeholder="Observaciones..."
-                                            maxLength={255}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                          />
+                                          <div className="relative">
+                                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                            <input
+                                              type="number"
+                                              value={itemData.repairCost}
+                                              onChange={(e) => {
+                                                updateInspectionItem(categoryKey, item.name, { 
+                                                  repairCost: parseFloat(e.target.value) || 0 
+                                                });
+                                              }}
+                                              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                              placeholder="0"
+                                              min="0"
+                                            />
+                                          </div>
                                         </div>
 
-                                        {/* Fotos */}
+                                        {/* Gestión de imágenes */}
                                         <div>
-                                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                                            Fotos ({itemData.images?.length || 0})
+                                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Fotos de Evidencia
                                           </label>
-                                          <div className="flex items-center space-x-2">
+                                          
+                                          {/* Mostrar imágenes existentes */}
+                                          {itemData.images && itemData.images.length > 0 && (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                                              {itemData.images.map((imageUrl, imageIndex) => (
+                                                <div key={imageIndex} className="relative group">
+                                                  <img
+                                                    src={imageUrl}
+                                                    alt={`Evidencia ${imageIndex + 1}`}
+                                                    className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                                                  />
+                                                  <button
+                                                    onClick={() => removeImageFromItem(categoryKey, item.name, imageIndex)}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  >
+                                                    <X size={12} />
+                                                  </button>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* Botón para agregar fotos */}
+                                          <div>
                                             <input
                                               type="file"
                                               accept="image/*"
+                                              capture="environment"
                                               onChange={(e) => {
                                                 const file = e.target.files[0];
                                                 if (file) {
@@ -934,179 +984,16 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                                                 }
                                               }}
                                               className="hidden"
-                                              id={`image-upload-compact-${itemKey}`}
+                                              id={`image-upload-${itemKey}`}
                                             />
                                             <label
-                                              htmlFor={`image-upload-compact-${itemKey}`}
-                                              className="flex items-center justify-center px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                                              htmlFor={`image-upload-${itemKey}`}
+                                              className="flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
                                             >
-                                              <Camera size={12} className="mr-1" />
-                                              Agregar
+                                              <Camera size={16} className="mr-2" />
+                                              Agregar Foto
                                             </label>
-                                            
-                                            {itemData.images && itemData.images.length > 0 && (
-                                              <span className="text-xs text-green-600 font-medium">
-                                                ✓ {itemData.images.length}
-                                              </span>
-                                            )}
                                           </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* ✅ VISTA EXPANDIDA - DETALLES ADICIONALES */}
-                                    {isItemExpanded && (
-                                      <div className="p-4 bg-white">
-                                        <div className="space-y-4">
-                                          {/* Descripción completa */}
-                                          <div className="bg-blue-50 p-3 rounded-lg">
-                                            <h5 className="text-sm font-medium text-blue-900 mb-1">
-                                              Descripción detallada:
-                                            </h5>
-                                            <p className="text-sm text-blue-800">
-                                              {item.description}
-                                            </p>
-                                          </div>
-
-                                          {/* Calificación expandida */}
-                                          <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                              Calificación detallada
-                                            </label>
-                                            <StarRating
-                                              score={itemData.score}
-                                              onScoreChange={(score) => 
-                                                updateInspectionItem(categoryKey, item.name, { score })
-                                              }
-                                              compact={false}
-                                            />
-                                            <div className="mt-2 text-sm text-gray-600">
-                                              <div className="grid grid-cols-3 gap-2 text-xs">
-                                                <span className="text-red-600">1-4: Malo/Crítico</span>
-                                                <span className="text-yellow-600">5-7: Regular/Aceptable</span>
-                                                <span className="text-green-600">8-10: Bueno/Excelente</span>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Costo expandido */}
-                                          <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                              Costo estimado de reparación
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={typeof itemData.repairCost === 'number' 
-                                                ? formatCost(itemData.repairCost) 
-                                                : itemData.repairCost || ''
-                                              }
-                                              onChange={(e) => {
-                                                const value = e.target.value;
-                                                updateInspectionItem(categoryKey, item.name, { 
-                                                  repairCost: value 
-                                                });
-                                              }}
-                                              placeholder="$0 - Ingrese solo si requiere reparación"
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">
-                                              Formato: $1,000,000 o 1000000. Dejar en $0 si no requiere reparación.
-                                            </p>
-                                          </div>
-
-                                          {/* Observaciones expandidas */}
-                                          <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                              Observaciones detalladas
-                                            </label>
-                                            <textarea
-                                              value={itemData.notes || ''}
-                                              onChange={(e) => 
-                                                updateInspectionItem(categoryKey, item.name, { 
-                                                  notes: e.target.value.slice(0, 255)
-                                                })
-                                              }
-                                              placeholder="Describa el estado actual, defectos encontrados, recomendaciones, etc..."
-                                              maxLength={255}
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                              rows={3}
-                                            />
-                                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                              <span>Máximo 255 caracteres</span>
-                                              <span>{(itemData.notes || '').length}/255</span>
-                                            </div>
-                                          </div>
-
-                                          {/* Galería de fotos expandida */}
-                                          <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                              Fotografías ({itemData.images?.length || 0})
-                                            </label>
-                                            
-                                            {/* Mostrar imágenes existentes */}
-                                            {itemData.images && itemData.images.length > 0 && (
-                                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                                {itemData.images.map((image, imageIndex) => (
-                                                  <div key={imageIndex} className="relative group">
-                                                    <img
-                                                      src={image}
-                                                      alt={`${item.name} ${imageIndex + 1}`}
-                                                      className="w-full h-24 object-cover rounded-lg border cursor-pointer hover:opacity-90"
-                                                      onClick={() => window.open(image, '_blank')}
-                                                    />
-                                                    <button
-                                                      onClick={() => removeImageFromItem(categoryKey, item.name, imageIndex)}
-                                                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                                                      title="Eliminar foto"
-                                                    >
-                                                      <X size={12} />
-                                                    </button>
-                                                    <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                                                      {imageIndex + 1}
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-
-                                            {/* Botón para agregar fotos */}
-                                            <div>
-                                              <input
-                                                type="file"
-                                                accept="image/*"
-                                                multiple
-                                                onChange={(e) => {
-                                                  Array.from(e.target.files).forEach(file => {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (event) => {
-                                                      addImageToItem(categoryKey, item.name, event.target.result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                  });
-                                                }}
-                                                className="hidden"
-                                                id={`image-upload-expanded-${itemKey}`}
-                                              />
-                                              <label
-                                                htmlFor={`image-upload-expanded-${itemKey}`}
-                                                className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
-                                              >
-                                                <Camera size={20} className="mr-2" />
-                                                Seleccionar fotos (múltiples)
-                                              </label>
-                                              <p className="text-xs text-gray-500 mt-2">
-                                                Seleccione múltiples fotos del mismo componente. Formatos: JPG, PNG, WEBP.
-                                              </p>
-                                            </div>
-                                          </div>
-
-                                          {/* Indicador de estado */}
-                                          {itemData.evaluated && (
-                                            <div className="flex items-center text-green-600 text-sm">
-                                              <CheckCircle2 size={16} className="mr-1" />
-                                              Componente evaluado
-                                            </div>
-                                          )}
                                         </div>
                                       </div>
                                     )}
