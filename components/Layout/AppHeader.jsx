@@ -1,4 +1,6 @@
-// components/Layout/AppHeader.jsx - CORREGIDO
+// components/Layout/AppHeader.jsx - VERSIÓN CORREGIDA
+// Corrige: Botón "Mis Inspecciones" no funcional
+
 import React, { useState } from 'react';
 import { 
   Menu, 
@@ -9,7 +11,8 @@ import {
   FileText,
   HelpCircle,
   FolderOpen,
-  Home
+  Home,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -17,6 +20,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -26,12 +30,23 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
     }
   };
 
-  // CORRECCIÓN: Función para navegar a "Mis inspecciones" - FUNCIONAL
+  // CORRECCIÓN: Función mejorada para navegar a "Mis inspecciones"
   const handleNavigateToInspections = () => {
-    if (onNavigateToInspections) {
+    console.log('Navegando a inspecciones...'); // Debug
+    if (onNavigateToInspections && typeof onNavigateToInspections === 'function') {
       onNavigateToInspections();
+    } else {
+      console.warn('onNavigateToInspections no está disponible o no es una función');
     }
     setShowUserMenu(false);
+    setShowMobileMenu(false);
+  };
+
+  // Función para ir al inicio
+  const handleNavigateToHome = () => {
+    window.location.reload(); // Recargar para ir al overview
+    setShowUserMenu(false);
+    setShowMobileMenu(false);
   };
 
   return (
@@ -39,6 +54,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
       <header className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
+            
             {/* Logo y título */}
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -53,10 +69,10 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
               </div>
             </div>
 
-            {/* Navegación central */}
+            {/* Navegación central - Desktop */}
             <nav className="hidden lg:flex space-x-6">
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleNavigateToHome}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   currentView === 'overview' 
                     ? 'text-blue-600 bg-blue-50' 
@@ -67,7 +83,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                 Inicio
               </button>
               
-              {/* CORRECCIÓN: Botón "Mis inspecciones" ahora funcional */}
+              {/* CORRECCIÓN: Botón "Mis inspecciones" funcional */}
               <button
                 onClick={handleNavigateToInspections}
                 className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -90,9 +106,18 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
             </nav>
 
             {/* Área del usuario */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              
+              {/* Botón menú móvil */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="lg:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <Menu size={20} />
+              </button>
+
               {/* Notificaciones */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+              <button className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                 <Bell size={20} />
               </button>
 
@@ -100,12 +125,12 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 p-1"
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                     <User size={16} className="text-white" />
                   </div>
-                  <span className="hidden md:block ml-2 text-gray-700">
+                  <span className="hidden md:block ml-2 text-gray-700 max-w-32 truncate">
                     {user?.email?.split('@')[0] || 'Usuario'}
                   </span>
                 </button>
@@ -114,14 +139,14 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                     <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
-                      <p className="font-medium">{user?.user_metadata?.full_name || 'Usuario'}</p>
-                      <p className="text-gray-500 text-xs">{user?.email}</p>
+                      <p className="font-medium truncate">{user?.user_metadata?.full_name || 'Usuario'}</p>
+                      <p className="text-gray-500 text-xs truncate">{user?.email}</p>
                     </div>
                     
                     {/* CORRECCIÓN: Opción "Mis inspecciones" en el menú desplegable */}
                     <button
                       onClick={handleNavigateToInspections}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <FolderOpen className="mr-3" size={16} />
                       Mis Inspecciones
@@ -132,7 +157,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                         setShowInstructions(true);
                         setShowUserMenu(false);
                       }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <HelpCircle className="mr-3" size={16} />
                       Ayuda e Instrucciones
@@ -140,7 +165,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                     
                     <button
                       onClick={() => setShowUserMenu(false)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <Settings className="mr-3" size={16} />
                       Configuración
@@ -150,7 +175,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                     
                     <button
                       onClick={handleSignOut}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="mr-3" size={16} />
                       Cerrar Sesión
@@ -162,72 +187,80 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
           </div>
         </div>
 
-        {/* Navegación móvil */}
-        <div className="lg:hidden border-t border-gray-200">
-          <div className="px-4 py-2 space-x-4 flex overflow-x-auto">
-            <button
-              onClick={() => window.location.reload()}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
-                currentView === 'overview' 
-                  ? 'text-blue-600 bg-blue-50' 
-                  : 'text-gray-700 hover:text-blue-600'
-              }`}
-            >
-              <Home className="mr-2" size={16} />
-              Inicio
-            </button>
-            
-            {/* CORRECCIÓN: Botón móvil también funcional */}
-            <button
-              onClick={handleNavigateToInspections}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
-                currentView === 'inspections' 
-                  ? 'text-blue-600 bg-blue-50' 
-                  : 'text-gray-700 hover:text-blue-600'
-              }`}
-            >
-              <FolderOpen className="mr-2" size={16} />
-              Mis Inspecciones
-            </button>
-            
-            <button
-              onClick={() => setShowInstructions(true)}
-              className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 whitespace-nowrap"
-            >
-              <HelpCircle className="mr-2" size={16} />
-              Ayuda
-            </button>
+        {/* CORRECCIÓN: Navegación móvil mejorada */}
+        {showMobileMenu && (
+          <div className="lg:hidden border-t border-gray-200 bg-white">
+            <div className="px-4 py-3 space-y-1">
+              <button
+                onClick={handleNavigateToHome}
+                className={`flex items-center w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'overview' 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                <Home className="mr-3" size={16} />
+                Inicio
+              </button>
+              
+              {/* CORRECCIÓN: Botón móvil "Mis inspecciones" funcional */}
+              <button
+                onClick={handleNavigateToInspections}
+                className={`flex items-center w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'inspections' 
+                    ? 'text-blue-600 bg-blue-50' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                <FolderOpen className="mr-3" size={16} />
+                Mis Inspecciones
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowInstructions(true);
+                  setShowMobileMenu(false);
+                }}
+                className="flex items-center w-full px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+              >
+                <HelpCircle className="mr-3" size={16} />
+                Ayuda
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Overlay para cerrar menús */}
-      {showUserMenu && (
+      {(showUserMenu || showMobileMenu) && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => setShowUserMenu(false)}
+          onClick={() => {
+            setShowUserMenu(false);
+            setShowMobileMenu(false);
+          }}
         />
       )}
 
-      {/* Modal de instrucciones */}
+      {/* CORRECCIÓN: Modal de instrucciones responsivo */}
       {showInstructions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Instrucciones de Uso
                 </h3>
                 <button
                   onClick={() => setShowInstructions(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1"
                 >
-                  <Settings size={24} />
+                  <X size={20} />
                 </button>
               </div>
             </div>
 
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-4">
               <div className="space-y-6">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">
@@ -235,16 +268,16 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   </h4>
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>Complete la información básica del vehículo (marca, modelo y placa son obligatorios)</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Tenga buena iluminación y herramientas básicas disponibles</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Tenga buena iluminación y espacio para moverse alrededor del vehículo</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Asegúrese de tener tiempo suficiente para una inspección completa</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Prepare su teléfono para tomar fotografías de evidencia</span>
                     </li>
                   </ul>
                 </div>
@@ -255,23 +288,23 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   </h4>
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Siga las descripciones detalladas para cada componente</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Expanda cada sección y evalúe los componentes uno por uno</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Use la escala de 1-10 donde 10 = excelente, 1 = muy malo</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Use la escala de 1-10 estrellas: 1-3 (malo), 4-6 (regular), 7-8 (bueno), 9-10 (excelente)</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Tome fotos de cualquier anomalía o desgaste</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Tome fotografías de problemas y áreas importantes</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
-                      <span>Anote observaciones detalladas en cada sección</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
+                      <span>Agregue comentarios detallados sobre el estado de cada componente</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>Estime costos de reparación cuando identifique problemas</span>
                     </li>
                   </ul>
@@ -283,19 +316,19 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   </h4>
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>Guarde regularmente su progreso usando el botón "Guardar Inspección"</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>Acceda a sus inspecciones previas desde "Mis Inspecciones"</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>Genere reportes PDF para compartir o imprimir</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
                       <span>La aplicación funciona offline y sincroniza cuando hay conexión</span>
                     </li>
                   </ul>
@@ -308,6 +341,16 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   <p className="text-sm text-amber-700">
                     Los campos marca, modelo y placa son obligatorios para guardar una inspección. 
                     Complete esta información antes de continuar con la evaluación.
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">
+                    📱 Navegación Móvil
+                  </h4>
+                  <p className="text-sm text-blue-700">
+                    En dispositivos móviles, use el botón de menú (☰) para acceder a la navegación. 
+                    El botón de guardar estará fijo en la parte inferior de la pantalla.
                   </p>
                 </div>
               </div>

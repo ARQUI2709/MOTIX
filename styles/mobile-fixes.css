@@ -1,0 +1,544 @@
+/* styles/mobile-fixes.css - Correcciones específicas para móviles */
+
+/* CORRECCIÓN: Mejorar área táctil en dispositivos móviles */
+@media (max-width: 768px) {
+  
+  /* Asegurar que todos los botones tengan área táctil mínima de 44px */
+  button, 
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Mejorar la expansión de acordeones en móviles */
+  .accordion-header {
+    padding: 12px 16px;
+    min-height: 64px;
+  }
+
+  /* CORRECCIÓN: Textarea comentarios - diseño responsivo mejorado */
+  .inspection-textarea {
+    min-height: 80px !important;
+    max-height: 200px !important;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+    font-size: 14px;
+    transition: height 0.2s ease;
+  }
+
+  /* Forzar scroll interno en textarea cuando sea necesario */
+  .inspection-textarea:focus {
+    min-height: 100px !important;
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  /* Mejorar el diseño de los star ratings en móviles */
+  .star-rating {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .star-rating button {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+  }
+
+  .star-rating button:active {
+    transform: scale(0.95);
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  /* Mejorar espaciado en secciones de inspección */
+  .inspection-section {
+    margin-bottom: 8px;
+  }
+
+  .inspection-item {
+    margin-bottom: 8px;
+  }
+
+  /* CORRECCIÓN: Contenedor principal con padding apropiado para móviles */
+  .mobile-container {
+    padding: 16px 16px 100px 16px; /* Espacio extra abajo para botón flotante */
+  }
+
+  /* Botón flotante de guardar en móviles */
+  .mobile-save-button {
+    position: fixed !important;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 40;
+    min-height: 48px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+  }
+
+  /* Mejorar el diseño de inputs en móviles */
+  .mobile-input {
+    font-size: 16px; /* Prevenir zoom en iOS */
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+  }
+
+  .mobile-input:focus {
+    border-color: #3b82f6;
+    ring: 2px;
+    ring-color: rgba(59, 130, 246, 0.2);
+  }
+
+  /* Header navigation en móviles */
+  .mobile-nav {
+    padding: 8px 16px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .mobile-nav button {
+    padding: 8px 12px;
+    min-height: 40px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-nav button:active {
+    transform: scale(0.98);
+  }
+
+  /* CORRECCIÓN: Mejorar grid layout en móviles */
+  .mobile-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .mobile-grid-2 {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Galería de imágenes responsiva */
+  .image-gallery {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .image-gallery img {
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  /* Modal responsivo */
+  .mobile-modal {
+    margin: 16px;
+    max-height: calc(100vh - 32px);
+    border-radius: 12px;
+  }
+
+  .mobile-modal-content {
+    padding: 16px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  /* Mejorar visibility de elementos en pantallas pequeñas */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .show-mobile {
+    display: block !important;
+  }
+
+  /* Texto truncado con mejor manejo en móviles */
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+
+  /* Mejorar contraste y legibilidad */
+  .mobile-text-small {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .mobile-text-medium {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Espaciado mejorado para listas */
+  .mobile-list-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .mobile-list-item:last-child {
+    border-bottom: none;
+  }
+
+  /* CORRECCIÓN: Progress bars más visibles en móviles */
+  .mobile-progress {
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e5e7eb;
+  }
+
+  .mobile-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  /* Mejorar indicadores de estado */
+  .mobile-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  /* Scroll suave en contenedores */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Header sticky mejorado */
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 50;
+    border-bottom: 1px solid #e5e7eb;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Animaciones optimizadas para móviles */
+  .mobile-transition {
+    transition: all 0.2s ease;
+  }
+
+  .mobile-fade-in {
+    animation: mobileSlideIn 0.3s ease-out forwards;
+  }
+
+  @keyframes mobileSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Prevenir zoom accidental en inputs */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Mejorar tap targets */
+  .tap-target {
+    padding: 12px;
+    margin: 4px;
+    border-radius: 8px;
+  }
+
+  /* Optimizar scroll en listas largas */
+  .mobile-scroll-container {
+    height: calc(100vh - 160px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Estilos para safe area en dispositivos con notch */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* CORRECCIÓN: Estilos para tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .tablet-container {
+    padding: 24px;
+  }
+
+  /* Mejorar diseño de acordeones en tablets */
+  .tablet-accordion {
+    margin-bottom: 16px;
+  }
+
+  .tablet-accordion-header {
+    padding: 16px 20px;
+    min-height: 72px;
+  }
+
+  .tablet-accordion-content {
+    padding: 20px;
+  }
+
+  /* Textarea con mejor height en tablets */
+  .tablet-textarea {
+    min-height: 100px;
+    max-height: 250px;
+  }
+
+  /* Star rating optimizado para tablets */
+  .tablet-star-rating {
+    gap: 12px;
+  }
+
+  .tablet-star-rating button {
+    min-width: 32px;
+    min-height: 32px;
+  }
+}
+
+/* CORRECCIÓN: Estilos para pantallas muy pequeñas (≤480px) */
+@media (max-width: 480px) {
+  .tiny-screen {
+    font-size: 14px;
+  }
+
+  .tiny-screen h1 {
+    font-size: 1.5rem;
+  }
+
+  .tiny-screen h2 {
+    font-size: 1.25rem;
+  }
+
+  .tiny-screen h3 {
+    font-size: 1.125rem;
+  }
+
+  /* Grid de una sola columna en pantallas muy pequeñas */
+  .tiny-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* Reducir padding en contenedores */
+  .tiny-container {
+    padding: 12px;
+  }
+
+  /* Botones más compactos */
+  .tiny-button {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+
+  /* Modal que ocupa casi toda la pantalla */
+  .tiny-modal {
+    margin: 8px;
+    border-radius: 8px;
+  }
+
+  /* Header más compacto */
+  .tiny-header {
+    height: 56px;
+  }
+
+  .tiny-header h1 {
+    font-size: 1.25rem;
+  }
+
+  /* Textarea más pequeña pero funcional */
+  .tiny-textarea {
+    min-height: 60px;
+    max-height: 120px;
+    font-size: 13px;
+  }
+
+  /* Galería de imágenes en columna única */
+  .tiny-image-gallery {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Progress bars más finas */
+  .tiny-progress {
+    height: 4px;
+  }
+
+  /* Badges más pequeñas */
+  .tiny-badge {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+}
+
+/* Utilities para debug responsive */
+@media (max-width: 768px) {
+  .debug-mobile::before {
+    content: "MOBILE";
+    position: fixed;
+    top: 0;
+    right: 0;
+    background: red;
+    color: white;
+    padding: 4px 8px;
+    font-size: 12px;
+    z-index: 9999;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .debug-tablet::before {
+    content: "TABLET";
+    position: fixed;
+    top: 0;
+    right: 0;
+    background: orange;
+    color: white;
+    padding: 4px 8px;
+    font-size: 12px;
+    z-index: 9999;
+  }
+}
+
+/* Correcciones específicas para InspectionApp */
+.inspection-app-mobile {
+  /* Asegurar que el contenido principal no quede oculto bajo el header */
+  padding-top: 64px;
+}
+
+.inspection-item-mobile {
+  /* Mejorar la separación entre elementos */
+  margin-bottom: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.inspection-item-header-mobile {
+  /* Asegurar área táctil adecuada */
+  min-height: 64px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #f9fafb;
+  transition: background-color 0.2s ease;
+}
+
+.inspection-item-header-mobile:active {
+  background: #f3f4f6;
+}
+
+.inspection-item-content-mobile {
+  /* Contenido expandible con animación suave */
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: white;
+}
+
+.inspection-item-content-mobile.expanded {
+  max-height: 1000px; /* Altura suficiente para contenido expandido */
+}
+
+.inspection-form-mobile {
+  /* Formulario optimizado para móviles */
+  padding: 16px;
+  space-y: 16px;
+}
+
+.inspection-form-mobile label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.inspection-form-mobile input,
+.inspection-form-mobile textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 16px; /* Prevenir zoom en iOS */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inspection-form-mobile input:focus,
+.inspection-form-mobile textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* CORRECCIÓN: Clase específica para el textarea de comentarios */
+.comments-textarea-mobile {
+  min-height: 80px !important;
+  max-height: 200px !important;
+  resize: none;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.comments-textarea-mobile:focus {
+  min-height: 120px !important;
+}
+
+/* Auto-resize para textareas */
+.auto-resize-textarea {
+  overflow: hidden;
+  resize: none;
+  min-height: 80px;
+  max-height: 200px;
+}
+
+/* Utilidad para ocultar scroll horizontal */
+.no-scroll-x {
+  overflow-x: hidden;
+}
+
+/* Utilidad para scroll suave */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Print styles - ocultar elementos no necesarios al imprimir */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .mobile-save-button {
+    display: none !important;
+  }
+  
+  .mobile-nav {
+    display: none !important;
+  }
+}
