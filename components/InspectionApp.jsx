@@ -1,4 +1,4 @@
-// components/InspectionApp.jsx - VERSIÓN RESPONSIVE MEJORADA
+// components/InspectionApp.jsx - VERSIÓN RESPONSIVE CON DISEÑO ACORDEÓN COMPLETO
 // Respeta la estructura existente del proyecto con checklistStructure independiente
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -24,7 +24,10 @@ import {
   ChevronUp,
   DollarSign,
   Car,
-  Image
+  Image,
+  Phone,
+  User,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -44,25 +47,13 @@ import {
   isValidObject 
 } from '../utils/safeUtils';
 
-// Componente StarRating mejorado y responsive
+// Componente StarRating mejorado
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
   const [hoveredScore, setHoveredScore] = useState(0);
 
   const handleStarClick = (starScore) => {
     if (!disabled) {
       onScoreChange(starScore);
-    }
-  };
-
-  const handleStarHover = (starScore) => {
-    if (!disabled) {
-      setHoveredScore(starScore);
-    }
-  };
-
-  const handleStarLeave = () => {
-    if (!disabled) {
-      setHoveredScore(0);
     }
   };
 
@@ -84,8 +75,8 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
           key={starIndex}
           type="button"
           onClick={() => handleStarClick(starIndex)}
-          onMouseEnter={() => handleStarHover(starIndex)}
-          onMouseLeave={handleStarLeave}
+          onMouseEnter={() => !disabled && setHoveredScore(starIndex)}
+          onMouseLeave={() => !disabled && setHoveredScore(0)}
           disabled={disabled}
           className={`transition-colors duration-150 ${
             disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-110'
@@ -104,8 +95,8 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
-// Componente AccordionItem para la Lista de Chequeo
-const AccordionItem = ({ 
+// Componente AccordionItem para cada ítem de inspección
+const InspectionItem = ({ 
   item, 
   itemData, 
   onItemChange, 
@@ -119,13 +110,11 @@ const AccordionItem = ({
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validar tamaño del archivo (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('La imagen debe ser menor a 5MB');
         return;
       }
 
-      // Validar tipo de archivo
       if (!file.type.startsWith('image/')) {
         alert('Solo se permiten archivos de imagen');
         return;
@@ -159,60 +148,56 @@ const AccordionItem = ({
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      {/* Header del Acordeón */}
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-2">
+      {/* Header del ítem */}
       <button
         onClick={onToggle}
         className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between text-left"
       >
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">
+          <h4 className="font-medium text-gray-900 text-sm">
             {item.name}
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">
+          </h4>
+          <p className="text-xs text-gray-600 mt-1 line-clamp-2">
             {item.description}
           </p>
         </div>
         
         <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-          {/* Indicador de calificación */}
           {itemData.score > 0 && (
             <div className="flex items-center gap-1">
-              <Star size={16} className="text-yellow-500 fill-current" />
-              <span className="text-sm font-medium text-gray-700">
+              <Star size={14} className="text-yellow-500 fill-current" />
+              <span className="text-xs font-medium text-gray-700">
                 {itemData.score}
               </span>
             </div>
           )}
           
-          {/* Indicador de costo */}
           {itemData.repairCost > 0 && (
             <div className="text-xs text-gray-600 hidden sm:block">
               {formatCost(itemData.repairCost)}
             </div>
           )}
           
-          {/* Indicador de imágenes */}
           {itemData.images && itemData.images.length > 0 && (
             <div className="flex items-center gap-1">
-              <Camera size={14} className="text-blue-500" />
+              <Camera size={12} className="text-blue-500" />
               <span className="text-xs text-blue-600">{itemData.images.length}</span>
             </div>
           )}
           
-          {/* Ícono de expansión */}
           {isExpanded ? (
-            <ChevronUp size={20} className="text-gray-400" />
+            <ChevronUp size={16} className="text-gray-400" />
           ) : (
-            <ChevronDown size={20} className="text-gray-400" />
+            <ChevronDown size={16} className="text-gray-400" />
           )}
         </div>
       </button>
 
       {/* Contenido expandible */}
       {isExpanded && (
-        <div className="p-4 space-y-4 border-t border-gray-100">
-          {/* Calificación por estrellas */}
+        <div className="p-4 space-y-4 border-t border-gray-100 bg-white">
+          {/* Calificación */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Calificación (1-10 estrellas)
@@ -223,7 +208,7 @@ const AccordionItem = ({
             />
           </div>
 
-          {/* Costo estimado de reparación */}
+          {/* Costo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Costo estimado de reparación (COP)
@@ -240,10 +225,7 @@ const AccordionItem = ({
           {/* Comentarios */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Comentarios
-              <span className="text-xs text-gray-500 ml-1">
-                ({(itemData.observations || '').length}/255)
-              </span>
+              Comentarios ({(itemData.observations || '').length}/255)
             </label>
             <textarea
               value={itemData.observations || ''}
@@ -253,23 +235,9 @@ const AccordionItem = ({
               placeholder="Describe el estado del componente..."
               maxLength="255"
             />
-            <div className="flex justify-between items-center mt-1">
-              <span className={`text-xs ${
-                (itemData.observations || '').length > 240 
-                  ? 'text-red-500' 
-                  : 'text-gray-500'
-              }`}>
-                Máximo 255 caracteres
-              </span>
-              {(itemData.observations || '').length > 240 && (
-                <span className="text-xs text-red-500">
-                  {255 - (itemData.observations || '').length} restantes
-                </span>
-              )}
-            </div>
           </div>
 
-          {/* Carga de fotos */}
+          {/* Fotos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Fotos
@@ -285,17 +253,13 @@ const AccordionItem = ({
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors cursor-pointer text-sm"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
               >
-                <Camera size={16} />
+                <Camera size={14} />
                 Añadir foto
               </button>
-              <span className="text-xs text-gray-500">
-                Máximo 5MB por imagen
-              </span>
             </div>
 
-            {/* Galería de imágenes */}
             {itemData.images && itemData.images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {itemData.images.map((image, imageIndex) => (
@@ -303,13 +267,13 @@ const AccordionItem = ({
                     <img
                       src={image}
                       alt={`Foto ${imageIndex + 1}`}
-                      className="w-full h-20 object-cover rounded-md border border-gray-200"
+                      className="w-full h-16 object-cover rounded-md border border-gray-200"
                     />
                     <button
                       onClick={() => removeImage(imageIndex)}
                       className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X size={12} />
+                      <X size={10} />
                     </button>
                   </div>
                 ))}
@@ -324,12 +288,9 @@ const AccordionItem = ({
 
 // Componente principal InspectionApp
 const InspectionApp = () => {
-  // Estados principales
   const { user, loading } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [currentView, setCurrentView] = useState('landing');
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [inspectionData, setInspectionData] = useState(null);
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
@@ -337,40 +298,19 @@ const InspectionApp = () => {
     año: '',
     placa: '',
     kilometraje: '',
+    precio: '',
+    vendedor: '',
+    telefono: '',
     combustible: 'Gasolina',
     transmision: 'Manual',
     color: ''
   });
   
-  // Estados de UI responsive
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading_state, setLoadingState] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
   const [expandedItems, setExpandedItems] = useState({});
-
-  // NUEVA FUNCIÓN: Validación obligatoria de campos mínimos
-  const validateRequiredFields = useCallback(() => {
-    const errors = [];
-    
-    if (!vehicleInfo.marca?.trim()) {
-      errors.push('La marca es obligatoria');
-    }
-    
-    if (!vehicleInfo.modelo?.trim()) {
-      errors.push('El modelo es obligatorio');
-    }
-    
-    if (!vehicleInfo.placa?.trim()) {
-      errors.push('La placa es obligatoria');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }, [vehicleInfo]);
 
   // Detectar estado de conexión
   useEffect(() => {
@@ -386,7 +326,7 @@ const InspectionApp = () => {
     };
   }, []);
 
-  // Inicializar datos de inspección usando la estructura existente
+  // Inicializar datos de inspección
   useEffect(() => {
     if (user && !inspectionData) {
       try {
@@ -401,10 +341,9 @@ const InspectionApp = () => {
     }
   }, [user, inspectionData]);
 
-  // Manejar cambios en ítems de inspección (mantiene estructura existente)
+  // Manejar cambios en ítems de inspección
   const handleItemChange = useCallback((sectionKey, itemIndex, field, value) => {
     if (!inspectionData || !sectionKey || itemIndex === undefined || !field) {
-      console.warn('handleItemChange: parámetros inválidos');
       return;
     }
 
@@ -412,15 +351,8 @@ const InspectionApp = () => {
       setInspectionData(prev => {
         const newData = { ...prev };
         
-        // Asegurar estructura de secciones
-        if (!newData.sections) {
-          newData.sections = {};
-        }
-        
-        if (!newData.sections[sectionKey]) {
-          newData.sections[sectionKey] = { items: [] };
-        }
-        
+        if (!newData.sections) newData.sections = {};
+        if (!newData.sections[sectionKey]) newData.sections[sectionKey] = { items: [] };
         if (!newData.sections[sectionKey].items[itemIndex]) {
           newData.sections[sectionKey].items[itemIndex] = {
             score: 0,
@@ -430,7 +362,6 @@ const InspectionApp = () => {
           };
         }
 
-        // Actualizar el campo específico
         newData.sections[sectionKey].items[itemIndex] = {
           ...newData.sections[sectionKey].items[itemIndex],
           [field]: value
@@ -440,32 +371,43 @@ const InspectionApp = () => {
       });
     } catch (error) {
       console.error('Error updating item:', error);
-      setError('Error al actualizar el ítem');
     }
   }, [inspectionData]);
 
   // Manejar cambios en información del vehículo
   const handleVehicleInfoChange = useCallback((field, value) => {
     setVehicleInfo(prev => ({ ...prev, [field]: value }));
-    setError(null);
   }, []);
 
-  // Toggle expansión de ítem
-  const toggleItemExpansion = useCallback((sectionKey, itemIndex) => {
+  // Toggle sección
+  const toggleSection = (sectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
+
+  // Toggle ítem
+  const toggleItem = (sectionKey, itemIndex) => {
     const key = `${sectionKey}-${itemIndex}`;
     setExpandedItems(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
-  }, []);
+  };
 
-  // Guardar inspección (mantiene la lógica existente)
-  const handleSaveInspection = useCallback(async () => {
-    const validation = validateRequiredFields();
+  // Calcular ítems evaluados por sección
+  const getEvaluatedCount = (sectionKey) => {
+    if (!inspectionData?.sections?.[sectionKey]?.items) return 0;
     
-    if (!validation.isValid) {
-      setShowValidationErrors(true);
-      setError(`Campos obligatorios faltantes: ${validation.errors.join(', ')}`);
+    const items = inspectionData.sections[sectionKey].items;
+    return items.filter(item => item && item.score > 0).length;
+  };
+
+  // Guardar inspección
+  const handleSaveInspection = useCallback(async () => {
+    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
+      setError('Los campos Marca, Modelo y Placa son obligatorios');
       return;
     }
 
@@ -476,9 +418,9 @@ const InspectionApp = () => {
       const inspectionPayload = {
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        total_score: 0, // Calcular según sea necesario
-        total_repair_cost: 0, // Calcular según sea necesario
-        completion_percentage: 0 // Calcular según sea necesario
+        total_score: 0,
+        total_repair_cost: 0,
+        completion_percentage: 0
       };
 
       const response = await fetch('/api/inspections', {
@@ -508,7 +450,7 @@ const InspectionApp = () => {
     } finally {
       setLoadingState(false);
     }
-  }, [inspectionData, vehicleInfo, validateRequiredFields]);
+  }, [inspectionData, vehicleInfo]);
 
   if (loading) {
     return (
@@ -527,7 +469,6 @@ const InspectionApp = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header de la aplicación */}
       <AppHeader 
         user={user}
         isOnline={isOnline}
@@ -535,73 +476,259 @@ const InspectionApp = () => {
         currentView={currentView}
       />
 
-      <div className="flex flex-col lg:flex-row min-h-screen">
-        {/* Sidebar responsive */}
-        <div className={`
-          fixed inset-y-0 left-0 z-30 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0 lg:flex lg:flex-col lg:top-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}>
-          <div className="flex flex-col h-full pt-16 lg:pt-0">
-            {/* Header del sidebar */}
-            <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Secciones</h2>
-                <p className="text-sm text-gray-600">Selecciona una categoría</p>
-              </div>
-              <button
-                className="lg:hidden text-gray-500 hover:text-gray-700"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <X size={24} />
-              </button>
+      <div className="pt-16">
+        {currentView === 'inspections' ? (
+          <InspectionManager 
+            onClose={() => setCurrentView('landing')}
+            onLoadInspection={(data) => {
+              setInspectionData(data.inspection_data);
+              setVehicleInfo(data.vehicle_info);
+              setCurrentView('inspection');
+            }}
+          />
+        ) : currentView === 'overview' ? (
+          <div className="p-4 lg:p-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Resumen General</h1>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-gray-600">
+                Aquí aparecerá un resumen de todas tus inspecciones.
+              </p>
             </div>
-
-            {/* Navegación */}
-            <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-              {Object.keys(checklistStructure).map((sectionKey) => {
-                const section = checklistStructure[sectionKey];
-                return (
-                  <button
-                    key={sectionKey}
-                    onClick={() => {
-                      setSelectedSection(sectionKey);
-                      setSidebarOpen(false);
-                      setCurrentView('inspection');
-                    }}
-                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      selectedSection === sectionKey
-                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                        : 'text-gray-700 hover:bg-gray-100 border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate pr-2">{sectionKey}</span>
-                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full flex-shrink-0">
-                        {Array.isArray(section) ? section.length : 0}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Botón de guardar con validación */}
-            <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-              {error && (
-                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-xs">
-                  {success}
-                </div>
-              )}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto p-4 space-y-4">
+            {/* Botón de guardar fijo en móvil */}
+            <div className="lg:hidden sticky top-16 z-10 bg-gray-50 pb-4">
               <button
                 onClick={handleSaveInspection}
                 disabled={loading_state}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading_state ? (
+                  <>
+                    <RefreshCw className="animate-spin mr-2" size={16} />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2" size={16} />
+                    Guardar Inspección
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Mensajes de estado */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 text-sm">
+                {success}
+              </div>
+            )}
+
+            {/* Información del Vehículo */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Información del Vehículo
+                </h2>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Marca
+                    </label>
+                    <select
+                      value={vehicleInfo.marca}
+                      onChange={(e) => handleVehicleInfoChange('marca', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+                    >
+                      <option value="">Seleccione marca</option>
+                      <option value="Toyota">Toyota</option>
+                      <option value="Chevrolet">Chevrolet</option>
+                      <option value="Ford">Ford</option>
+                      <option value="Nissan">Nissan</option>
+                      <option value="Mazda">Mazda</option>
+                      <option value="Hyundai">Hyundai</option>
+                      <option value="Kia">Kia</option>
+                      <option value="Renault">Renault</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Modelo
+                    </label>
+                    <select
+                      value={vehicleInfo.modelo}
+                      onChange={(e) => handleVehicleInfoChange('modelo', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+                    >
+                      <option value="">Seleccione modelo</option>
+                      <option value="Hilux">Hilux</option>
+                      <option value="Prado">Prado</option>
+                      <option value="4Runner">4Runner</option>
+                      <option value="Tahoe">Tahoe</option>
+                      <option value="Silverado">Silverado</option>
+                      <option value="F-150">F-150</option>
+                      <option value="Ranger">Ranger</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Año
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.año}
+                      onChange={(e) => handleVehicleInfoChange('año', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="Ej: 2020"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Placa
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => handleVehicleInfoChange('placa', e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="ABC123"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Kilometraje
+                    </label>
+                    <input
+                      type="number"
+                      value={vehicleInfo.kilometraje}
+                      onChange={(e) => handleVehicleInfoChange('kilometraje', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.precio}
+                      onChange={(e) => handleVehicleInfoChange('precio', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="$0"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Vendedor
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.vendedor}
+                      onChange={(e) => handleVehicleInfoChange('vendedor', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="Nombre del vendedor"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      value={vehicleInfo.telefono}
+                      onChange={(e) => handleVehicleInfoChange('telefono', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="300 123 4567"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Secciones de Inspección */}
+            {Object.keys(checklistStructure).map((sectionKey) => {
+              const section = checklistStructure[sectionKey];
+              const isExpanded = expandedSections[sectionKey];
+              const evaluatedCount = getEvaluatedCount(sectionKey);
+              const totalCount = Array.isArray(section) ? section.length : 0;
+              
+              return (
+                <div key={sectionKey} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <button
+                    onClick={() => toggleSection(sectionKey)}
+                    className="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  >
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {sectionKey}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {evaluatedCount} de {totalCount} evaluados
+                      </p>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="text-gray-400" size={20} />
+                    ) : (
+                      <ChevronDown className="text-gray-400" size={20} />
+                    )}
+                  </button>
+                  
+                  {isExpanded && (
+                    <div className="border-t border-gray-200 p-4">
+                      <div className="space-y-2">
+                        {Array.isArray(section) && section.map((item, index) => {
+                          const itemData = inspectionData?.sections?.[sectionKey]?.items?.[index] || {
+                            score: 0,
+                            repairCost: 0,
+                            observations: '',
+                            images: []
+                          };
+                          const isItemExpanded = expandedItems[`${sectionKey}-${index}`];
+                          
+                          return (
+                            <InspectionItem
+                              key={index}
+                              item={item}
+                              itemData={itemData}
+                              onItemChange={handleItemChange}
+                              isExpanded={isItemExpanded}
+                              onToggle={() => toggleItem(sectionKey, index)}
+                              sectionKey={sectionKey}
+                              itemIndex={index}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Botón de guardar en desktop */}
+            <div className="hidden lg:block sticky bottom-4">
+              <button
+                onClick={handleSaveInspection}
+                disabled={loading_state}
+                className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 shadow-lg"
               >
                 {loading_state ? (
                   <>
@@ -617,207 +744,7 @@ const InspectionApp = () => {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Overlay para móvil */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
         )}
-
-        {/* Contenido principal responsive */}
-        <div className="flex-1 min-h-screen overflow-auto pt-16 lg:pt-0">
-          {currentView === 'inspections' ? (
-            <InspectionManager 
-              onClose={() => setCurrentView('landing')}
-              onLoadInspection={(data) => {
-                setInspectionData(data.inspection_data);
-                setVehicleInfo(data.vehicle_info);
-                setCurrentView('inspection');
-              }}
-            />
-          ) : currentView === 'overview' ? (
-            <div className="p-4 lg:p-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-6">Resumen General</h1>
-              <div className="bg-white rounded-lg shadow p-6">
-                <p className="text-gray-600">
-                  Aquí aparecerá un resumen de todas tus inspecciones una vez que comiences a usar la aplicación.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 lg:p-6">
-              {/* Header móvil */}
-              <div className="lg:hidden mb-4 flex items-center justify-between">
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  <Menu size={20} />
-                  Secciones
-                </button>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {selectedSection || 'InspectApp'}
-                </h1>
-              </div>
-
-              {/* 1. Sección de Datos del Vehículo */}
-              <div className="bg-white rounded-lg shadow mb-6">
-                <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-                  <h2 className="text-lg font-medium text-gray-900">
-                    Datos del Vehículo
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Información básica del vehículo a inspeccionar
-                  </p>
-                </div>
-                <div className="px-4 py-5 sm:px-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Marca *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.marca}
-                        onChange={(e) => handleVehicleInfoChange('marca', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Toyota, Chevrolet, etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Modelo *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.modelo}
-                        onChange={(e) => handleVehicleInfoChange('modelo', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Hilux, Prado, etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Placa *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.placa}
-                        onChange={(e) => handleVehicleInfoChange('placa', e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="ABC-123"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Año
-                      </label>
-                      <input
-                        type="number"
-                        value={vehicleInfo.año}
-                        onChange={(e) => handleVehicleInfoChange('año', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="2020"
-                        min="1980"
-                        max="2025"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Kilometraje
-                      </label>
-                      <input
-                        type="number"
-                        value={vehicleInfo.kilometraje}
-                        onChange={(e) => handleVehicleInfoChange('kilometraje', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="50000"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Color
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.color}
-                        onChange={(e) => handleVehicleInfoChange('color', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Blanco, Negro, etc."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Sección de Lista de Chequeo */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-                  <h2 className="text-lg font-medium text-gray-900">
-                    Lista de Chequeo
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {selectedSection 
-                      ? `Inspeccionando: ${selectedSection}` 
-                      : 'Selecciona una sección del menú para comenzar'
-                    }
-                  </p>
-                </div>
-                
-                <div className="px-4 py-5 sm:px-6">
-                  {selectedSection ? (
-                    <div className="space-y-3">
-                      {Array.isArray(checklistStructure[selectedSection]) && 
-                        checklistStructure[selectedSection].map((item, index) => {
-                          const itemData = inspectionData?.sections?.[selectedSection]?.items?.[index] || {
-                            score: 0,
-                            repairCost: 0,
-                            observations: '',
-                            images: []
-                          };
-                          const isExpanded = expandedItems[`${selectedSection}-${index}`];
-                          
-                          return (
-                            <AccordionItem
-                              key={index}
-                              item={item}
-                              itemData={itemData}
-                              onItemChange={handleItemChange}
-                              isExpanded={isExpanded}
-                              onToggle={() => toggleItemExpansion(selectedSection, index)}
-                              sectionKey={selectedSection}
-                              itemIndex={index}
-                            />
-                          );
-                        })
-                      }
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Car className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Comienza tu inspección
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        Selecciona una sección del menú lateral para evaluar los componentes del vehículo
-                      </p>
-                      <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors lg:hidden"
-                      >
-                        <Menu className="mr-2" size={16} />
-                        Abrir menú
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
