@@ -419,6 +419,58 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       placeholder="Ej: ABC123"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      kilometraje
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: ABC123"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, precio: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: ABC123"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Vendedor
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, vendedor: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: ABC123"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefono
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value.toUpperCase() }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: ABC123"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
