@@ -1,5 +1,5 @@
-// components/Layout/AppHeader.jsx - VERSIÓN CORREGIDA
-// 🔧 CORRECCIÓN: Botones "Configuración" y "Cerrar sesión" funcionales
+// components/Layout/AppHeader.jsx - CORRECCIÓN DE REDIRECCIÓN
+// 🔧 SOLUCIÓN: Implementar redirección automática después del logout
 
 import React, { useState } from 'react';
 import { 
@@ -17,18 +17,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AppHeader = ({ onNavigateToInspections, currentView }) => {
+const AppHeader = ({ 
+  onNavigateToInspections, 
+  currentView, 
+  onNavigateToLanding // 🔧 NUEVO: Prop para redirigir a Landing
+}) => {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  
-  // 🔧 NUEVO: Estados para configuración
   const [showSettings, setShowSettings] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 🔧 CORREGIDO: Handler de cerrar sesión con manejo robusto de errores
+  // 🔧 CORREGIDO: Handler de cerrar sesión con redirección automática
   const handleSignOut = async () => {
     try {
       setLogoutLoading(true);
@@ -55,22 +57,38 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
       // Cerrar menús
       setShowUserMenu(false);
       setShowMobileMenu(false);
+      setShowSettings(false);
       
-      // Opcional: Redirigir o recargar la página
-      // window.location.href = '/';
+      // 🔧 IMPLEMENTAR REDIRECCIÓN: Múltiples estrategias de redirección
+      if (onNavigateToLanding && typeof onNavigateToLanding === 'function') {
+        // Opción 1: Usar callback prop (recomendado para SPAs)
+        console.log('Redirigiendo usando callback prop...');
+        onNavigateToLanding();
+      } else {
+        // Opción 2: Redirección manual usando window.location
+        console.log('Redirigiendo usando window.location...');
+        window.location.href = '/';
+      }
       
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
       setError(`Error al cerrar sesión: ${error.message}`);
       
-      // Mostrar error al usuario
-      alert(`Error al cerrar sesión: ${error.message}`);
+      // Mostrar error al usuario con opción de reintento
+      const retry = window.confirm(
+        `Error al cerrar sesión: ${error.message}\n\n¿Deseas intentar de nuevo?`
+      );
+      
+      if (retry) {
+        // Reintento recursivo
+        setTimeout(() => handleSignOut(), 1000);
+      }
     } finally {
       setLogoutLoading(false);
     }
   };
 
-  // 🔧 NUEVO: Handler para abrir configuración
+  // Handler para abrir configuración
   const handleOpenSettings = () => {
     console.log('Abriendo configuración...');
     setShowSettings(true);
@@ -127,7 +145,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                     : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                <Home className="mr-2" size={16} />
+                <Home className="mr-3" size={16} />
                 Inicio
               </button>
               
@@ -139,113 +157,86 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                     : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                <FolderOpen className="mr-2" size={16} />
+                <FolderOpen className="mr-3" size={16} />
                 Mis Inspecciones
               </button>
-
+              
               <button
                 onClick={() => setShowInstructions(true)}
                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               >
-                <HelpCircle className="mr-2" size={16} />
+                <HelpCircle className="mr-3" size={16} />
                 Ayuda
               </button>
             </nav>
 
-            {/* Área del usuario */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Sección derecha */}
+            <div className="flex items-center space-x-3">
               
-              {/* Botón menú móvil */}
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="lg:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <Menu size={20} />
-              </button>
-
-              {/* Notificaciones */}
-              <button className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                <Bell size={20} />
-              </button>
-
-              {/* Menu del usuario */}
-              <div className="relative">
+              {/* Menú de usuario - Desktop */}
+              <div className="hidden sm:block relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 p-1"
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User size={16} className="text-white" />
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User size={16} className="text-blue-600" />
                   </div>
-                  <span className="hidden md:block ml-2 text-gray-700 max-w-32 truncate">
-                    {user?.email?.split('@')[0] || 'Usuario'}
-                  </span>
+                  <span className="text-sm font-medium">{user?.email?.split('@')[0]}</span>
                 </button>
 
-                {/* 🔧 CORREGIDO: Dropdown del usuario con botones funcionales */}
+                {/* Dropdown del usuario */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                    <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
-                      <p className="font-medium truncate">{user?.user_metadata?.full_name || 'Usuario'}</p>
-                      <p className="text-gray-500 text-xs truncate">{user?.email}</p>
-                    </div>
-                    
-                    <button
-                      onClick={handleNavigateToInspections}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <FolderOpen className="mr-3" size={16} />
-                      Mis Inspecciones
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setShowInstructions(true);
-                        setShowUserMenu(false);
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <HelpCircle className="mr-3" size={16} />
-                      Ayuda e Instrucciones
-                    </button>
-                    
-                    {/* 🔧 CORREGIDO: Botón de configuración funcional */}
-                    <button
-                      onClick={handleOpenSettings}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <Settings className="mr-3" size={16} />
-                      Configuración
-                    </button>
-                    
-                    <div className="border-t border-gray-200 my-1"></div>
-                    
-                    {/* 🔧 CORREGIDO: Botón de cerrar sesión robusto */}
-                    <button
-                      onClick={handleSignOut}
-                      disabled={logoutLoading}
-                      className={`flex items-center w-full px-4 py-2 text-sm transition-colors ${
-                        logoutLoading 
-                          ? 'text-gray-400 cursor-not-allowed' 
-                          : 'text-red-600 hover:bg-red-50'
-                      }`}
-                    >
-                      <LogOut className="mr-3" size={16} />
-                      {logoutLoading ? 'Cerrando...' : 'Cerrar Sesión'}
-                    </button>
-
-                    {/* 🔧 NUEVO: Mostrar error si existe */}
-                    {error && (
-                      <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t">
-                        <div className="flex items-center">
-                          <AlertCircle size={12} className="mr-1" />
-                          {error}
-                        </div>
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-2">
+                      <div className="px-4 py-2 text-xs text-gray-500 border-b">
+                        Conectado como: {user?.email}
                       </div>
-                    )}
+                      
+                      <button
+                        onClick={handleOpenSettings}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Settings className="mr-3" size={16} />
+                        Configuración
+                      </button>
+                      
+                      <div className="border-t border-gray-100 my-1"></div>
+                      
+                      <button
+                        onClick={handleSignOut}
+                        disabled={logoutLoading}
+                        className={`flex items-center w-full px-4 py-2 text-sm transition-colors ${
+                          logoutLoading 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-red-600 hover:bg-red-50'
+                        }`}
+                      >
+                        <LogOut className="mr-3" size={16} />
+                        {logoutLoading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+                      </button>
+
+                      {/* Mostrar error si existe */}
+                      {error && (
+                        <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-t">
+                          <div className="flex items-center">
+                            <AlertCircle size={12} className="mr-1" />
+                            {error}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Botón de menú móvil */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="sm:hidden p-2 text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                <Menu size={20} />
+              </button>
             </div>
           </div>
         </div>
@@ -289,7 +280,6 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                 Ayuda
               </button>
 
-              {/* 🔧 NUEVO: Configuración en menú móvil */}
               <button
                 onClick={handleOpenSettings}
                 className="flex items-center w-full px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
@@ -300,7 +290,7 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
 
               <div className="border-t border-gray-200 my-2"></div>
 
-              {/* 🔧 CORREGIDO: Cerrar sesión en móvil */}
+              {/* Cerrar sesión en móvil */}
               <button
                 onClick={handleSignOut}
                 disabled={logoutLoading}
@@ -311,14 +301,24 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                 }`}
               >
                 <LogOut className="mr-3" size={16} />
-                {logoutLoading ? 'Cerrando...' : 'Cerrar Sesión'}
+                {logoutLoading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
               </button>
+
+              {/* Mostrar error en móvil */}
+              {error && (
+                <div className="px-3 py-2 text-xs text-red-600 bg-red-50 rounded-md">
+                  <div className="flex items-center">
+                    <AlertCircle size={12} className="mr-1" />
+                    {error}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
       </header>
 
-      {/* 🔧 NUEVO: Modal de configuración */}
+      {/* Modal de configuración */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -344,26 +344,18 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Preferencias</h3>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      <span className="text-sm text-gray-600">Notificaciones por email</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      <span className="text-sm text-gray-600">Guardar automáticamente</span>
-                    </label>
-                  </div>
-                </div>
-
                 <div className="pt-4 border-t">
                   <button
-                    onClick={() => setShowSettings(false)}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={handleSignOut}
+                    disabled={logoutLoading}
+                    className={`w-full flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      logoutLoading 
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                        : 'text-red-600 bg-red-50 hover:bg-red-100'
+                    }`}
                   >
-                    Cerrar
+                    <LogOut className="mr-2" size={16} />
+                    {logoutLoading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
                   </button>
                 </div>
               </div>
@@ -372,15 +364,13 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
         </div>
       )}
 
-      {/* Modal de instrucciones (mantener existente) */}
+      {/* Modal de instrucciones */}
       {showInstructions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  📋 Guía de Uso - InspectApp
-                </h2>
+                <h2 className="text-xl font-bold text-gray-900">Ayuda e Instrucciones</h2>
                 <button
                   onClick={() => setShowInstructions(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -388,60 +378,23 @@ const AppHeader = ({ onNavigateToInspections, currentView }) => {
                   <X size={24} />
                 </button>
               </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
+              
+              <div className="space-y-4 text-sm text-gray-600">
+                <p>
+                  Bienvenido al sistema de inspección vehicular 4x4. Aquí puedes evaluar 
+                  todos los aspectos importantes de un vehículo todo terreno.
+                </p>
+                
                 <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">
-                    🚗 Comenzar una inspección
-                  </h3>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Complete la información básica del vehículo (marca, modelo, placa)</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Navegue por las diferentes secciones de inspección</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Califique cada elemento del 1 al 10 usando las estrellas</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Agregue comentarios y fotos como evidencia</span>
-                    </li>
+                  <h3 className="font-semibold text-gray-900 mb-2">Cómo usar la aplicación:</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Completa cada sección de la inspección</li>
+                    <li>Toma fotos de los elementos inspeccionados</li>
+                    <li>Asigna calificaciones del 1 al 10</li>
+                    <li>Guarda tu progreso regularmente</li>
+                    <li>Genera reportes en PDF al finalizar</li>
                   </ul>
                 </div>
-
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">
-                    💾 Guardar y gestionar
-                  </h3>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Guarde regularmente su progreso usando el botón "Guardar Inspección"</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Acceda a sus inspecciones previas desde "Mis Inspecciones"</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-0.5">•</span>
-                      <span>Genere reportes PDF para compartir o imprimir</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={() => setShowInstructions(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Entendido
-                </button>
               </div>
             </div>
           </div>
