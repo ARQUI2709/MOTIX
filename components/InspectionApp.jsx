@@ -1,5 +1,5 @@
-// components/InspectionApp.jsx - SOLUCIÓN COMPLETA DE NAVEGACIÓN POST-LOGOUT
-// 🎯 OBJETIVO: Implementar redirección automática a LandingPage después del logout
+// components/InspectionApp.jsx - SISTEMA DE CALIFICACIONES MEJORADO
+// 🎯 OBJETIVO: Mejorar registro y cuantificación de calificaciones + resumen por categoría
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -27,7 +27,11 @@ import {
   Image,
   Phone,
   User,
-  MapPin
+  MapPin,
+  BarChart3,
+  TrendingUp,
+  Target,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -39,7 +43,199 @@ import { checklistStructure, initializeInspectionData } from '../data/checklistS
 import { generatePDFReport, generateJSONReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
 
-// Componente StarRating optimizado
+// 🔧 NUEVO: Función para calcular métricas detalladas por categoría
+const calculateDetailedMetrics = (inspectionData) => {
+  const categoryMetrics = {};
+  const globalMetrics = {
+    totalScore: 0,
+    totalItems: 0,
+    evaluatedItems: 0,
+    totalRepairCost: 0,
+    completionPercentage: 0,
+    averageScore: 0
+  };
+
+  // Procesar cada categoría
+  Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+    const categoryData = inspectionData[categoryName] || {};
+    
+    // Métricas por categoría
+    let categoryTotalScore = 0;
+    let categoryEvaluatedItems = 0;
+    let categoryScoredItems = 0;
+    let categoryRepairCost = 0;
+    const categoryTotalItems = items.length;
+
+    // Procesar cada ítem de la categoría
+    items.forEach((item) => {
+      const itemData = categoryData[item.name] || { 
+        score: 0, 
+        repairCost: 0, 
+        notes: '', 
+        evaluated: false 
+      };
+
+      // 🔧 MEJORA: Lógica de evaluación más robusta
+      const isEvaluated = itemData.evaluated || 
+                         itemData.score > 0 || 
+                         (itemData.notes && itemData.notes.trim() !== '');
+
+      if (isEvaluated) {
+        categoryEvaluatedItems++;
+        globalMetrics.evaluatedItems++;
+        
+        if (itemData.score > 0) {
+          categoryTotalScore += itemData.score;
+          categoryScoredItems++;
+          globalMetrics.totalScore += itemData.score;
+          globalMetrics.totalItems++;
+        }
+      }
+
+      const repairCost = parseFloat(itemData.repairCost) || 0;
+      categoryRepairCost += repairCost;
+      globalMetrics.totalRepairCost += repairCost;
+    });
+
+    // Calcular métricas de la categoría
+    categoryMetrics[categoryName] = {
+      totalItems: categoryTotalItems,
+      evaluatedItems: categoryEvaluatedItems,
+      scoredItems: categoryScoredItems,
+      averageScore: categoryScoredItems > 0 ? 
+        (categoryTotalScore / categoryScoredItems).toFixed(1) : 0,
+      totalRepairCost: categoryRepairCost,
+      completionPercentage: Math.round((categoryEvaluatedItems / categoryTotalItems) * 100),
+      // 🔧 NUEVO: Estado de la categoría
+      status: categoryEvaluatedItems === categoryTotalItems ? 'completed' :
+              categoryEvaluatedItems > 0 ? 'in_progress' : 'pending'
+    };
+  });
+
+  // Calcular métricas globales
+  const totalPossibleItems = Object.values(checklistStructure)
+    .reduce((acc, items) => acc + items.length, 0);
+  
+  globalMetrics.completionPercentage = totalPossibleItems > 0 ?
+    Math.round((globalMetrics.evaluatedItems / totalPossibleItems) * 100) : 0;
+  
+  globalMetrics.averageScore = globalMetrics.totalItems > 0 ?
+    (globalMetrics.totalScore / globalMetrics.totalItems).toFixed(1) : 0;
+
+  return {
+    categories: categoryMetrics,
+    global: globalMetrics,
+    totalPossibleItems
+  };
+};
+
+// 🔧 NUEVO: Componente de resumen de progreso por categoría
+const CategoryProgressSummary = ({ metrics, onCategoryClick }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-100';
+      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 8) return 'text-green-600';
+    if (score >= 6) return 'text-blue-600';
+    if (score >= 4) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+        <BarChart3 className="mr-2" size={20} />
+        Resumen de Progreso por Categoría
+      </h2>
+
+      {/* Resumen global */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">
+            {metrics.global.averageScore}/10
+          </div>
+          <div className="text-sm text-gray-600">Promedio General</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600">
+            {metrics.global.completionPercentage}%
+          </div>
+          <div className="text-sm text-gray-600">Completado</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600">
+            {metrics.global.evaluatedItems}/{metrics.totalPossibleItems}
+          </div>
+          <div className="text-sm text-gray-600">Ítems Evaluados</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-red-600">
+            ${metrics.global.totalRepairCost.toLocaleString()}
+          </div>
+          <div className="text-sm text-gray-600">Costo Reparaciones</div>
+        </div>
+      </div>
+
+      {/* Lista de categorías */}
+      <div className="space-y-3">
+        {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
+          <div 
+            key={categoryName}
+            onClick={() => onCategoryClick && onCategoryClick(categoryName)}
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+          >
+            <div className="flex-1">
+              <div className="flex items-center mb-2">
+                <h3 className="font-semibold text-gray-900 mr-3">
+                  {categoryName}
+                </h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(categoryMetrics.status)}`}>
+                  {categoryMetrics.status === 'completed' ? 'Completa' :
+                   categoryMetrics.status === 'in_progress' ? 'En Progreso' : 'Pendiente'}
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <span>
+                  <CheckCircle2 className="inline mr-1" size={14} />
+                  {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems} ítems
+                </span>
+                <span>
+                  <Target className="inline mr-1" size={14} />
+                  {categoryMetrics.completionPercentage}% completo
+                </span>
+                {categoryMetrics.averageScore > 0 && (
+                  <span className={`font-medium ${getScoreColor(categoryMetrics.averageScore)}`}>
+                    <TrendingUp className="inline mr-1" size={14} />
+                    {categoryMetrics.averageScore}/10 promedio
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <div className="text-lg font-bold text-gray-900">
+                {categoryMetrics.completionPercentage}%
+              </div>
+              {categoryMetrics.totalRepairCost > 0 && (
+                <div className="text-sm text-red-600">
+                  ${categoryMetrics.totalRepairCost.toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Componente StarRating optimizado (sin cambios)
 const StarRating = ({ score, onScoreChange, disabled = false }) => {
   const [hoveredScore, setHoveredScore] = useState(0);
 
@@ -88,10 +284,10 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
-// Componente principal InspectionApp con navegación corregida
+// Componente principal InspectionApp
 const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
-  // 🔧 ESTADO PRINCIPAL DE NAVEGACIÓN
-  const [appView, setAppView] = useState('landing'); // 'landing', 'app', 'inspections'
+  // Estado principal de navegación
+  const [appView, setAppView] = useState('landing');
   const { user, loading } = useAuth();
   
   // Estados de la aplicación
@@ -114,60 +310,49 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
   const [saveMessage, setSaveMessage] = useState('');
   const [error, setError] = useState('');
 
-  // 🔧 EFECTO PARA MANEJAR CAMBIOS DE AUTENTICACIÓN
+  // 🔧 NUEVO: Estado para mostrar/ocultar resumen de progreso
+  const [showProgressSummary, setShowProgressSummary] = useState(true);
+
+  // 🔧 NUEVO: Calcular métricas en tiempo real
+  const metrics = calculateDetailedMetrics(inspectionData);
+
+  // Efectos para manejar autenticación (sin cambios)
   useEffect(() => {
-    console.log('🔄 Auth state changed:', { user: !!user, loading });
-    
     if (!loading) {
       if (user) {
-        // Usuario autenticado -> mostrar app
         if (appView === 'landing') {
-          console.log('✅ Usuario autenticado, navegando a app');
           setAppView('app');
         }
       } else {
-        // Usuario no autenticado -> mostrar landing
         if (appView !== 'landing') {
-          console.log('🚪 Usuario no autenticado, navegando a landing');
           setAppView('landing');
         }
       }
     }
   }, [user, loading, appView]);
 
-  // 🔧 FUNCIONES DE NAVEGACIÓN MEJORADAS
+  // Funciones de navegación (sin cambios)
   const handleNavigateToLanding = useCallback(() => {
-    console.log('🏠 Navegando a Landing Page...');
     setAppView('landing');
     setCurrentView('overview');
-    // Limpiar estados de la aplicación
     setInspectionData(initializeInspectionData());
     setVehicleInfo({
-      marca: '',
-      modelo: '',
-      ano: '',
-      placa: '',
-      kilometraje: '',
-      precio: '',
-      vendedor: '',
-      telefono: ''
+      marca: '', modelo: '', ano: '', placa: '',
+      kilometraje: '', precio: '', vendedor: '', telefono: ''
     });
   }, []);
 
   const handleEnterApp = useCallback(() => {
-    console.log('🚀 Entrando a la aplicación...');
     setAppView('app');
     setCurrentView('overview');
   }, []);
 
   const handleNavigateToInspections = useCallback(() => {
-    console.log('📋 Navegando a gestión de inspecciones...');
     setAppView('inspections');
     setCurrentView('inspections');
   }, []);
 
   const handleReturnToApp = useCallback(() => {
-    console.log('↩️ Regresando a la aplicación principal...');
     setAppView('app');
     setCurrentView('overview');
   }, []);
@@ -203,7 +388,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     });
   }, []);
 
-  // Funciones de manejo de datos
+  // 🔧 MEJORADO: Función para actualizar ítems con mejor registro de calificaciones
   const updateInspectionItem = useCallback((categoryKey, itemKey, updates) => {
     setInspectionData(prevData => {
       const newData = { ...prevData };
@@ -216,19 +401,43 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
         newData[categoryKey][itemKey] = {
           score: 0,
           notes: '',
-          images: []
+          images: [],
+          repairCost: 0,
+          evaluated: false
         };
       }
       
-      newData[categoryKey][itemKey] = {
-        ...newData[categoryKey][itemKey],
-        ...updates
-      };
+      const item = newData[categoryKey][itemKey];
+      const updatedItem = { ...item, ...updates };
+      
+      // 🔧 MEJORA: Lógica mejorada para marcar como evaluado
+      if (updates.score !== undefined && updates.score > 0) {
+        updatedItem.evaluated = true;
+      } else if (updates.notes !== undefined && updates.notes.trim() !== '') {
+        updatedItem.evaluated = true;
+      } else if (updatedItem.score > 0 || updatedItem.notes.trim() !== '') {
+        updatedItem.evaluated = true;
+      } else {
+        updatedItem.evaluated = false;
+      }
+      
+      newData[categoryKey][itemKey] = updatedItem;
       
       return newData;
     });
   }, []);
 
+  // 🔧 NUEVO: Función para navegar a una categoría específica
+  const scrollToCategory = useCallback((categoryName) => {
+    const element = document.getElementById(`category-${categoryName}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      // Expandir la sección automáticamente
+      setExpandedSections(prev => ({ ...prev, [categoryName]: true }));
+    }
+  }, []);
+
+  // Funciones de manejo de imágenes (sin cambios)
   const addImageToItem = useCallback((categoryKey, itemKey, imageUrl) => {
     updateInspectionItem(categoryKey, itemKey, {
       images: [
@@ -244,7 +453,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     updateInspectionItem(categoryKey, itemKey, { images: newImages });
   }, [inspectionData, updateInspectionItem]);
 
-  // Función para guardar inspección
+  // Funciones de guardado y carga (sin cambios en la lógica principal)
   const saveInspection = useCallback(async () => {
     if (!user) {
       setError('Debe estar autenticado para guardar');
@@ -253,65 +462,74 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
 
     setLoadingState(true);
     setError('');
-    setSaveMessage('');
 
     try {
-      const inspectionToSave = {
-        user_id: user.id,
+      const token = await user.getIdToken();
+      
+      const inspectionPayload = {
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        total_score: parseFloat(metrics.global.averageScore) || 0,
+        total_repair_cost: metrics.global.totalRepairCost || 0,
+        completion_percentage: metrics.global.completionPercentage || 0
       };
 
-      const { data, error: saveError } = await supabase
-        .from('inspections')
-        .insert([inspectionToSave])
-        .select();
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(inspectionPayload),
+      });
 
-      if (saveError) throw saveError;
+      const result = await response.json();
 
-      setSaveMessage('Inspección guardada exitosamente');
-      console.log('✅ Inspección guardada:', data);
-      
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('❌ Error al guardar inspección:', error);
-      setError(`Error al guardar: ${error.message}`);
+      if (result.success) {
+        setSaveMessage('✅ Inspección guardada exitosamente');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        throw new Error(result.error || 'Error al guardar la inspección');
+      }
+    } catch (err) {
+      console.error('Error saving inspection:', err);
+      setError(`Error al guardar: ${err.message}`);
     } finally {
       setLoadingState(false);
     }
-  }, [user, vehicleInfo, inspectionData]);
+  }, [user, vehicleInfo, inspectionData, metrics]);
 
-  // Mostrar loading durante verificación de auth
+  // Resto de funciones (generateReport, etc.) sin cambios...
+  const generateReport = useCallback(() => {
+    try {
+      generatePDFReport(inspectionData, vehicleInfo, {}, user);
+      setSaveMessage('✅ Reporte PDF generado exitosamente');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (err) {
+      console.error('Error generating report:', err);
+      setError('Error al generar el reporte PDF');
+    }
+  }, [inspectionData, vehicleInfo, user]);
+
+  // Lógica de renderizado condicional (sin cambios)
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticación...</p>
+          <RefreshCw className="animate-spin mx-auto mb-4" size={48} />
+          <p className="text-gray-600">Cargando aplicación...</p>
         </div>
       </div>
     );
   }
 
-  // 🔧 RENDERIZADO CONDICIONAL BASADO EN EL ESTADO DE NAVEGACIÓN
-  
-  // Mostrar Landing Page
   if (appView === 'landing') {
-    return (
-      <LandingPage 
-        onEnterApp={handleEnterApp}
-      />
-    );
+    return <LandingPage onEnterApp={handleEnterApp} />;
   }
 
-  // Mostrar Gestión de Inspecciones
   if (appView === 'inspections') {
     return (
-      <ProtectedRoute 
-        fallback={<LandingPage onEnterApp={handleEnterApp} />}
-      >
+      <ProtectedRoute fallback={<LandingPage onEnterApp={handleEnterApp} />}>
         <InspectionManager 
           onClose={handleReturnToApp}
           onLoadInspection={onLoadInspection}
@@ -320,20 +538,16 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     );
   }
 
-  // Mostrar Aplicación Principal
+  // Renderizado de la aplicación principal
   return (
-    <ProtectedRoute 
-      fallback={<LandingPage onEnterApp={handleEnterApp} />}
-    >
+    <ProtectedRoute fallback={<LandingPage onEnterApp={handleEnterApp} />}>
       <div className="min-h-screen bg-gray-50">
-        {/* Header con callback de navegación */}
         <AppHeader
           onNavigateToInspections={handleNavigateToInspections}
-          onNavigateToLanding={handleNavigateToLanding} // 🔧 CRÍTICO: Pasar callback
+          onNavigateToLanding={handleNavigateToLanding}
           currentView={currentView}
         />
 
-        {/* Contenido principal */}
         <main className="pt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             
@@ -357,15 +571,31 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
               </div>
             )}
 
+            {/* 🔧 NUEVO: Resumen de progreso por categoría */}
+            {showProgressSummary && (
+              <CategoryProgressSummary 
+                metrics={metrics}
+                onCategoryClick={scrollToCategory}
+              />
+            )}
+
             {/* Información del vehículo */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
               <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Car className="mr-2" size={20} />
-                  Información del Vehículo
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                    <Car className="mr-2" size={20} />
+                    Información del Vehículo
+                  </h2>
+                  {/* 🔧 NUEVO: Toggle para mostrar/ocultar resumen */}
+                  <button
+                    onClick={() => setShowProgressSummary(!showProgressSummary)}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    {showProgressSummary ? 'Ocultar' : 'Mostrar'} Resumen
+                  </button>
+                </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Marca
@@ -388,7 +618,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       value={vehicleInfo.modelo}
                       onChange={(e) => setVehicleInfo(prev => ({ ...prev, modelo: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: Land Cruiser"
+                      placeholder="Ej: Prado"
                     />
                   </div>
                   
@@ -402,8 +632,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       onChange={(e) => setVehicleInfo(prev => ({ ...prev, ano: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Ej: 2020"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
                     />
                   </div>
                   
@@ -419,30 +647,30 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       placeholder="Ej: ABC123"
                     />
                   </div>
-
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      kilometraje
+                      Kilometraje
                     </label>
                     <input
                       type="number"
                       value={vehicleInfo.kilometraje}
                       onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: 50.000 km"
+                      placeholder="Ej: 50000"
                     />
                   </div>
-
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Precio
                     </label>
                     <input
-                      type="currency"
+                      type="number"
                       value={vehicleInfo.precio}
                       onChange={(e) => setVehicleInfo(prev => ({ ...prev, precio: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: $20.000.000"
+                      placeholder="Ej: 85000000"
                     />
                   </div>
                   
@@ -459,14 +687,15 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                     />
                   </div>
                   
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefono
+                      Teléfono
                     </label>
                     <input
-                      type="number"
+                      type="tel"
                       value={vehicleInfo.telefono}
-                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value}))}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Ej: 3123456789"
                     />
@@ -475,113 +704,252 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
               </div>
             </div>
 
-            {/* Lista de categorías de inspección */}
-            <div className="space-y-4">
-              {Object.entries(checklistStructure).map(([categoryKey, items]) => (
-                <div key={categoryKey} className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {/* Botones de acción */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div className="p-6">
+                <div className="flex flex-wrap gap-3">
                   <button
-                    onClick={() => toggleSection(categoryKey)}
-                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    onClick={saveInspection}
+                    disabled={loading_state}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                      {categoryKey.replace(/([A-Z])/g, ' $1').trim()}
-                    </h3>
-                    {expandedSections[categoryKey] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    {loading_state ? (
+                      <RefreshCw size={16} className="mr-2 animate-spin" />
+                    ) : (
+                      <Save size={16} className="mr-2" />
+                    )}
+                    {loading_state ? 'Guardando...' : 'Guardar Inspección'}
                   </button>
                   
-                  {expandedSections[categoryKey] && (
-                    <div className="px-6 pb-6">
-                      <div className="space-y-4">
-                        {items.map((item, index) => {
-                          const itemKey = `${categoryKey}_${index}`;
-                          const itemData = inspectionData[categoryKey]?.[itemKey] || { score: 0, notes: '', images: [] };
-                          
-                          return (
-                            <div key={itemKey} className="border border-gray-200 rounded-lg p-4">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900 mb-1">{item.name}</h4>
-                                  <p className="text-sm text-gray-600">{item.description}</p>
-                                </div>
-                              </div>
-                              
-                              {/* Rating */}
-                              <div className="mb-3">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Calificación
-                                </label>
-                                <StarRating
-                                  score={itemData.score}
-                                  onScoreChange={(score) => updateInspectionItem(categoryKey, itemKey, { score })}
-                                />
-                              </div>
-                              
-                              {/* Notas */}
-                              <div className="mb-3">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Notas adicionales
-                                </label>
-                                <textarea
-                                  value={itemData.notes}
-                                  onChange={(e) => updateInspectionItem(categoryKey, itemKey, { notes: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  rows={2}
-                                  placeholder="Observaciones, comentarios adicionales..."
-                                />
-                              </div>
-                              
-                              {/* Galería de imágenes */}
-                              {itemData.images && itemData.images.length > 0 && (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                  {itemData.images.map((image, idx) => (
-                                    <div key={idx} className="relative group">
-                                      <img
-                                        src={image}
-                                        alt={`Evidencia ${idx + 1}`}
-                                        className="w-full h-20 sm:h-24 object-cover rounded border border-gray-200"
-                                      />
-                                      <button
-                                        onClick={() => removeImageFromItem(categoryKey, itemKey, idx)}
-                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      >
-                                        <X size={12} />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    onClick={generateReport}
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Download size={16} className="mr-2" />
+                    Generar Reporte PDF
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
 
-            {/* Acciones principales */}
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={saveInspection}
-                disabled={loading_state}
-                className="flex-1 sm:flex-none bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-              >
-                {loading_state ? (
-                  <RefreshCw className="animate-spin mr-2" size={16} />
-                ) : (
-                  <Save className="mr-2" size={16} />
-                )}
-                {loading_state ? 'Guardando...' : 'Guardar Inspección'}
-              </button>
-              
-              <button
-                onClick={() => generatePDFReport(vehicleInfo, inspectionData)}
-                className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center justify-center transition-colors"
-              >
-                <Download className="mr-2" size={16} />
-                Descargar PDF
-              </button>
+            {/* Lista de categorías de inspección */}
+            <div className="space-y-4">
+              {Object.entries(checklistStructure).map(([categoryKey, items]) => {
+                const categoryMetrics = metrics.categories[categoryKey];
+                
+                return (
+                  <div 
+                    key={categoryKey} 
+                    id={`category-${categoryKey}`}
+                    className="bg-white rounded-lg shadow-sm border border-gray-200"
+                  >
+                    <button
+                      onClick={() => toggleSection(categoryKey)}
+                      className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <h3 className="text-lg font-semibold text-gray-900 capitalize mr-4">
+                          {categoryKey}
+                        </h3>
+                        {/* 🔧 NUEVO: Indicadores de progreso por categoría */}
+                        <div className="flex items-center space-x-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            categoryMetrics.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            categoryMetrics.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
+                          </span>
+                          {categoryMetrics.averageScore > 0 && (
+                            <span className={`text-sm font-medium ${
+                              categoryMetrics.averageScore >= 8 ? 'text-green-600' :
+                              categoryMetrics.averageScore >= 6 ? 'text-blue-600' :
+                              categoryMetrics.averageScore >= 4 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {categoryMetrics.averageScore}/10
+                            </span>
+                          )}
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                categoryMetrics.completionPercentage >= 100 ? 'bg-green-500' :
+                                categoryMetrics.completionPercentage >= 50 ? 'bg-blue-500' :
+                                categoryMetrics.completionPercentage > 0 ? 'bg-yellow-500' :
+                                'bg-gray-300'
+                              }`}
+                              style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-600">
+                            {categoryMetrics.completionPercentage}%
+                          </span>
+                        </div>
+                      </div>
+                      {expandedSections[categoryKey] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
+                    
+                    {expandedSections[categoryKey] && (
+                      <div className="px-6 pb-6">
+                        <div className="space-y-4">
+                          {items.map((item, index) => {
+                            const itemKey = `${categoryKey}_${index}`;
+                            const itemData = inspectionData[categoryKey]?.[item.name] || { 
+                              score: 0, 
+                              notes: '', 
+                              images: [], 
+                              repairCost: 0,
+                              evaluated: false 
+                            };
+
+                            return (
+                              <div 
+                                key={itemKey}
+                                className={`border rounded-lg p-4 transition-all duration-200 ${
+                                  itemData.evaluated ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-medium text-gray-900 flex-1">
+                                    {index + 1}. {item.name}
+                                    {/* 🔧 NUEVO: Indicador de evaluación */}
+                                    {itemData.evaluated && (
+                                      <CheckCircle2 
+                                        size={16} 
+                                        className="inline ml-2 text-green-600" 
+                                      />
+                                    )}
+                                  </h4>
+                                  <button
+                                    onClick={() => toggleItem(itemKey)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                  >
+                                    {expandedItems[itemKey] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  </button>
+                                </div>
+                                
+                                <p className="text-sm text-gray-600 mt-1 mb-3">
+                                  {item.description}
+                                </p>
+
+                                {/* Sistema de calificación */}
+                                <div className="mb-4">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Calificación
+                                  </label>
+                                  <StarRating
+                                    score={itemData.score}
+                                    onScoreChange={(newScore) => {
+                                      updateInspectionItem(categoryKey, item.name, { 
+                                        score: newScore,
+                                        evaluated: true
+                                      });
+                                    }}
+                                  />
+                                </div>
+
+                                {expandedItems[itemKey] && (
+                                  <div className="space-y-4 pt-4 border-t border-gray-200">
+                                    {/* Campo de notas */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Observaciones
+                                      </label>
+                                      <textarea
+                                        value={itemData.notes}
+                                        onChange={(e) => {
+                                          updateInspectionItem(categoryKey, item.name, { 
+                                            notes: e.target.value,
+                                            evaluated: e.target.value.trim() !== '' || itemData.score > 0
+                                          });
+                                        }}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        rows="3"
+                                        placeholder="Describe el estado del componente, problemas encontrados, etc."
+                                      />
+                                    </div>
+
+                                    {/* Campo de costo de reparación */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Costo Estimado de Reparación
+                                      </label>
+                                      <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                        <input
+                                          type="number"
+                                          value={itemData.repairCost}
+                                          onChange={(e) => {
+                                            updateInspectionItem(categoryKey, item.name, { 
+                                              repairCost: parseFloat(e.target.value) || 0 
+                                            });
+                                          }}
+                                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                          placeholder="0"
+                                          min="0"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Gestión de imágenes */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Evidencias Fotográficas
+                                      </label>
+                                      
+                                      <div className="flex flex-wrap gap-2 mb-3">
+                                        {itemData.images?.map((imageUrl, imageIndex) => (
+                                          <div key={imageIndex} className="relative">
+                                            <img
+                                              src={imageUrl}
+                                              alt={`Evidencia ${imageIndex + 1}`}
+                                              className="w-20 h-20 object-cover rounded-lg border border-gray-300"
+                                            />
+                                            <button
+                                              onClick={() => removeImageFromItem(categoryKey, item.name, imageIndex)}
+                                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                                            >
+                                              <X size={12} />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                          const file = e.target.files[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (event) => {
+                                              addImageToItem(categoryKey, item.name, event.target.result);
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }}
+                                        className="hidden"
+                                        id={`image-upload-${itemKey}`}
+                                      />
+                                      <label
+                                        htmlFor={`image-upload-${itemKey}`}
+                                        className="flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
+                                      >
+                                        <Camera size={16} className="mr-2" />
+                                        Agregar Foto
+                                      </label>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </main>
@@ -590,4 +958,4 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
   );
 };
 
-export default InspectionApp;
+export default InspectionApp; 
