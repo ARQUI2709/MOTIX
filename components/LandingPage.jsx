@@ -35,7 +35,7 @@ const LandingPage = ({ onEnterApp }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="max-w-lg">
               <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-                Inspecciona tu <span className="text-blue-600">Vehículo 4x4</span> con Precisión Profesional
+                Inspecciona tu <span className="text-blue-600">Vehículo</span> con Precisión Profesional
               </h1>
               <p className="text-xl text-gray-600 mb-8">
                 La herramienta más completa para evaluar vehículos todo terreno. 
@@ -286,7 +286,7 @@ const LandingPage = ({ onEnterApp }) => {
       <section className="py-20 bg-blue-600">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
-            ¿Listo para inspeccionar tu próximo 4x4?
+            ¿Listo para inspeccionar tu próximo vehiculo?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
             Únete a miles de usuarios que ya toman decisiones informadas sobre sus vehículos.

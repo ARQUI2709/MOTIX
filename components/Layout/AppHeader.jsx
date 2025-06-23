@@ -1,5 +1,5 @@
-// components/Layout/AppHeader.jsx - CORRECCIÓN DE REDIRECCIÓN
-// 🔧 SOLUCIÓN: Implementar redirección automática después del logout
+// components/Layout/AppHeader.jsx - CORRECCIÓN COMPLETA DE REDIRECCIÓN POST-LOGOUT
+// 🎯 OBJETIVO: Implementar redirección automática a LandingPage después del logout
 
 import React, { useState } from 'react';
 import { 
@@ -20,7 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const AppHeader = ({ 
   onNavigateToInspections, 
   currentView, 
-  onNavigateToLanding // 🔧 NUEVO: Prop para redirigir a Landing
+  onNavigateToLanding // 🔧 CRÍTICO: Prop para redirigir a Landing
 }) => {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -30,7 +30,7 @@ const AppHeader = ({
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 🔧 CORREGIDO: Handler de cerrar sesión con redirección automática
+  // 🔧 FUNCIÓN CORREGIDA: Handler de cerrar sesión con redirección garantizada
   const handleSignOut = async () => {
     try {
       setLogoutLoading(true);
@@ -43,35 +43,44 @@ const AppHeader = ({
         return;
       }
 
-      console.log('Iniciando proceso de cierre de sesión...');
+      console.log('🚪 Iniciando proceso de cierre de sesión...');
+      
+      // Cerrar menús inmediatamente
+      setShowUserMenu(false);
+      setShowMobileMenu(false);
+      setShowSettings(false);
       
       // Ejecutar signOut del contexto de autenticación
       const { error: signOutError } = await signOut();
       
       if (signOutError) {
+        console.error('❌ Error durante signOut:', signOutError);
         throw signOutError;
       }
       
-      console.log('Sesión cerrada exitosamente');
+      console.log('✅ Sesión cerrada exitosamente');
       
-      // Cerrar menús
-      setShowUserMenu(false);
-      setShowMobileMenu(false);
-      setShowSettings(false);
-      
-      // 🔧 IMPLEMENTAR REDIRECCIÓN: Múltiples estrategias de redirección
-      if (onNavigateToLanding && typeof onNavigateToLanding === 'function') {
-        // Opción 1: Usar callback prop (recomendado para SPAs)
-        console.log('Redirigiendo usando callback prop...');
-        onNavigateToLanding();
-      } else {
-        // Opción 2: Redirección manual usando window.location
-        console.log('Redirigiendo usando window.location...');
-        window.location.href = '/';
-      }
+      // 🔧 IMPLEMENTAR REDIRECCIÓN MÚLTIPLE: Garantizar navegación a Landing
+      setTimeout(() => {
+        try {
+          if (onNavigateToLanding && typeof onNavigateToLanding === 'function') {
+            // Opción 1: Usar callback prop (recomendado para SPAs)
+            console.log('🏠 Redirigiendo usando callback prop...');
+            onNavigateToLanding();
+          } else {
+            // Opción 2: Redirección manual usando window.location como fallback
+            console.log('🌐 Callback no disponible, usando window.location...');
+            window.location.href = '/';
+          }
+        } catch (redirectError) {
+          console.error('❌ Error en redirección, usando fallback:', redirectError);
+          // Opción 3: Recarga completa como último recurso
+          window.location.reload();
+        }
+      }, 100); // Pequeño delay para permitir que el signOut se complete
       
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      console.error('❌ Error al cerrar sesión:', error);
       setError(`Error al cerrar sesión: ${error.message}`);
       
       // Mostrar error al usuario con opción de reintento
@@ -80,40 +89,59 @@ const AppHeader = ({
       );
       
       if (retry) {
-        // Reintento recursivo
+        // Reintento recursivo con delay
         setTimeout(() => handleSignOut(), 1000);
+      } else {
+        // Si el usuario no quiere reintentar, forzar navegación a landing
+        if (onNavigateToLanding) {
+          onNavigateToLanding();
+        } else {
+          window.location.href = '/';
+        }
       }
     } finally {
       setLogoutLoading(false);
     }
   };
 
-  // Handler para abrir configuración
+  // 🔧 FUNCIÓN MEJORADA: Handler para abrir configuración
   const handleOpenSettings = () => {
-    console.log('Abriendo configuración...');
+    console.log('⚙️ Abriendo configuración...');
     setShowSettings(true);
     setShowUserMenu(false);
     setShowMobileMenu(false);
   };
 
-  // Función para navegar a inspecciones
+  // 🔧 FUNCIÓN MEJORADA: Navegar a inspecciones
   const handleNavigateToInspections = () => {
-    console.log('Navegando a inspecciones...');
+    console.log('📋 Navegando a inspecciones...');
     if (onNavigateToInspections && typeof onNavigateToInspections === 'function') {
       onNavigateToInspections();
     } else {
-      console.warn('onNavigateToInspections no está disponible o no es una función');
+      console.warn('⚠️ onNavigateToInspections no está disponible o no es una función');
+    }
+    // Cerrar menús
+    setShowUserMenu(false);
+    setShowMobileMenu(false);
+  };
+
+  // 🔧 FUNCIÓN CORREGIDA: Ir al inicio (sin recargar página)
+  const handleNavigateToHome = () => {
+    console.log('🏠 Navegando al inicio...');
+    // En lugar de recargar, usar el callback si está disponible
+    if (onNavigateToLanding && typeof onNavigateToLanding === 'function') {
+      onNavigateToLanding();
+    } else {
+      window.location.reload();
     }
     setShowUserMenu(false);
     setShowMobileMenu(false);
   };
 
-  // Función para ir al inicio
-  const handleNavigateToHome = () => {
-    window.location.reload();
-    setShowUserMenu(false);
-    setShowMobileMenu(false);
-  };
+  // 🔧 VALIDACIÓN: Verificar que el usuario esté disponible
+  if (!user) {
+    return null; // No mostrar header si no hay usuario
+  }
 
   return (
     <>
@@ -318,6 +346,62 @@ const AppHeader = ({
         )}
       </header>
 
+      {/* Modal de instrucciones */}
+      {showInstructions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Guía de Uso</h2>
+                <button
+                  onClick={() => setShowInstructions(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-gray-700">
+                <div>
+                  <h3 className="font-semibold mb-2">🚗 Información del Vehículo</h3>
+                  <p className="text-sm">Completa los datos básicos del vehículo antes de comenzar la inspección.</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">⭐ Sistema de Calificación</h3>
+                  <p className="text-sm">Usa las estrellas para calificar cada elemento del 1 al 10:</p>
+                  <ul className="text-sm mt-2 space-y-1 ml-4">
+                    <li>• 1-3: Malo (reparación urgente)</li>
+                    <li>• 4-6: Regular (requiere atención)</li>
+                    <li>• 7-8: Bueno (estado aceptable)</li>
+                    <li>• 9-10: Excelente (perfecto estado)</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">📝 Notas y Evidencias</h3>
+                  <p className="text-sm">Agrega comentarios específicos y fotos para documentar cualquier problema encontrado.</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">💾 Guardar y Exportar</h3>
+                  <p className="text-sm">Guarda tu progreso frecuentemente y genera reportes PDF al finalizar.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowInstructions(false)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de configuración */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
@@ -357,43 +441,16 @@ const AppHeader = ({
                     <LogOut className="mr-2" size={16} />
                     {logoutLoading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal de instrucciones */}
-      {showInstructions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Ayuda e Instrucciones</h2>
-                <button
-                  onClick={() => setShowInstructions(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              
-              <div className="space-y-4 text-sm text-gray-600">
-                <p>
-                  Bienvenido al sistema de inspección vehicular 4x4. Aquí puedes evaluar 
-                  todos los aspectos importantes de un vehículo todo terreno.
-                </p>
-                
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Cómo usar la aplicación:</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Completa cada sección de la inspección</li>
-                    <li>Toma fotos de los elementos inspeccionados</li>
-                    <li>Asigna calificaciones del 1 al 10</li>
-                    <li>Guarda tu progreso regularmente</li>
-                    <li>Genera reportes en PDF al finalizar</li>
-                  </ul>
+                  {/* Mostrar error en modal de configuración */}
+                  {error && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center text-red-700 text-sm">
+                        <AlertCircle size={14} className="mr-2" />
+                        {error}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
