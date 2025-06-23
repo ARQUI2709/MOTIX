@@ -425,11 +425,11 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       kilometraje
                     </label>
                     <input
-                      type="text"
-                      value={vehicleInfo.placa}
-                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value.toUpperCase() }))}
+                      type="number"
+                      value={vehicleInfo.kilometraje}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, kilometraje: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: ABC123"
+                      placeholder="Ej: 50.000 km"
                     />
                   </div>
 
@@ -438,11 +438,11 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       Precio
                     </label>
                     <input
-                      type="text"
-                      value={vehicleInfo.placa}
-                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, precio: e.target.value.toUpperCase() }))}
+                      type="currency"
+                      value={vehicleInfo.precio}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, precio: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: ABC123"
+                      placeholder="Ej: $20.000.000"
                     />
                   </div>
                   
@@ -452,10 +452,10 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                     </label>
                     <input
                       type="text"
-                      value={vehicleInfo.placa}
-                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, vendedor: e.target.value.toUpperCase() }))}
+                      value={vehicleInfo.vendedor}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, vendedor: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: ABC123"
+                      placeholder="Ej: Juan Pérez"
                     />
                   </div>
                   
@@ -464,11 +464,11 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                       Telefono
                     </label>
                     <input
-                      type="text"
-                      value={vehicleInfo.placa}
-                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value.toUpperCase() }))}
+                      type="number"
+                      value={vehicleInfo.telefono}
+                      onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value}))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ej: ABC123"
+                      placeholder="Ej: 3123456789"
                     />
                   </div>
                 </div>

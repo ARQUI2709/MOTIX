@@ -153,12 +153,12 @@ const AppHeader = ({
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <h1 className="text-xl sm:text-2xl font-bold text-blue-600">
-                  InspectApp
+                  CarWise
                 </h1>
               </div>
               <div className="hidden md:block ml-6">
                 <span className="text-sm text-gray-500">
-                  Sistema de Inspección Vehicular 4x4
+                  Sistema de Inspección Vehicular
                 </span>
               </div>
             </div>
