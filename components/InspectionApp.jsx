@@ -419,7 +419,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
       };
 
       const { data, error } = await supabase
-        .from('vehicle_inspections')
+        .from('inspections')
         .insert([inspectionToSave])
         .select();
 
