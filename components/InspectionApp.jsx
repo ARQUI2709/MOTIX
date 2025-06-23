@@ -1,5 +1,5 @@
-// components/InspectionApp.jsx - VERSIÓN CORREGIDA
-// Corrige: Responsividad móvil, doble clic, comentarios truncados y navegación
+// SOLUCIÓN 1: Componente InspectionApp.jsx - CORRECCIÓN DE NOMBRE DE TABLA
+// Cambiar de 'vehicle_inspections' a 'inspections'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -72,10 +72,10 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
           className={`transition-all duration-150 touch-manipulation ${
             disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-110 active:scale-95'
           }`}
-          style={{ minWidth: '24px', minHeight: '24px' }} // Mejor área táctil en móviles
+          style={{ minWidth: '24px', minHeight: '24px' }}
         >
           <Star 
-            size={18} // Tamaño consistente para mejor UX móvil
+            size={18}
             className={getStarColor(starIndex)}
           />
         </button>
@@ -87,7 +87,7 @@ const StarRating = ({ score, onScoreChange, disabled = false }) => {
   );
 };
 
-// CORRECCIÓN: Componente InspectionItem mejorado
+// Componente InspectionItem mejorado
 const InspectionItem = ({ 
   item, 
   itemData, 
@@ -127,13 +127,11 @@ const InspectionItem = ({
     onItemChange(sectionKey, itemIndex, 'images', newImages);
   };
 
-  // CORRECCIÓN: Mejor manejo de comentarios con ajuste automático
   const handleObservationsChange = (e) => {
     const value = e.target.value;
     if (value.length <= 255) {
       onItemChange(sectionKey, itemIndex, 'observations', value);
       
-      // Auto-resize textarea
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
@@ -147,7 +145,6 @@ const InspectionItem = ({
     onItemChange(sectionKey, itemIndex, 'repairCost', numericValue);
   };
 
-  // Auto-resize inicial del textarea
   useEffect(() => {
     if (isExpanded && textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -157,11 +154,10 @@ const InspectionItem = ({
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-2 shadow-sm">
-      {/* CORRECCIÓN: Header del ítem con mejor diseño móvil */}
       <button
         onClick={onToggle}
         className="w-full px-3 sm:px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 flex items-start justify-between text-left touch-manipulation"
-        style={{ minHeight: '60px' }} // Área táctil mínima
+        style={{ minHeight: '60px' }}
       >
         <div className="flex-1 min-w-0 pr-2">
           <h4 className="font-medium text-gray-900 text-sm leading-tight">
@@ -173,7 +169,6 @@ const InspectionItem = ({
         </div>
         
         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-          {/* Indicadores de estado */}
           {itemData.score > 0 && (
             <div className="flex items-center gap-1 bg-white rounded px-2 py-1">
               <Star size={12} className="text-yellow-500 fill-current" />
@@ -196,7 +191,6 @@ const InspectionItem = ({
             </div>
           )}
           
-          {/* Icono de expansión */}
           <div className="p-1">
             {isExpanded ? (
               <ChevronUp size={16} className="text-gray-400" />
@@ -207,10 +201,8 @@ const InspectionItem = ({
         </div>
       </button>
 
-      {/* CORRECCIÓN: Contenido expandible con mejor diseño móvil */}
       {isExpanded && (
         <div className="px-3 sm:px-4 py-4 space-y-4 border-t border-gray-100 bg-white">
-          {/* Calificación */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Calificación (1-10 estrellas)
@@ -221,7 +213,6 @@ const InspectionItem = ({
             />
           </div>
 
-          {/* Costo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Costo estimado de reparación (COP)
@@ -235,7 +226,6 @@ const InspectionItem = ({
             />
           </div>
 
-          {/* CORRECCIÓN: Comentarios con diseño responsivo mejorado */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Comentarios ({(itemData.observations || '').length}/255)
@@ -246,8 +236,8 @@ const InspectionItem = ({
               onChange={handleObservationsChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm resize-none transition-all duration-200"
               style={{
-                minHeight: '80px', // Altura mínima garantizada
-                maxHeight: '200px', // Altura máxima para evitar desbordamiento
+                minHeight: '80px',
+                maxHeight: '200px',
                 lineHeight: '1.5'
               }}
               placeholder="Describe el estado del componente, problemas encontrados o recomendaciones..."
@@ -257,14 +247,12 @@ const InspectionItem = ({
             </div>
           </div>
 
-          {/* Imágenes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Imágenes
             </label>
             
             <div className="space-y-3">
-              {/* Input para subir imágenes */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -282,7 +270,6 @@ const InspectionItem = ({
                 Agregar Imagen
               </button>
               
-              {/* Gallery de imágenes */}
               {itemData.images && itemData.images.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {itemData.images.map((image, idx) => (
@@ -326,19 +313,17 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     telefono: ''
   });
 
-  // CORRECCIÓN: Mejor manejo del estado de expansión para evitar doble clic
   const [expandedSections, setExpandedSections] = useState({});
   const [expandedItems, setExpandedItems] = useState({});
   const [loading_state, setLoadingState] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [error, setError] = useState('');
 
-  // CORRECCIÓN: Función mejorada para toggle de secciones
   const toggleSection = useCallback((sectionKey) => {
     setExpandedSections(prev => {
       const newState = { ...prev };
       const wasExpanded = newState[sectionKey];
       
-      // Si se está expandiendo la sección, auto-expandir todos los ítems
       if (!wasExpanded) {
         const section = checklistStructure[sectionKey];
         if (Array.isArray(section)) {
@@ -355,7 +340,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     });
   }, [expandedItems]);
 
-  // Toggle individual de ítems
   const toggleItem = useCallback((sectionKey, itemIndex) => {
     const itemKey = `${sectionKey}-${itemIndex}`;
     setExpandedItems(prev => ({
@@ -364,7 +348,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     }));
   }, []);
 
-  // Funciones de manejo de datos (mantener las existentes)
   const handleItemChange = useCallback((sectionKey, itemIndex, field, value) => {
     setInspectionData(prevData => {
       const newData = { ...prevData };
@@ -397,39 +380,73 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     ).length;
   }, [inspectionData]);
 
-  // Función de navegación corregida
   const handleNavigateToInspections = useCallback(() => {
     setCurrentView('inspections');
   }, []);
 
+  // CORRECCIÓN PRINCIPAL: Función de guardado con nombre de tabla correcto
   const handleSaveInspection = async () => {
     if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      alert('Por favor completa la información básica del vehículo (marca, modelo y placa)');
+      setError('Por favor completa la información básica del vehículo (marca, modelo y placa)');
       return;
     }
 
     setLoadingState(true);
+    setError('');
+    
     try {
+      console.log('🔄 Iniciando guardado de inspección...');
+      console.log('👤 Usuario:', user?.id);
+      console.log('🚗 Vehículo:', vehicleInfo);
+
+      // Calcular métricas
+      const totalScore = calculateTotalScore();
+      const totalRepairCost = calculateTotalRepairCost();
+      const completionPercentage = calculateCompletionPercentage();
+
       const inspectionToSave = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        total_score: calculateTotalScore(),
-        created_at: new Date().toISOString()
+        total_score: totalScore,
+        total_repair_cost: totalRepairCost,
+        completion_percentage: completionPercentage,
+        status: 'completed',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
+      console.log('💾 Datos a guardar:', inspectionToSave);
+
+      // CORRECCIÓN: Usar tabla 'inspections' en lugar de 'vehicle_inspections'
       const { data, error } = await supabase
-        .from('inspections')
+        .from('inspections')  // ← CAMBIO AQUÍ: era 'vehicle_inspections'
         .insert([inspectionToSave])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error de base de datos:', error);
+        throw error;
+      }
 
+      console.log('✅ Inspección guardada exitosamente:', data);
       setSaveMessage('✓ Inspección guardada exitosamente');
       setTimeout(() => setSaveMessage(''), 3000);
+      
     } catch (error) {
-      console.error('Error saving inspection:', error);
-      alert('Error al guardar la inspección');
+      console.error('❌ Error completo al guardar:', error);
+      
+      // Manejo específico de errores
+      if (error.code === '42P01') {
+        setError('Error: La tabla de inspecciones no existe. Contacta al administrador.');
+      } else if (error.code === '23503') {
+        setError('Error: Problema de referencia en la base de datos.');
+      } else if (error.message?.includes('404')) {
+        setError('Error: Servicio de base de datos no disponible.');
+      } else {
+        setError(`Error al guardar la inspección: ${error.message || 'Error desconocido'}`);
+      }
+      
     } finally {
       setLoadingState(false);
     }
@@ -451,7 +468,35 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     return totalItems > 0 ? (totalScore / totalItems).toFixed(1) : 0;
   };
 
-  // Cargar inspección si se proporciona
+  const calculateTotalRepairCost = () => {
+    let totalCost = 0;
+
+    Object.values(inspectionData?.sections || {}).forEach(section => {
+      Object.values(section?.items || {}).forEach(item => {
+        if (item?.repairCost > 0) {
+          totalCost += item.repairCost;
+        }
+      });
+    });
+
+    return totalCost;
+  };
+
+  const calculateCompletionPercentage = () => {
+    let evaluatedItems = 0;
+    let totalItems = 0;
+
+    Object.keys(checklistStructure).forEach(sectionKey => {
+      const section = checklistStructure[sectionKey];
+      if (Array.isArray(section)) {
+        totalItems += section.length;
+        evaluatedItems += getEvaluatedCount(sectionKey);
+      }
+    });
+
+    return totalItems > 0 ? Math.round((evaluatedItems / totalItems) * 100) : 0;
+  };
+
   useEffect(() => {
     if (loadedInspection) {
       setVehicleInfo(loadedInspection.vehicle_info || {
@@ -462,7 +507,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
     }
   }, [loadedInspection]);
 
-  // Renderizado condicional
   if (currentView === 'inspections') {
     return (
       <InspectionManager
@@ -474,14 +518,31 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* CORRECCIÓN: Header con navegación funcional */}
       <AppHeader 
         onNavigateToInspections={handleNavigateToInspections}
         currentView={currentView}
       />
 
-      {/* Contenido principal con mejor responsividad */}
-      <div className="pt-16"> {/* Espacio para header fijo */}
+      <div className="pt-16">
+        {/* Mensajes de error */}
+        {error && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+              <AlertCircle className="text-red-500 mr-2 mt-0.5 flex-shrink-0" size={16} />
+              <div className="text-sm text-red-800">
+                <p className="font-medium">Error al guardar</p>
+                <p>{error}</p>
+              </div>
+              <button 
+                onClick={() => setError('')}
+                className="ml-auto text-red-500 hover:text-red-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Botón flotante de guardar en móviles */}
         <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
           <button
@@ -516,7 +577,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
             <div className="lg:col-span-3">
               <div className="space-y-4">
                 
-                {/* Información del vehículo con diseño responsivo */}
+                {/* Información del vehículo */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
                   <div className="flex items-center mb-4">
                     <Car className="text-blue-600 mr-2" size={20} />
@@ -637,7 +698,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                   </div>
                 </div>
 
-                {/* Secciones de Inspección con mejor UX */}
+                {/* Secciones de Inspección */}
                 {Object.keys(checklistStructure).map((sectionKey) => {
                   const section = checklistStructure[sectionKey];
                   const isExpanded = expandedSections[sectionKey];
@@ -675,7 +736,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                         </div>
                       </button>
                       
-                      {/* CORRECCIÓN: Ítems expandidos automáticamente al abrir sección */}
                       {isExpanded && (
                         <div className="border-t border-gray-200 p-4">
                           <div className="space-y-2">
