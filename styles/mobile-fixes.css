@@ -91,8 +91,8 @@
 
   .mobile-input:focus {
     border-color: #3b82f6;
-    ring: 2px;
-    ring-color: rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    outline: none;
   }
 
   /* Header navigation en móviles */
@@ -468,7 +468,7 @@
 .inspection-form-mobile {
   /* Formulario optimizado para móviles */
   padding: 16px;
-  space-y: 16px;
+  margin-top: 16px;
 }
 
 .inspection-form-mobile label {
@@ -540,5 +540,55 @@
   
   .mobile-nav {
     display: none !important;
+  }
+}
+
+/* Estilos para calificación de 10 estrellas */
+.star-rating-10 {
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.star-rating-10 button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+/* Botón de fotos compacto */
+.photo-upload-compact {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  background-color: rgb(219, 234, 254);
+  color: rgb(37, 99, 235);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.photo-upload-compact:hover {
+  background-color: rgb(191, 219, 254);
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .star-rating-10 {
+    gap: 2px;
+  }
+  
+  .star-rating-10 button {
+    min-width: 20px;
+    min-height: 20px;
+  }
+  
+  .photo-upload-compact {
+    width: 28px;
+    height: 28px;
   }
 }

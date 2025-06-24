@@ -1,4 +1,7 @@
-// components/InspectionManager.jsx - VERSIÓN CORREGIDA Y RESPONSIVA
+// 🔧 COMPONENTE CORREGIDO: InspectionManager
+// Archivo: components/InspectionManager.jsx  
+// Corrección: Mejorar carga de inspecciones y botón "Ver detalles"
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
@@ -33,44 +36,137 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // 📥 FUNCIÓN CORREGIDA: Carga de inspecciones mejorada
   const loadInspections = useCallback(async () => {
     if (!user || !session) {
-      console.warn('No user or session available');
+      console.warn('🚫 No hay usuario o sesión disponible');
       setLoading(false);
       return;
     }
     
+    console.log('📥 Cargando inspecciones para usuario:', user.id);
     setLoading(true);
+    
     try {
+      // CORREGIDO: Query mejorada con todos los campos necesarios
       const { data, error } = await supabase
         .from('inspections')
-        .select('*')
+        .select(`
+          id,
+          vehicle_info,
+          inspection_data,
+          photos,
+          total_score,
+          total_repair_cost,
+          completed_items,
+          status,
+          notes,
+          created_at,
+          updated_at,
+          completed_at
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw error;
+        console.error('❌ Error en query de inspecciones:', error);
+        throw new Error(`Error de base de datos: ${error.message}`);
       }
 
-      setInspections(data || []);
+      console.log(`✅ Inspecciones cargadas: ${data?.length || 0}`);
+      
+      // CORREGIDO: Validar y limpiar datos antes de establecer estado
+      const validInspections = (data || []).map(inspection => {
+        // Asegurar que vehicle_info existe y tiene estructura correcta
+        if (!inspection.vehicle_info || typeof inspection.vehicle_info !== 'object') {
+          inspection.vehicle_info = {
+            marca: 'Sin especificar',
+            modelo: 'Sin especificar', 
+            placa: 'Sin especificar',
+            año: '',
+            kilometraje: ''
+          };
+        }
+        
+        // Asegurar que inspection_data existe
+        if (!inspection.inspection_data || typeof inspection.inspection_data !== 'object') {
+          inspection.inspection_data = {};
+        }
+        
+        // Asegurar que photos existe
+        if (!inspection.photos || typeof inspection.photos !== 'object') {
+          inspection.photos = {};
+        }
+        
+        // Asegurar valores numéricos
+        inspection.total_score = Number(inspection.total_score) || 0;
+        inspection.total_repair_cost = Number(inspection.total_repair_cost) || 0;
+        inspection.completed_items = Number(inspection.completed_items) || 0;
+        
+        return inspection;
+      });
+
+      setInspections(validInspections);
+      
+      // Si hay inspecciones, mostrar mensaje de éxito
+      if (validInspections.length > 0) {
+        console.log(`✅ ${validInspections.length} inspecciones cargadas correctamente`);
+      } else {
+        console.log('ℹ️ No se encontraron inspecciones para este usuario');
+      }
+      
     } catch (error) {
-      console.error('Error loading inspections:', error);
-      alert(`Error al cargar inspecciones: ${error.message}`);
+      console.error('💥 Error cargando inspecciones:', error);
+      // CORREGIDO: Mostrar error específico y útil al usuario
+      const errorMessage = error.message || 'Error desconocido al cargar inspecciones';
+      alert(`❌ Error al cargar inspecciones: ${errorMessage}\n\nPor favor, intenta recargar la página.`);
+      setInspections([]); // Establecer array vacío en caso de error
     } finally {
       setLoading(false);
     }
   }, [user, session]);
 
+  // 🔄 Cargar inspecciones al montar el componente
   useEffect(() => {
     loadInspections();
   }, [loadInspections]);
 
-  const deleteInspection = async (id) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta inspección?')) {
-      return;
+  // 🔍 FUNCIÓN CORREGIDA: Ver detalles de inspección
+  const handleViewDetails = useCallback((inspection) => {
+    console.log('🔍 Mostrando detalles para inspección:', inspection.id);
+    setSelectedInspection(inspection);
+    setShowDetails(true);
+  }, []);
+
+  // 📤 FUNCIÓN CORREGIDA: Cargar inspección para editar
+  const handleLoadInspection = (inspection) => {
+    console.log('📤 Cargando inspección para editar:', inspection.id);
+    if (onLoadInspection && typeof onLoadInspection === 'function') {
+      // Validar que los datos estén en el formato correcto
+      const formattedInspection = {
+        ...inspection,
+        // Asegurar que inspection_data está en el formato esperado por InspectionApp
+        details: inspection.inspection_data || {},
+        vehicle_info: inspection.vehicle_info || {}
+      };
+      onLoadInspection(formattedInspection);
     }
+    if (onClose && typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
+  // 🗑️ Función para eliminar inspección
+  const deleteInspection = async (id) => {
+    const confirmDelete = window.confirm(
+      '¿Estás seguro de que quieres eliminar esta inspección?\n\nEsta acción no se puede deshacer.'
+    );
+    
+    if (!confirmDelete) return;
 
     try {
+      console.log('🗑️ Eliminando inspección:', id);
+      
       const { error } = await supabase
         .from('inspections')
         .delete()
@@ -90,15 +186,18 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
         setSelectedInspection(null);
       }
 
-      alert('Inspección eliminada exitosamente');
+      console.log('✅ Inspección eliminada exitosamente');
+      alert('✅ Inspección eliminada exitosamente');
     } catch (error) {
-      console.error('Error deleting inspection:', error);
-      alert(`Error al eliminar inspección: ${error.message}`);
+      console.error('❌ Error eliminando inspección:', error);
+      alert(`❌ Error al eliminar inspección: ${error.message}`);
     }
   };
 
+  // 📊 Función para generar reporte PDF
   const downloadReport = async (inspection) => {
     try {
+      console.log('📊 Generando reporte PDF para:', inspection.id);
       await generatePDFReport(
         inspection.inspection_data || {},
         inspection.vehicle_info || {},
@@ -108,65 +207,14 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
           email: user?.email
         }
       );
+      console.log('✅ Reporte PDF generado exitosamente');
     } catch (error) {
-      console.error('Error generating report:', error);
-      alert('Error al generar el reporte');
+      console.error('❌ Error generando reporte:', error);
+      alert('❌ Error al generar el reporte PDF');
     }
   };
 
-  const getConditionText = (score) => {
-    if (score >= 8) return { text: 'Excelente', color: 'bg-green-100 text-green-800' };
-    if (score >= 6) return { text: 'Bueno', color: 'bg-blue-100 text-blue-800' };
-    if (score >= 4) return { text: 'Regular', color: 'bg-yellow-100 text-yellow-800' };
-    if (score > 0) return { text: 'Malo', color: 'bg-red-100 text-red-800' };
-    return { text: 'Sin evaluar', color: 'bg-gray-100 text-gray-800' };
-  };
-
-  const filteredInspections = inspections.filter(inspection => {
-    const searchLower = searchTerm.toLowerCase();
-    const vehicleInfo = inspection.vehicle_info || {};
-    
-    const matchesSearch = !searchTerm || 
-      (vehicleInfo.marca && vehicleInfo.marca.toLowerCase().includes(searchLower)) ||
-      (vehicleInfo.modelo && vehicleInfo.modelo.toLowerCase().includes(searchLower)) ||
-      (vehicleInfo.año && vehicleInfo.año.toString().includes(searchLower)) ||
-      (vehicleInfo.placa && vehicleInfo.placa.toLowerCase().includes(searchLower));
-
-    const matchesFilter = filterBy === 'all' || 
-      (filterBy === 'excellent' && inspection.total_score >= 8) ||
-      (filterBy === 'good' && inspection.total_score >= 6 && inspection.total_score < 8) ||
-      (filterBy === 'regular' && inspection.total_score >= 4 && inspection.total_score < 6) ||
-      (filterBy === 'poor' && inspection.total_score > 0 && inspection.total_score < 4);
-
-    return matchesSearch && matchesFilter;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case 'date_desc':
-        return new Date(b.created_at) - new Date(a.created_at);
-      case 'date_asc':
-        return new Date(a.created_at) - new Date(b.created_at);
-      case 'score_desc':
-        return (b.total_score || 0) - (a.total_score || 0);
-      case 'score_asc':
-        return (a.total_score || 0) - (b.total_score || 0);
-      case 'make_asc':
-        const makeA = a.vehicle_info?.marca || '';
-        const makeB = b.vehicle_info?.marca || '';
-        return makeA.localeCompare(makeB);
-      default:
-        return 0;
-    }
-  });
-
-  const handleLoadInspection = (inspection) => {
-    if (onLoadInspection) {
-      onLoadInspection(inspection);
-    }
-    if (onClose) {
-      onClose();
-    }
-  };
-
+  // 🔄 Función para cerrar modal de detalles
   const handleClose = () => {
     setShowDetails(false);
     setSelectedInspection(null);
@@ -174,6 +222,59 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
       onClose();
     }
   };
+
+  // 🎨 Función para obtener texto de condición
+  const getConditionText = (score) => {
+    if (score >= 8) return { text: 'Excelente', color: 'bg-green-100 text-green-800' };
+    if (score >= 6) return { text: 'Bueno', color: 'bg-blue-100 text-blue-800' };
+    if (score >= 4) return { text: 'Regular', color: 'bg-yellow-100 text-yellow-800' };
+    return { text: 'Malo', color: 'bg-red-100 text-red-800' };
+  };
+
+  // 🔍 Filtrar y ordenar inspecciones
+  const filteredInspections = inspections
+    .filter(inspection => {
+      const matchesSearch = searchTerm === '' || 
+        inspection.vehicle_info?.marca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inspection.vehicle_info?.modelo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inspection.vehicle_info?.placa?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesFilter = filterBy === 'all' || inspection.status === filterBy;
+      
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'date_desc':
+          return new Date(b.created_at) - new Date(a.created_at);
+        case 'date_asc':
+          return new Date(a.created_at) - new Date(b.created_at);
+        case 'score_desc':
+          return (b.total_score || 0) - (a.total_score || 0);
+        case 'score_asc':
+          return (a.total_score || 0) - (b.total_score || 0);
+        case 'make_asc':
+          const makeA = a.vehicle_info?.marca || '';
+          const makeB = b.vehicle_info?.marca || '';
+          return makeA.localeCompare(makeB);
+        default:
+          return 0;
+      }
+    });
+
+  // 🎨 RENDERIZADO DEL COMPONENTE
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="flex items-center justify-center space-x-3">
+            <Loader className="animate-spin text-blue-600" size={24} />
+            <span className="text-lg font-medium">Cargando inspecciones...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Modal de detalles de inspección
   if (showDetails && selectedInspection) {
@@ -196,106 +297,71 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
             {/* Información del Vehículo */}
             <div>
               <h4 className="text-base sm:text-lg font-semibold mb-4 flex items-center">
-                <Car className="h-5 w-5 mr-2" />
+                <Car className="mr-2" size={20} />
                 Información del Vehículo
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <span className="text-sm text-gray-600">Marca:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.marca || 'N/A'}</p>
+                  <label className="text-sm font-medium text-gray-500">Marca</label>
+                  <p className="text-sm font-semibold">{selectedInspection.vehicle_info?.marca || 'N/A'}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Modelo:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.modelo || 'N/A'}</p>
+                  <label className="text-sm font-medium text-gray-500">Modelo</label>
+                  <p className="text-sm font-semibold">{selectedInspection.vehicle_info?.modelo || 'N/A'}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Año:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.año || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Placa:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.placa || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Kilometraje:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.kilometraje || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Precio:</span>
-                  <p className="font-medium">${selectedInspection.vehicle_info?.precio ? 
-                    parseFloat(selectedInspection.vehicle_info.precio).toLocaleString('es-CO') : 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Vendedor:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.vendedor || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Teléfono:</span>
-                  <p className="font-medium">{selectedInspection.vehicle_info?.telefono || 'N/A'}</p>
+                  <label className="text-sm font-medium text-gray-500">Placa</label>
+                  <p className="text-sm font-semibold">{selectedInspection.vehicle_info?.placa || 'N/A'}</p>
                 </div>
               </div>
             </div>
 
             {/* Resumen de Inspección */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-600">Puntuación Total</p>
-                    <p className="text-xl sm:text-2xl font-bold text-blue-900">
-                      {selectedInspection.total_score?.toFixed(1) || '0.0'}
-                    </p>
-                  </div>
-                  <Star className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <div>
+              <h4 className="text-base sm:text-lg font-semibold mb-4 flex items-center">
+                <FileText className="mr-2" size={20} />
+                Resumen de Inspección
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <Star className="mx-auto mb-2 text-yellow-500" size={24} />
+                  <p className="text-sm text-gray-600">Puntuación Total</p>
+                  <p className="text-lg font-bold">{selectedInspection.total_score || 0}/10</p>
                 </div>
-              </div>
-
-              <div className="bg-red-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-red-600">Costo de Reparación</p>
-                    <p className="text-xl sm:text-2xl font-bold text-red-900">
-                      ${selectedInspection.total_repair_cost?.toFixed(2) || '0.00'}
-                    </p>
-                  </div>
-                  <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <DollarSign className="mx-auto mb-2 text-green-600" size={24} />
+                  <p className="text-sm text-gray-600">Costo Reparaciones</p>
+                  <p className="text-lg font-bold">${(selectedInspection.total_repair_cost || 0).toLocaleString()}</p>
                 </div>
-              </div>
-
-              <div className="bg-green-50 p-4 rounded-lg sm:col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-green-600">Items Evaluados</p>
-                    <p className="text-xl sm:text-2xl font-bold text-green-900">
-                      {selectedInspection.completed_items || 0}
-                    </p>
-                  </div>
-                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <FileText className="mx-auto mb-2 text-blue-600" size={24} />
+                  <p className="text-sm text-gray-600">Ítems Evaluados</p>
+                  <p className="text-lg font-bold">{selectedInspection.completed_items || 0}</p>
                 </div>
               </div>
             </div>
 
-            {/* Botones de Acción */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Acciones */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
               <button
                 onClick={() => handleLoadInspection(selectedInspection)}
-                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 flex items-center justify-center transition-colors"
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
               >
-                <Eye className="h-4 w-4 mr-2" />
-                Abrir Inspección
+                <Eye className="mr-2" size={16} />
+                Editar Inspección
               </button>
               <button
                 onClick={() => downloadReport(selectedInspection)}
-                className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 flex items-center justify-center transition-colors"
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Descargar Reporte
+                <Download className="mr-2" size={16} />
+                Descargar PDF
               </button>
               <button
                 onClick={() => deleteInspection(selectedInspection.id)}
-                className="flex-1 sm:flex-none bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 flex items-center justify-center transition-colors"
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="mr-2" size={16} />
                 Eliminar
               </button>
             </div>
@@ -305,208 +371,151 @@ const InspectionManager = ({ onClose, onLoadInspection }) => {
     );
   }
 
-  // Vista principal del gestor
+  // Vista principal del gestor de inspecciones
   return (
-    <div className="min-h-screen bg-gray-50 lg:p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-none lg:rounded-lg shadow-sm border-0 lg:border border-gray-200 min-h-screen lg:min-h-0">
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center">
+    <div className="fixed inset-0 bg-white z-40 overflow-y-auto">
+      <div className="min-h-full">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
               <button
                 onClick={handleClose}
-                className="mr-3 text-gray-500 hover:text-gray-700 p-1 lg:hidden"
+                className="text-gray-500 hover:text-gray-700"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft size={24} />
               </button>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Mis Inspecciones ({filteredInspections.length})
-              </h3>
+              </h1>
             </div>
-            
             <button
-              onClick={() => handleClose()}
-              className="hidden lg:flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              onClick={loadInspections}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
+              <Plus className="mr-2" size={16} />
+              Recargar
             </button>
           </div>
+        </div>
 
-          {/* Filtros y Búsqueda */}
-          <div className="p-4 sm:p-6 border-b space-y-4">
+        {/* Controles de búsqueda y filtros */}
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* Búsqueda */}
-            <div className="relative">
-              <Search className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Buscar por marca, modelo, año o placa..."
+                placeholder="Buscar por marca, modelo o placa..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
             {/* Filtros */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <span className="flex items-center">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filtros y Ordenamiento
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                </button>
+            <div className="flex gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="date_desc">Más recientes</option>
+                <option value="date_asc">Más antiguos</option>
+                <option value="score_desc">Mayor puntuación</option>
+                <option value="score_asc">Menor puntuación</option>
+                <option value="make_asc">Por marca</option>
+              </select>
 
-                <div className={`${showFilters ? 'block' : 'hidden'} lg:flex gap-4 mt-4 lg:mt-0`}>
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value)}
-                    className="w-full lg:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  >
-                    <option value="all">Todos los estados</option>
-                    <option value="excellent">Excelente (8-10)</option>
-                    <option value="good">Bueno (6-7)</option>
-                    <option value="regular">Regular (4-5)</option>
-                    <option value="poor">Malo (1-3)</option>
-                  </select>
-
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full lg:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm mt-2 lg:mt-0"
-                  >
-                    <option value="date_desc">Más recientes</option>
-                    <option value="date_asc">Más antiguos</option>
-                    <option value="score_desc">Mayor puntuación</option>
-                    <option value="score_asc">Menor puntuación</option>
-                    <option value="make_asc">Por marca (A-Z)</option>
-                  </select>
-                </div>
-              </div>
+              <select
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todas</option>
+                <option value="completed">Completadas</option>
+                <option value="draft">Borradores</option>
+                <option value="in_progress">En progreso</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader className="h-8 w-8 animate-spin text-blue-600 mr-3" />
-              <span className="text-gray-600">Cargando inspecciones...</span>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && inspections.length === 0 && (
-            <div className="text-center py-12 px-4">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
-                No hay inspecciones
-              </h4>
-              <p className="text-gray-600 mb-6">
-                Aún no has creado ninguna inspección.
-              </p>
-              <button
-                onClick={handleClose}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Crear Primera Inspección
-              </button>
-            </div>
-          )}
-
-          {/* No Results */}
-          {!loading && inspections.length > 0 && filteredInspections.length === 0 && (
-            <div className="text-center py-12 px-4">
-              <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
-                No se encontraron resultados
-              </h4>
-              <p className="text-gray-600">
-                Intenta con otros términos de búsqueda o filtros diferentes.
+        {/* Lista de inspecciones */}
+        <div className="p-4 sm:p-6">
+          {filteredInspections.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="mx-auto text-gray-400 mb-4" size={48} />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm || filterBy !== 'all' ? 'No se encontraron inspecciones' : 'No tienes inspecciones aún'}
+              </h3>
+              <p className="text-gray-500">
+                {searchTerm || filterBy !== 'all' 
+                  ? 'Intenta cambiar los filtros de búsqueda' 
+                  : 'Crea tu primera inspección para comenzar'
+                }
               </p>
             </div>
-          )}
-
-          {/* Lista de Inspecciones */}
-          {!loading && filteredInspections.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 p-4 sm:p-6">
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredInspections.map((inspection) => {
                 const condition = getConditionText(inspection.total_score || 0);
-                const vehicleInfo = inspection.vehicle_info || {};
-                
                 return (
-                  <div
-                    key={inspection.id}
-                    className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-all cursor-pointer bg-white"
-                    onClick={() => {
-                      setSelectedInspection(inspection);
-                      setShowDetails(true);
-                    }}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-gray-900 truncate">
-                          {vehicleInfo.marca} {vehicleInfo.modelo}
-                        </h4>
-                        <p className="text-sm text-gray-600 truncate">
-                          {vehicleInfo.año} • {vehicleInfo.placa}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${condition.color}`}>
-                        {condition.text}
-                      </span>
+                  <div key={inspection.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    {/* Información del vehículo */}
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                        {inspection.vehicle_info?.marca} {inspection.vehicle_info?.modelo}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Placa: {inspection.vehicle_info?.placa}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(inspection.created_at).toLocaleDateString('es-ES')}
+                      </p>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span>{new Date(inspection.created_at).toLocaleDateString('es-CO')}</span>
+                    {/* Métricas */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Puntuación:</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${condition.color}`}>
+                          {inspection.total_score || 0}/10 - {condition.text}
+                        </span>
                       </div>
-                      <div className="flex items-center">
-                        <Star className="h-4 w-4 mr-1" />
-                        <span>{inspection.total_score?.toFixed(1) || '0.0'}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Costo reparaciones:</span>
+                        <span className="text-sm font-medium">${(inspection.total_repair_cost || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Ítems evaluados:</span>
+                        <span className="text-sm font-medium">{inspection.completed_items || 0}</span>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">
-                        {inspection.completed_items || 0} items evaluados
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLoadInspection(inspection);
-                          }}
-                          className="text-blue-600 hover:text-blue-700 p-1"
-                          title="Abrir inspección"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadReport(inspection);
-                          }}
-                          className="text-green-600 hover:text-green-700 p-1"
-                          title="Descargar reporte"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteInspection(inspection.id);
-                          }}
-                          className="text-red-600 hover:text-red-700 p-1"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                    {/* Acciones */}
+                    <div className="flex gap-2">
+                      {/* CORREGIDO: Botón "Ver detalles" funcional */}
+                      <button
+                        onClick={() => handleViewDetails(inspection)}
+                        className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm"
+                      >
+                        <Eye className="mr-1" size={14} />
+                        Ver detalles
+                      </button>
+                      <button
+                        onClick={() => downloadReport(inspection)}
+                        className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteInspection(inspection.id)}
+                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 );

@@ -125,7 +125,7 @@ const StarRating = ({ score, onScoreChange, compact = false, readonly = false })
   const starSize = compact ? 16 : 20;
   
   const getStarColor = (starIndex) => {
-    const filled = starIndex < Math.ceil(score / 2);
+    const filled = starIndex < score;
     
     if (readonly) {
       return filled ? 'text-yellow-400 fill-current' : 'text-gray-300';
@@ -135,13 +135,14 @@ const StarRating = ({ score, onScoreChange, compact = false, readonly = false })
   };
 
   return (
-    <div className="flex items-center">
-      {[0, 1, 2, 3, 4].map((starIndex) => (
+    <div className="flex items-center flex-wrap gap-1">
+      {/* CAMBIO PRINCIPAL: [0,1,2,3,4] por [0,1,2,3,4,5,6,7,8,9] */}
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((starIndex) => (
         <button
           key={starIndex}
           type="button"
           disabled={readonly}
-          onClick={() => !readonly && onScoreChange((starIndex + 1) * 2)}
+          onClick={() => !readonly && onScoreChange(starIndex + 1)}
           className={`transition-all duration-200 ${
             readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110 active:scale-95'
           }`}
@@ -840,13 +841,31 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                                         className="hidden"
                                         id={`upload-${itemKey}`}
                                       />
-                                      <label
-                                        htmlFor={`upload-${itemKey}`}
-                                        className="w-full flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
-                                      >
-                                        <Camera size={16} className="mr-2" />
-                                        Agregar Foto
-                                      </label>
+                                      <div className="flex items-center justify-between">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                          Fotos ({itemData.images?.length || 0})
+                                        </label>
+                                        
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                              handleImageUpload(categoryKey, item.name, e.target.files[0]);
+                                            }
+                                          }}
+                                          className="hidden"
+                                          id={`upload-${itemKey}`}
+                                        />
+                                        
+                                        <label
+                                          htmlFor={`upload-${itemKey}`}
+                                          className="w-8 h-8 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg cursor-pointer transition-colors shadow-sm"
+                                          title="Agregar foto"
+                                        >
+                                          <Camera size={16} />
+                                        </label>
+                                      </div>
                                     </div>
                                   </div>
 
