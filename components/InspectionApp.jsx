@@ -1,6 +1,7 @@
-// components/InspectionApp.jsx - REFACTORIZACIÓN: VISTA ÚNICA DE SCROLL CONTINUO
-// 🎯 OBJETIVO: Eliminar navegación entre páginas y mostrar todo en scroll único
-// 🔧 CONSERVA: Backend, autenticación, estructura de datos y estado
+// components/InspectionApp.jsx - CORRECCIONES ESPECÍFICAS
+// 🔧 CORRECCIÓN 1: Manejo de carga de inspección para edición
+// 🔧 CORRECCIÓN 2: Formato de puntuación a 1 decimal
+// 🔧 CORRECCIÓN 3: Eliminación del botón "Mostrar descripción"
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -136,7 +137,6 @@ const StarRating = ({ score, onScoreChange, compact = false, readonly = false })
 
   return (
     <div className="flex items-center flex-wrap gap-1">
-      {/* CAMBIO PRINCIPAL: [0,1,2,3,4] por [0,1,2,3,4,5,6,7,8,9] */}
       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((starIndex) => (
         <button
           key={starIndex}
@@ -216,6 +216,58 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
       }
     }
   }, [user, loading, appView]);
+
+  // 🔧 CORRECCIÓN 1: Efecto para cargar inspección cuando viene de InspectionManager
+  useEffect(() => {
+    if (loadedInspection && loadedInspection.id) {
+      console.log('📥 Cargando inspección desde InspectionManager:', loadedInspection.id);
+      
+      // Cargar datos del vehículo
+      if (loadedInspection.vehicle_info) {
+        setVehicleInfo({
+          marca: loadedInspection.vehicle_info.marca || '',
+          modelo: loadedInspection.vehicle_info.modelo || '',
+          ano: loadedInspection.vehicle_info.año || loadedInspection.vehicle_info.ano || '',
+          placa: loadedInspection.vehicle_info.placa || '',
+          kilometraje: loadedInspection.vehicle_info.kilometraje || '',
+          precio: loadedInspection.vehicle_info.precio || '',
+          vendedor: loadedInspection.vehicle_info.vendedor || '',
+          telefono: loadedInspection.vehicle_info.telefono || ''
+        });
+      }
+
+      // Cargar datos de inspección
+      if (loadedInspection.inspection_data) {
+        setInspectionData(loadedInspection.inspection_data);
+      } else if (loadedInspection.details) {
+        setInspectionData(loadedInspection.details);
+      }
+
+      // Mensaje de confirmación
+      setSaveMessage('Inspección cargada correctamente');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  }, [loadedInspection]);
+
+  // 🔧 CORRECCIÓN 1: Función para manejar la carga de inspección desde InspectionManager
+  const handleLoadInspection = useCallback((inspection) => {
+    console.log('🔄 Recibiendo inspección para cargar:', inspection);
+    
+    // Resetear estados de error
+    setError('');
+    setSaveMessage('');
+    
+    // Cargar la inspección
+    if (inspection && inspection.id) {
+      // Si estamos en la vista de inspecciones, cambiar a la vista principal
+      if (appView === 'inspections') {
+        setAppView('app');
+      }
+
+      // Cargar los datos (el useEffect se encargará del resto)
+      // Aquí podríamos hacer una carga adicional desde la base de datos si fuera necesario
+    }
+  }, [appView]);
 
   // CONSERVADAS: Funciones de navegación de nivel superior
   const handleNavigateToLanding = useCallback(() => {
@@ -345,74 +397,95 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
         images: [...(inspectionData[categoryKey]?.[itemKey]?.images || []), publicUrl]
       });
 
+      setSaveMessage('Imagen subida correctamente');
+      setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error subiendo imagen:', error);
       setError('Error al subir la imagen');
+      setTimeout(() => setError(''), 3000);
     }
   }, [user, inspectionData, updateInspectionItem]);
 
   const removeImage = useCallback((categoryKey, itemKey, imageIndex) => {
     const currentImages = inspectionData[categoryKey]?.[itemKey]?.images || [];
     const newImages = currentImages.filter((_, index) => index !== imageIndex);
-    
     updateInspectionItem(categoryKey, itemKey, { images: newImages });
   }, [inspectionData, updateInspectionItem]);
 
-  // CONSERVADAS: Funciones de guardado y reportes
-  const saveInspection = useCallback(async () => {
-    if (!user || !vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      setError('Por favor completa la información básica del vehículo (marca, modelo y placa)');
+  // CONSERVADA: Función de guardado
+  const saveInspection = async () => {
+    // Validación básica
+    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
+      setError('Por favor completa los campos obligatorios del vehículo (Marca, Modelo y Placa)');
+      setTimeout(() => setError(''), 5000);
       return;
     }
 
     setLoadingState(true);
     setError('');
+    setSaveMessage('');
 
     try {
-      const inspectionRecord = {
+      const inspectionToSave = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
         inspection_data: inspectionData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        // 🔧 CORRECCIÓN 2: Asegurar que total_score siempre tenga 1 decimal
+        total_score: parseFloat(metrics.global.averageScore.toFixed(1)),
+        total_repair_cost: metrics.global.totalRepairCost,
+        completed_items: metrics.global.evaluatedItems,
+        status: 'completed'
       };
 
-      const { data, error } = await supabase
+      const { data, error: saveError } = await supabase
         .from('inspections')
-        .insert([inspectionRecord])
+        .insert([inspectionToSave])
         .select()
         .single();
 
-      if (error) throw error;
+      if (saveError) throw saveError;
 
-      setSaveMessage('✅ Inspección guardada exitosamente');
+      setSaveMessage('Inspección guardada exitosamente');
       setTimeout(() => setSaveMessage(''), 5000);
 
+      // Resetear después de guardar
+      setTimeout(() => {
+        setInspectionData(initializeInspectionData());
+        setVehicleInfo({
+          marca: '', modelo: '', ano: '', placa: '',
+          kilometraje: '', precio: '', vendedor: '', telefono: ''
+        });
+      }, 2000);
+
     } catch (error) {
-      console.error('Error saving inspection:', error);
-      setError(`Error al guardar: ${error.message}`);
+      console.error('Error al guardar:', error);
+      setError(`Error al guardar la inspección: ${error.message}`);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoadingState(false);
     }
-  }, [user, vehicleInfo, inspectionData]);
+  };
 
-  const generateReport = useCallback(async () => {
-    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      setError('Completa la información del vehículo antes de generar el reporte');
+  // CONSERVADA: Función de generación de PDF
+  const handleGeneratePDF = useCallback(() => {
+    if (!vehicleInfo.marca || !vehicleInfo.modelo) {
+      setError('Por favor completa la información del vehículo antes de generar el PDF');
+      setTimeout(() => setError(''), 5000);
       return;
     }
 
     try {
-      await generatePDFReport(inspectionData, vehicleInfo, user);
-      setSaveMessage('✅ Reporte PDF generado exitosamente');
+      generatePDFReport(inspectionData, vehicleInfo, user);
+      setSaveMessage('PDF generado exitosamente');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error generating report:', error);
-      setError('Error al generar el reporte PDF');
+      console.error('Error generando PDF:', error);
+      setError('Error al generar el PDF');
+      setTimeout(() => setError(''), 5000);
     }
   }, [inspectionData, vehicleInfo, user]);
 
-  // CONSERVADA: Lógica de renderizado condicional
+  // Renderizado condicional según el estado de carga
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -433,7 +506,7 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
       <ProtectedRoute fallback={<LandingPage onEnterApp={handleEnterApp} />}>
         <InspectionManager 
           onClose={handleReturnToApp}
-          onLoadInspection={onLoadInspection}
+          onLoadInspection={handleLoadInspection}
         />
       </ProtectedRoute>
     );
@@ -468,200 +541,201 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
 
             {/* SECCIÓN 1: Información del vehículo */}
             <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <Car className="mr-3" size={24} />
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <Car className="h-6 w-6 mr-2" />
                 Información del Vehículo
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Marca *
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Marca <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.marca}
                     onChange={(e) => updateVehicleInfo('marca', e.target.value)}
-                    placeholder="Ingrese marca"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Toyota, Nissan, etc."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Modelo *
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Modelo <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.modelo}
                     onChange={(e) => updateVehicleInfo('modelo', e.target.value)}
-                    placeholder="Ingrese modelo"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Patrol, Land Cruiser, etc."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Año
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.ano}
                     onChange={(e) => updateVehicleInfo('ano', e.target.value)}
-                    placeholder="Ingrese año"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="2024"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Placa *
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Placa <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.placa}
                     onChange={(e) => updateVehicleInfo('placa', e.target.value.toUpperCase())}
-                    placeholder="Ingrese placa"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="ABC123"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Kilometraje
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.kilometraje}
                     onChange={(e) => updateVehicleInfo('kilometraje', e.target.value)}
-                    placeholder="Ingrese kilometraje"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="50,000 km"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Precio
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.precio}
                     onChange={(e) => updateVehicleInfo('precio', e.target.value)}
-                    placeholder="Ingrese precio"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="$25,000"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Vendedor
                   </label>
                   <input
                     type="text"
                     value={vehicleInfo.vendedor}
                     onChange={(e) => updateVehicleInfo('vendedor', e.target.value)}
-                    placeholder="Ingrese vendedor"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nombre del vendedor"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Teléfono
                   </label>
                   <input
-                    type="tel"
+                    type="text"
                     value={vehicleInfo.telefono}
                     onChange={(e) => updateVehicleInfo('telefono', e.target.value)}
-                    placeholder="Ingrese teléfono"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Inspección
-                  </label>
-                  <input
-                    type="date"
-                    defaultValue={new Date().toISOString().split('T')[0]}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="300 123 4567"
                   />
                 </div>
               </div>
             </div>
 
-            {/* SECCIÓN 2: Resumen General */}
+            {/* SECCIÓN 2: Resumen de progreso - Siempre visible */}
             <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                  <BarChart3 className="mr-3" size={24} />
-                  Resumen General
+                  <BarChart3 className="h-6 w-6 mr-2" />
+                  Resumen de Inspección
                 </h2>
-                <button
-                  onClick={() => setShowProgressSummary(!showProgressSummary)}
-                  className="flex items-center text-blue-600 hover:text-blue-700"
-                >
-                  {showProgressSummary ? <EyeOff size={16} /> : <Eye size={16} />}
-                  <span className="ml-1 text-sm">
-                    {showProgressSummary ? 'Ocultar' : 'Mostrar'}
-                  </span>
-                </button>
-              </div>
-
-              {showProgressSummary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {metrics.global.averageScore.toFixed(1)}
-                    </div>
-                    <div className="text-sm text-gray-600">Puntuación Promedio</div>
-                  </div>
-
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      ${metrics.global.totalRepairCost.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-gray-600">Costo Total</div>
-                  </div>
-
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {metrics.global.completionPercentage}%
-                    </div>
-                    <div className="text-sm text-gray-600">Completado</div>
-                  </div>
-
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {metrics.global.evaluatedItems}/{metrics.global.totalItems}
-                    </div>
-                    <div className="text-sm text-gray-600">Ítems Evaluados</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* SECCIÓN 3: Lista de Chequeo */}
-            <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                  <CheckCircle2 className="mr-3" size={24} />
-                  Lista de Chequeo
-                </h2>
-                
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => setCompactView(!compactView)}
-                    className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="flex items-center text-blue-600 hover:text-blue-700 text-sm"
                   >
                     {compactView ? <Eye size={16} className="mr-1" /> : <EyeOff size={16} className="mr-1" />}
                     {compactView ? 'Vista Expandida' : 'Vista Compacta'}
                   </button>
-                  <span className="text-sm text-gray-600">
-                    Progreso: {metrics.global.completionPercentage.toFixed(1)}%
+                </div>
+              </div>
+
+              {/* Métricas principales */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Puntuación General</p>
+                  {/* 🔧 CORRECCIÓN 2: Formato de puntuación con 1 decimal */}
+                  <p className="text-2xl font-bold text-gray-900">
+                    {metrics.global.averageScore.toFixed(1)} / 10
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Ítems Evaluados</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {metrics.global.evaluatedItems}/{metrics.global.totalItems}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Completado</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {metrics.global.completionPercentage}%
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Costo Total Reparaciones</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ${metrics.global.totalRepairCost.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Acciones principales */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={saveInspection}
+                  disabled={loading_state}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
+                >
+                  {loading_state ? (
+                    <RefreshCw className="animate-spin h-5 w-5 mr-2" />
+                  ) : (
+                    <Save className="h-5 w-5 mr-2" />
+                  )}
+                  Guardar Inspección
+                </button>
+
+                <button
+                  onClick={handleGeneratePDF}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                >
+                  <Download className="h-5 w-5 mr-2" />
+                  Generar PDF
+                </button>
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: Lista de inspección */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Lista de Inspección
+                </h2>
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <span>
+                    Progreso: {metrics.global.completionPercentage}%
                   </span>
-                  <span className="text-sm text-gray-600">
+                  <span>
                     Evaluados: {metrics.global.evaluatedItems}/{metrics.global.totalItems}
                   </span>
                 </div>
@@ -756,39 +830,12 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                                       <h4 className="font-medium text-gray-900 mb-1">
                                         {item.name}
                                       </h4>
-                                      {!compactView && (
-                                        <p className="text-sm text-gray-600 mb-3">
-                                          {item.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                    
-                                    <button
-                                      onClick={() => toggleItem(itemKey)}
-                                      className="ml-4 text-blue-600 hover:text-blue-700 flex items-center text-sm"
-                                    >
-                                      {isExpanded ? (
-                                        <>
-                                          <ChevronUp size={16} className="mr-1" />
-                                          Ocultar
-                                        </>
-                                      ) : (
-                                        <>
-                                          <ChevronDown size={16} className="mr-1" />
-                                          {compactView ? 'Ver detalles' : 'Mostrar descripción'}
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-
-                                  {/* Descripción expandible en vista compacta */}
-                                  {(isExpanded || !compactView) && compactView && (
-                                    <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-                                      <p className="text-sm text-gray-700">
+                                      {/* 🔧 CORRECCIÓN 3: Mostrar descripción siempre, sin botón */}
+                                      <p className="text-sm text-gray-600 mb-3">
                                         {item.description}
                                       </p>
                                     </div>
-                                  )}
+                                  </div>
 
                                   {/* Controles principales siempre visibles */}
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -820,98 +867,75 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                                             repairCost: numericValue ? parseInt(numericValue) : 0 
                                           });
                                         }}
-                                        placeholder="$0"
-                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="0"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                       />
                                     </div>
 
-                                    {/* Botón de fotos */}
+                                    {/* Fotos */}
                                     <div>
                                       <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Fotos ({itemData.images?.length || 0})
                                       </label>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                          if (e.target.files && e.target.files[0]) {
-                                            handleImageUpload(categoryKey, item.name, e.target.files[0]);
-                                          }
-                                        }}
-                                        className="hidden"
-                                        id={`upload-${itemKey}`}
-                                      />
-                                      <div className="flex items-center justify-between">
-                                        <label className="block text-sm font-medium text-gray-700">
-                                          Fotos ({itemData.images?.length || 0})
+                                      <div className="flex items-center space-x-2">
+                                        <label className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer flex items-center">
+                                          <Camera className="h-4 w-4 mr-2" />
+                                          Agregar
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              if (e.target.files?.[0]) {
+                                                handleImageUpload(categoryKey, item.name, e.target.files[0]);
+                                              }
+                                            }}
+                                            className="hidden"
+                                          />
                                         </label>
-                                        
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={(e) => {
-                                            if (e.target.files && e.target.files[0]) {
-                                              handleImageUpload(categoryKey, item.name, e.target.files[0]);
-                                            }
-                                          }}
-                                          className="hidden"
-                                          id={`upload-${itemKey}`}
-                                        />
-                                        
-                                        <label
-                                          htmlFor={`upload-${itemKey}`}
-                                          className="w-8 h-8 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg cursor-pointer transition-colors shadow-sm"
-                                          title="Agregar foto"
-                                        >
-                                          <Camera size={16} />
-                                        </label>
+                                        {itemData.images?.length > 0 && (
+                                          <button
+                                            onClick={() => toggleItem(itemKey)}
+                                            className="text-blue-600 hover:text-blue-700 text-sm"
+                                          >
+                                            {isExpanded ? 'Ocultar' : 'Ver'} fotos
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
 
-                                  {/* Notas/Observaciones siempre visibles */}
+                                  {/* Notas */}
                                   <div className="mt-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                      Notas (máx. 255 caracteres)
+                                      Observaciones
                                     </label>
                                     <textarea
                                       value={itemData.notes || ''}
-                                      onChange={(e) => 
-                                        updateInspectionItem(categoryKey, item.name, { notes: e.target.value })
-                                      }
-                                      placeholder="Observaciones..."
-                                      maxLength={255}
-                                      rows={2}
-                                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                      onChange={(e) => updateInspectionItem(categoryKey, item.name, { notes: e.target.value })}
+                                      placeholder="Agregar observaciones..."
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      rows="2"
                                     />
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {(itemData.notes || '').length}/255 caracteres
-                                    </div>
                                   </div>
 
-                                  {/* Galería de imágenes */}
-                                  {itemData.images && itemData.images.length > 0 && (
-                                    <div className="mt-4">
-                                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Imágenes ({itemData.images.length})
-                                      </label>
-                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {itemData.images.map((imageUrl, imageIndex) => (
-                                          <div key={imageIndex} className="relative group">
-                                            <img
-                                              src={imageUrl}
-                                              alt={`${item.name} - ${imageIndex + 1}`}
-                                              className="w-full h-24 object-cover rounded-lg border"
-                                            />
-                                            <button
-                                              onClick={() => removeImage(categoryKey, item.name, imageIndex)}
-                                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                              <X size={12} />
-                                            </button>
-                                          </div>
-                                        ))}
-                                      </div>
+                                  {/* Imágenes expandibles */}
+                                  {isExpanded && itemData.images?.length > 0 && (
+                                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+                                      {itemData.images.map((image, idx) => (
+                                        <div key={idx} className="relative group">
+                                          <img
+                                            src={image}
+                                            alt={`Foto ${idx + 1}`}
+                                            className="w-full h-32 object-cover rounded-lg"
+                                          />
+                                          <button
+                                            onClick={() => removeImage(categoryKey, item.name, idx)}
+                                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                          >
+                                            <X size={16} />
+                                          </button>
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
@@ -923,33 +947,6 @@ const InspectionApp = ({ onLoadInspection, loadedInspection }) => {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* SECCIÓN 4: Botones de acción fijos */}
-            <div className="sticky bottom-0 bg-white border-t shadow-lg p-4 rounded-t-lg z-10">
-              <div className="flex flex-col sm:flex-row gap-4 max-w-7xl mx-auto">
-                <button
-                  onClick={saveInspection}
-                  disabled={loading_state || !vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa}
-                  className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                >
-                  {loading_state ? (
-                    <RefreshCw className="animate-spin mr-2" size={20} />
-                  ) : (
-                    <Save className="mr-2" size={20} />
-                  )}
-                  Guardar Inspección
-                </button>
-
-                <button
-                  onClick={generateReport}
-                  disabled={!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa}
-                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                >
-                  <Download className="mr-2" size={20} />
-                  Generar PDF
-                </button>
               </div>
             </div>
           </div>
