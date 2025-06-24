@@ -229,7 +229,7 @@ const AppHeader = ({
                   <span className="text-white font-bold text-sm">IV</span>
                 </div>
                 <h1 className="text-xl font-bold text-gray-900 hidden sm:block">
-                  Inspección Vehicular
+                  InspecciónPro 4x4
                 </h1>
               </div>
 

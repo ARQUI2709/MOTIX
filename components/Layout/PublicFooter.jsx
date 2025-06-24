@@ -20,7 +20,7 @@ const PublicFooter = () => {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center mb-4">
               <Shield className="h-8 w-8 text-blue-400 mr-3" />
-              <span className="text-xl font-bold">CarWise</span>
+              <span className="text-xl font-bold">InspecciónPro 4x4</span>
             </div>
             <p className="text-gray-400 mb-6 max-w-md">
               La herramienta profesional para inspeccionar vehículos todo terreno. 

@@ -28,7 +28,7 @@ const PublicHeader = ({ onAuthSuccess }) => {
             {/* Logo */}
             <div className="flex items-center">
               <Shield className="h-8 w-8 text-blue-600 mr-3" />
-              <span className="text-xl font-bold text-gray-900">CarWise</span>
+              <span className="text-xl font-bold text-gray-900">InspecciónPro 4x4</span>
             </div>
             
             {/* Desktop Navigation */}

@@ -35,7 +35,7 @@ const LandingPage = ({ onEnterApp }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="max-w-lg">
               <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-                Inspecciona tu <span className="text-blue-600">Vehículo</span> con Precisión Profesional
+                Inspecciona tu <span className="text-blue-600">Vehículo 4x4</span> con Precisión Profesional
               </h1>
               <p className="text-xl text-gray-600 mb-8">
                 La herramienta más completa para evaluar vehículos todo terreno. 
