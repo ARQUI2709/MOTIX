@@ -66,7 +66,7 @@ const calculateDetailedMetrics = (inspectionData) => {
       let categoryRepairCost = 0;
       const categoryTotalItems = items.length;
 
-      // Procesar cada ítem de la categoría
+      // 🔧 LÍNEA CORREGIDA: Procesar cada ítem de la categoría
       items.forEach((item) => {
         if (!item || !item.name) {
           console.warn(`Item inválido en categoría ${categoryName}`);
@@ -246,18 +246,11 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
         }
       });
       
-      // Marcar como evaluado si tiene algún dato relevante
-      const item = newData[categoryKey][itemKey];
-      item.evaluated = item.score > 0 || 
-                      (item.notes && item.notes.trim().length > 0) ||
-                      (item.images && item.images.length > 0) ||
-                      item.repairCost > 0;
-      
       return newData;
     });
   }, []);
 
-  // Funciones de manejo de vehículo
+  // Función para actualizar información del vehículo
   const updateVehicleInfo = useCallback((field, value) => {
     setVehicleInfo(prev => ({
       ...prev,
@@ -265,61 +258,22 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     }));
   }, []);
 
-  // Funciones de manejo de imágenes
-  const handleImageUpload = useCallback(async (categoryKey, itemKey, file) => {
-    if (!file) return;
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-      
-      const { data: uploadData, error } = await supabase.storage
-        .from('inspection-images')
-        .upload(fileName, file);
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('inspection-images')
-        .getPublicUrl(fileName);
-
-      updateInspectionItem(categoryKey, itemKey, {
-        images: [...(inspectionData[categoryKey]?.[itemKey]?.images || []), publicUrl]
-      });
-
-      setSaveMessage('Imagen subida correctamente');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      setError('Error al subir la imagen');
-      setTimeout(() => setError(''), 3000);
-    }
-  }, [user, inspectionData, updateInspectionItem]);
-
-  const removeImage = useCallback((categoryKey, itemKey, imageIndex) => {
-    const currentImages = inspectionData[categoryKey]?.[itemKey]?.images || [];
-    const newImages = currentImages.filter((_, index) => index !== imageIndex);
-    
-    updateInspectionItem(categoryKey, itemKey, { images: newImages });
-  }, [inspectionData, updateInspectionItem]);
-
   // Función para guardar inspección
-  const saveInspection = useCallback(async () => {
-    if (!user) {
-      setError('Usuario no autenticado');
-      return;
-    }
-
-    // Validar datos básicos del vehículo
-    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      setError('Por favor completa la información básica del vehículo (marca, modelo y placa)');
-      return;
-    }
-
-    setLoadingState(true);
-    setError('');
-
+  const saveInspection = async () => {
     try {
+      setLoadingState(true);
+      setError('');
+      setSaveMessage('');
+
+      // Validar campos requeridos
+      if (!vehicleInfo.marca.trim() || !vehicleInfo.modelo.trim() || !vehicleInfo.placa.trim()) {
+        throw new Error('Los campos Marca, Modelo y Placa son obligatorios.');
+      }
+
+      if (!user || !session) {
+        throw new Error('Usuario no autenticado.');
+      }
+
       const inspectionPayload = {
         user_id: user.id,
         vehicle_info: vehicleInfo,
@@ -327,67 +281,128 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
         total_score: metrics.global.averageScore,
         total_repair_cost: metrics.global.totalRepairCost,
         completed_items: metrics.global.evaluatedItems,
-        status: 'completed'
+        status: 'draft',
+        updated_at: new Date().toISOString()
       };
 
       const response = await fetch('/api/inspections', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(inspectionPayload)
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Error al guardar la inspección');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al guardar inspección');
       }
 
-      setSaveMessage('¡Inspección guardada exitosamente!');
-      setTimeout(() => setSaveMessage(''), 5000);
+      const result = await response.json();
       
+      if (result.success) {
+        setSaveMessage('✅ Inspección guardada correctamente');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        throw new Error(result.error || 'Error desconocido al guardar');
+      }
+
     } catch (error) {
-      console.error('Error guardando inspección:', error);
-      setError(`Error al guardar: ${error.message}`);
+      console.error('❌ Error guardando inspección:', error);
+      setError(error.message);
       setTimeout(() => setError(''), 5000);
     } finally {
       setLoadingState(false);
     }
-  }, [user, session, vehicleInfo, inspectionData, metrics]);
+  };
 
-  // Función para generar reporte PDF
-  const generateReport = useCallback(async () => {
-    if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
-      setError('Completa la información del vehículo antes de generar el reporte');
-      return;
-    }
-
+  // Función para generar PDF
+  const generatePDF = async () => {
     try {
+      // Validar que hay datos para generar el PDF
+      if (!vehicleInfo.marca || !vehicleInfo.modelo || !vehicleInfo.placa) {
+        setError('Complete la información del vehículo antes de generar el PDF');
+        return;
+      }
+
       setLoadingState(true);
-      await generatePDFReport(vehicleInfo, inspectionData, metrics.global);
-      setSaveMessage('Reporte PDF generado exitosamente');
+      await generatePDFReport(vehicleInfo, inspectionData);
+      setSaveMessage('✅ PDF generado correctamente');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error generando reporte:', error);
-      setError('Error al generar el reporte PDF');
-      setTimeout(() => setError(''), 3000);
+      console.error('❌ Error generando PDF:', error);
+      setError('Error al generar PDF: ' + error.message);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoadingState(false);
     }
-  }, [vehicleInfo, inspectionData, metrics]);
+  };
 
-  // Renderizar aplicación según estado de autenticación
+  // Función para limpiar todos los datos
+  const clearAllData = () => {
+    if (confirm('¿Está seguro de que desea limpiar todos los datos? Esta acción no se puede deshacer.')) {
+      setVehicleInfo({
+        marca: '',
+        modelo: '',
+        año: '',
+        placa: '',
+        kilometraje: '',
+        color: '',
+        combustible: 'gasolina',
+        transmision: 'manual'
+      });
+      setInspectionData(initializeInspectionData());
+      setActiveTab('vehicleInfo');
+      setSaveMessage('🧹 Datos limpiados correctamente');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  // Componente para mostrar métricas
+  const MetricsDisplay = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="bg-gray-50 rounded-lg p-4">
+        <p className="text-sm text-gray-600">Puntuación General</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {metrics.global.averageScore.toFixed(1)} / 10
+        </p>
+      </div>
+      <div className="bg-gray-50 rounded-lg p-4">
+        <p className="text-sm text-gray-600">Ítems Evaluados</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {metrics.global.evaluatedItems}/{metrics.global.totalItems}
+        </p>
+      </div>
+      <div className="bg-gray-50 rounded-lg p-4">
+        <p className="text-sm text-gray-600">Completado</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {metrics.global.completionPercentage}%
+        </p>
+      </div>
+      <div className="bg-gray-50 rounded-lg p-4">
+        <p className="text-sm text-gray-600">Costo Total Reparaciones</p>
+        <p className="text-2xl font-bold text-gray-900">
+          ${metrics.global.totalRepairCost.toLocaleString()}
+        </p>
+      </div>
+    </div>
+  );
+
+  // Renderizado condicional basado en autenticación
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Cargando...</p>
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Cargando aplicación...</p>
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return <LandingPage />;
   }
 
   if (appView === 'landing') {
@@ -397,8 +412,13 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   if (appView === 'manager') {
     return (
       <InspectionManager 
-        onLoadInspection={onLoadInspection}
         onBackToApp={() => setAppView('app')}
+        onLoadInspection={(inspection) => {
+          setAppView('app');
+          if (onLoadInspection) {
+            onLoadInspection(inspection);
+          }
+        }}
       />
     );
   }
@@ -408,134 +428,108 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
       <div className="min-h-screen bg-gray-50">
         <AppHeader 
           onNavigateToManager={() => setAppView('manager')}
-          showManagerButton={true}
+          user={user}
         />
         
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-6xl mx-auto px-4 py-8">
           {/* Mensajes de estado */}
           {error && (
-            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
-              <AlertCircle className="h-5 w-5 mr-2" />
-              {error}
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+              <span className="text-red-700">{error}</span>
             </div>
           )}
           
           {saveMessage && (
-            <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center">
-              <CheckCircle2 className="h-5 w-5 mr-2" />
-              {saveMessage}
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+              <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
+              <span className="text-green-700">{saveMessage}</span>
             </div>
           )}
 
-          {/* Header con métricas y controles */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center">
-                <Car className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Inspección de Vehículo
-                  </h1>
-                  {vehicleInfo.marca && vehicleInfo.modelo && (
-                    <p className="text-gray-600">
-                      {vehicleInfo.marca} {vehicleInfo.modelo} - {vehicleInfo.placa}
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
+          {/* Panel principal de la aplicación */}
+          <div className="bg-white rounded-lg shadow-lg">
+            {/* Encabezado con controles */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <Car className="h-6 w-6 mr-2" />
+                  Inspección de Vehículo
+                </h1>
                 <button
                   onClick={() => setCompactView(!compactView)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center text-sm"
+                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center"
                 >
                   {compactView ? <Eye size={16} className="mr-1" /> : <EyeOff size={16} className="mr-1" />}
                   {compactView ? 'Vista Expandida' : 'Vista Compacta'}
                 </button>
               </div>
+
+              {/* Métricas principales */}
+              <MetricsDisplay />
+
+              {/* Acciones principales */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={saveInspection}
+                  disabled={loading_state}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
+                >
+                  {loading_state ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  {loading_state ? 'Guardando...' : 'Guardar Inspección'}
+                </button>
+                
+                <button
+                  onClick={generatePDF}
+                  disabled={loading_state}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar PDF
+                </button>
+                
+                <button
+                  onClick={clearAllData}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Limpiar Todo
+                </button>
+              </div>
             </div>
 
-            {/* Métricas principales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Puntuación General</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {metrics.global.averageScore.toFixed(1)} / 10
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Ítems Evaluados</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {metrics.global.evaluatedItems}/{metrics.global.totalItems}
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Completado</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {metrics.global.completionPercentage}%
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Costo Total Reparaciones</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${metrics.global.totalRepairCost.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Acciones principales */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={saveInspection}
-                disabled={loading_state}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
-              >
-                {loading_state ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                {loading_state ? 'Guardando...' : 'Guardar Inspección'}
-              </button>
-              
-              <button
-                onClick={generateReport}
-                disabled={loading_state}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Generar Reporte PDF
-              </button>
-              
-              <button
-                onClick={() => setAppView('manager')}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Mis Inspecciones
-              </button>
-            </div>
-          </div>
-
-          {/* Navegación por pestañas */}
-          <div className="bg-white rounded-lg shadow-md mb-6">
+            {/* Navegación por pestañas */}
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
+              <nav className="flex">
                 <button
                   onClick={() => setActiveTab('vehicleInfo')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`px-6 py-3 text-sm font-medium ${
                     activeTab === 'vehicleInfo'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Información del Vehículo
                 </button>
                 <button
                   onClick={() => setActiveTab('inspection')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`px-6 py-3 text-sm font-medium ${
                     activeTab === 'inspection'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Inspección Técnica
+                  Inspección
+                </button>
+                <button
+                  onClick={() => setActiveTab('summary')}
+                  className={`px-6 py-3 text-sm font-medium ${
+                    activeTab === 'summary'
+                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Resumen
                 </button>
               </nav>
             </div>
@@ -543,356 +537,384 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
             {/* Contenido de las pestañas */}
             <div className="p-6">
               {activeTab === 'vehicleInfo' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Marca *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.marca}
-                        onChange={(e) => updateVehicleInfo('marca', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Toyota, Honda, etc."
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Modelo *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.modelo}
-                        onChange={(e) => updateVehicleInfo('modelo', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Corolla, Civic, etc."
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Placa *
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.placa}
-                        onChange={(e) => updateVehicleInfo('placa', e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="ABC123"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Año
-                      </label>
-                      <input
-                        type="number"
-                        value={vehicleInfo.año}
-                        onChange={(e) => updateVehicleInfo('año', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="2020"
-                        min="1900"
-                        max="2025"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Kilometraje
-                      </label>
-                      <input
-                        type="number"
-                        value={vehicleInfo.kilometraje}
-                        onChange={(e) => updateVehicleInfo('kilometraje', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="50000"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Color
-                      </label>
-                      <input
-                        type="text"
-                        value={vehicleInfo.color}
-                        onChange={(e) => updateVehicleInfo('color', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Blanco, Negro, etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Combustible
-                      </label>
-                      <select
-                        value={vehicleInfo.combustible}
-                        onChange={(e) => updateVehicleInfo('combustible', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="gasolina">Gasolina</option>
-                        <option value="diesel">Diésel</option>
-                        <option value="hibrido">Híbrido</option>
-                        <option value="electrico">Eléctrico</option>
-                        <option value="gas">Gas</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Transmisión
-                      </label>
-                      <select
-                        value={vehicleInfo.transmision}
-                        onChange={(e) => updateVehicleInfo('transmision', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="manual">Manual</option>
-                        <option value="automatica">Automática</option>
-                        <option value="cvt">CVT</option>
-                      </select>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Marca *
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.marca}
+                      onChange={(e) => updateVehicleInfo('marca', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Toyota, Honda, etc."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Modelo *
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.modelo}
+                      onChange={(e) => updateVehicleInfo('modelo', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Corolla, Civic, etc."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Año
+                    </label>
+                    <input
+                      type="number"
+                      value={vehicleInfo.año}
+                      onChange={(e) => updateVehicleInfo('año', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="2020"
+                      min="1900"
+                      max={new Date().getFullYear() + 1}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Placa *
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.placa}
+                      onChange={(e) => updateVehicleInfo('placa', e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="ABC123"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Kilometraje
+                    </label>
+                    <input
+                      type="number"
+                      value={vehicleInfo.kilometraje}
+                      onChange={(e) => updateVehicleInfo('kilometraje', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="50000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Color
+                    </label>
+                    <input
+                      type="text"
+                      value={vehicleInfo.color}
+                      onChange={(e) => updateVehicleInfo('color', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Blanco, Negro, etc."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Combustible
+                    </label>
+                    <select
+                      value={vehicleInfo.combustible}
+                      onChange={(e) => updateVehicleInfo('combustible', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="gasolina">Gasolina</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="hibrido">Híbrido</option>
+                      <option value="electrico">Eléctrico</option>
+                      <option value="gas">Gas</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Transmisión
+                    </label>
+                    <select
+                      value={vehicleInfo.transmision}
+                      onChange={(e) => updateVehicleInfo('transmision', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="manual">Manual</option>
+                      <option value="automatica">Automática</option>
+                      <option value="cvt">CVT</option>
+                    </select>
                   </div>
                 </div>
               )}
 
               {activeTab === 'inspection' && (
                 <div className="space-y-6">
-                  {/* Resumen de progreso */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">Progreso de Inspección</h3>
-                      <button
-                        onClick={() => setCompactView(!compactView)}
-                        className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center"
-                      >
-                        {compactView ? <Eye size={16} className="mr-1" /> : <EyeOff size={16} className="mr-1" />}
-                        {compactView ? 'Vista Expandida' : 'Vista Compacta'}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-blue-600">
-                          {metrics.global.averageScore.toFixed(1)}
-                        </p>
-                        <p className="text-sm text-gray-600">Puntuación Promedio</p>
+                  {Object.entries(checklistStructure).map(([categoryKey, items]) => {
+                    const categoryMetrics = metrics.categories[categoryKey] || {
+                      evaluatedItems: 0,
+                      totalItems: items.length,
+                      completionPercentage: 0
+                    };
+
+                    return (
+                      <div key={categoryKey} className="border border-gray-200 rounded-lg">
+                        {/* Encabezado de categoría */}
+                        <div className="bg-gray-50 p-4 border-b border-gray-200">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                                {categoryKey.replace(/([A-Z])/g, ' $1').trim()}
+                              </h3>
+                              <span className="text-sm text-gray-600">
+                                ({categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems})
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-20 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium text-gray-600">
+                                  {categoryMetrics.completionPercentage}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Items de la categoría */}
+                        <div className="p-6 space-y-4">
+                          {items.map((item, itemIndex) => {
+                            if (!item || !item.name) return null;
+                            
+                            const itemData = inspectionData[categoryKey]?.[item.name] || {
+                              score: 0,
+                              repairCost: 0,
+                              notes: '',
+                              images: [],
+                              evaluated: false
+                            };
+
+                            return (
+                              <div 
+                                key={`${categoryKey}-${item.name}`}
+                                className={`border rounded-lg p-4 ${
+                                  itemData.evaluated ? 
+                                    'border-green-200 bg-green-50' : 
+                                    'border-gray-200 bg-white'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start mb-3">
+                                  <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={itemData.evaluated}
+                                      onChange={(e) => updateInspectionItem(categoryKey, item.name, {
+                                        evaluated: e.target.checked
+                                      })}
+                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <span className="text-sm text-gray-600">Evaluado</span>
+                                  </div>
+                                </div>
+
+                                {itemData.evaluated && (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Puntuación */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Puntuación (1-10)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="10"
+                                        value={itemData.score}
+                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
+                                          score: parseInt(e.target.value) || 0
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    </div>
+
+                                    {/* Costo de reparación */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Costo Reparación
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={formatCost(itemData.repairCost)}
+                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
+                                          repairCost: e.target.value
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="$0"
+                                      />
+                                    </div>
+
+                                    {/* Estrellas visuales */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Calificación Visual
+                                      </label>
+                                      <div className="flex space-x-1">
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                                          <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => updateInspectionItem(categoryKey, item.name, {
+                                              score: star
+                                            })}
+                                            className={`p-1 rounded ${
+                                              star <= itemData.score
+                                                ? 'text-yellow-400'
+                                                : 'text-gray-300'
+                                            } hover:text-yellow-400 transition-colors`}
+                                          >
+                                            <Star size={16} fill="currentColor" />
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Notas */}
+                                    <div className="md:col-span-3">
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Notas
+                                      </label>
+                                      <textarea
+                                        value={itemData.notes}
+                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
+                                          notes: e.target.value
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        rows="2"
+                                        placeholder="Observaciones adicionales..."
+                                      />
+                                    </div>
+
+                                    {/* Botón para fotos */}
+                                    <div className="md:col-span-3">
+                                      <button
+                                        type="button"
+                                        className="flex items-center px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                      >
+                                        <Camera size={16} className="mr-2" />
+                                        Agregar Fotos ({itemData.images?.length || 0})
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-green-600">
-                          {metrics.global.evaluatedItems}
+                    );
+                  })}
+                </div>
+              )}
+
+              {activeTab === 'summary' && (
+                <div className="space-y-6">
+                  {/* Resumen ejecutivo */}
+                  <div className="bg-blue-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                      <BarChart3 className="h-5 w-5 mr-2" />
+                      Resumen Ejecutivo
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium text-blue-800 mb-2">Estado General</h4>
+                        <p className="text-blue-700">
+                          Puntuación promedio: <strong>{metrics.global.averageScore.toFixed(1)}/10</strong>
                         </p>
-                        <p className="text-sm text-gray-600">Ítems Evaluados</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-purple-600">
-                          {metrics.global.completionPercentage}%
+                        <p className="text-blue-700">
+                          Progreso: <strong>{metrics.global.completionPercentage}%</strong> completado
                         </p>
-                        <p className="text-sm text-gray-600">Completado</p>
+                        <p className="text-blue-700">
+                          Items evaluados: <strong>{metrics.global.evaluatedItems}</strong> de {metrics.global.totalItems}
+                        </p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-red-600">
+                      <div>
+                        <h4 className="font-medium text-blue-800 mb-2">Costos</h4>
+                        <p className="text-blue-700">
+                          Costo total estimado de reparaciones:
+                        </p>
+                        <p className="text-2xl font-bold text-blue-900">
                           ${metrics.global.totalRepairCost.toLocaleString()}
                         </p>
-                        <p className="text-sm text-gray-600">Costo Reparaciones</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Lista de categorías de inspección */}
-                  <div className="space-y-4">
-                    {Object.entries(checklistStructure).map(([categoryKey, items]) => {
-                      if (!Array.isArray(items)) return null;
-                      
-                      const categoryMetrics = metrics.categories[categoryKey] || {
-                        evaluatedItems: 0,
-                        totalItems: items.length,
-                        completionPercentage: 0,
-                        averageScore: 0
-                      };
-
-                      return (
-                        <div key={categoryKey} className="bg-white border rounded-lg shadow-sm">
-                          {/* Header de categoría */}
-                          <div className="px-6 py-4 border-b bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                                  {categoryKey.replace(/_/g, ' ')}
-                                </h3>
-                                <span className="text-sm text-gray-500">
-                                  ({categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems})
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-3">
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-20 bg-gray-200 rounded-full h-2">
-                                    <div 
-                                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                      style={{ width: `${categoryMetrics.completionPercentage}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-600">
-                                    {categoryMetrics.completionPercentage}%
-                                  </span>
-                                </div>
-                              </div>
+                  {/* Resumen por categorías */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Resumen por Categorías
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
+                        <div key={categoryName} className="border border-gray-200 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-900 capitalize mb-2">
+                            {categoryName.replace(/([A-Z])/g, ' $1').trim()}
+                          </h4>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <p>
+                              Evaluados: {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
+                            </p>
+                            <p>
+                              Promedio: {categoryMetrics.averageScore.toFixed(1)}/10
+                            </p>
+                            <p>
+                              Costo reparaciones: ${categoryMetrics.totalRepairCost.toLocaleString()}
+                            </p>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                              />
                             </div>
                           </div>
-
-                          {/* Items de la categoría */}
-                          <div className="p-6 space-y-4">
-                            {items.map((item, itemIndex) => {
-                              if (!item || !item.name) return null;
-                              
-                              const itemData = inspectionData[categoryKey]?.[item.name] || {
-                                score: 0,
-                                repairCost: 0,
-                                notes: '',
-                                images: [],
-                                evaluated: false
-                              };
-
-                              return (
-                                <div 
-                                  key={`${categoryKey}-${item.name}`}
-                                  className={`border rounded-lg p-4 ${
-                                    itemData.evaluated ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-                                  }`}
-                                >
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                      <h4 className="font-medium text-gray-900 mb-1">
-                                        {item.name}
-                                      </h4>
-                                      {item.description && (
-                                        <p className="text-sm text-gray-600 mb-2">
-                                          {item.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                    {itemData.evaluated && (
-                                      <div className="flex items-center space-x-2 ml-4">
-                                        <Star className="h-4 w-4 text-yellow-500" />
-                                        <span className="text-sm font-medium">
-                                          {itemData.score}/10
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {!compactView && (
-                                    <div className="space-y-3">
-                                      {/* Puntuación */}
-                                      <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Puntuación (1-10)
-                                        </label>
-                                        <input
-                                          type="range"
-                                          min="0"
-                                          max="10"
-                                          value={itemData.score}
-                                          onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                            score: parseInt(e.target.value)
-                                          })}
-                                          className="w-full"
-                                        />
-                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                          <span>0</span>
-                                          <span className="font-medium">{itemData.score}</span>
-                                          <span>10</span>
-                                        </div>
-                                      </div>
-
-                                      {/* Costo de reparación */}
-                                      <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Costo de Reparación (COP)
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={formatCost(itemData.repairCost)}
-                                          onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                            repairCost: e.target.value
-                                          })}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                          placeholder="0"
-                                        />
-                                      </div>
-
-                                      {/* Notas */}
-                                      <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Notas
-                                        </label>
-                                        <textarea
-                                          value={itemData.notes}
-                                          onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                            notes: e.target.value
-                                          })}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                          rows="2"
-                                          placeholder="Observaciones adicionales..."
-                                        />
-                                      </div>
-
-                                      {/* Imágenes */}
-                                      <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                          Imágenes
-                                        </label>
-                                        <div className="flex items-center space-x-2">
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={(e) => {
-                                              const file = e.target.files[0];
-                                              if (file) {
-                                                handleImageUpload(categoryKey, item.name, file);
-                                              }
-                                            }}
-                                            className="hidden"
-                                            id={`file-${categoryKey}-${item.name}`}
-                                          />
-                                          <label
-                                            htmlFor={`file-${categoryKey}-${item.name}`}
-                                            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center text-sm"
-                                          >
-                                            <Camera className="h-4 w-4 mr-1" />
-                                            Subir Imagen
-                                          </label>
-                                        </div>
-                                        
-                                        {/* Galería de imágenes */}
-                                        {itemData.images && itemData.images.length > 0 && (
-                                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                                            {itemData.images.map((imageUrl, imageIndex) => (
-                                              <div key={imageIndex} className="relative">
-                                                <img
-                                                  src={imageUrl}
-                                                  alt={`${item.name} - ${imageIndex + 1}`}
-                                                  className="w-full h-24 object-cover rounded-lg border"
-                                                />
-                                                <button
-                                                  onClick={() => removeImage(categoryKey, item.name, imageIndex)}
-                                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                                                >
-                                                  <X className="h-3 w-3" />
-                                                </button>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Recomendaciones */}
+                  <div className="bg-yellow-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-yellow-900 mb-4">
+                      Recomendaciones
+                    </h3>
+                    <div className="space-y-2 text-yellow-800">
+                      {metrics.global.averageScore < 5 && (
+                        <p>• Se requiere atención inmediata a múltiples componentes del vehículo</p>
+                      )}
+                      {metrics.global.averageScore >= 5 && metrics.global.averageScore < 7 && (
+                        <p>• Se recomienda realizar reparaciones preventivas antes de la compra</p>
+                      )}
+                      {metrics.global.averageScore >= 7 && metrics.global.averageScore < 9 && (
+                        <p>• El vehículo presenta un estado general bueno con mantenimiento menor requerido</p>
+                      )}
+                      {metrics.global.averageScore >= 9 && (
+                        <p>• Vehículo en excelente estado, recomendado para compra</p>
+                      )}
+                      {metrics.global.totalRepairCost > 50000 && (
+                        <p>• Alto costo de reparaciones, considerar negociar el precio de venta</p>
+                      )}
+                      {metrics.global.completionPercentage < 80 && (
+                        <p>• Inspección incompleta, se recomienda evaluar los ítems faltantes</p>
+                      )}
+                      {metrics.global.completionPercentage >= 80 && metrics.global.averageScore >= 7 && (
+                        <p>• Inspección completa y resultados favorables</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
