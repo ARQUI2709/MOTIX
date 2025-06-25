@@ -342,24 +342,25 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     }
   };
 
+  // Estado para mostrar el modal de confirmación
+  const [showClearModal, setShowClearModal] = useState(false);
+
   // Función para limpiar todos los datos
   const clearAllData = () => {
-    if (confirm('¿Está seguro de que desea limpiar todos los datos? Esta acción no se puede deshacer.')) {
-      setVehicleInfo({
-        marca: '',
-        modelo: '',
-        año: '',
-        placa: '',
-        kilometraje: '',
-        color: '',
-        combustible: 'gasolina',
-        transmision: 'manual'
-      });
-      setInspectionData(initializeInspectionData());
-      setActiveTab('vehicleInfo');
-      setSaveMessage('🧹 Datos limpiados correctamente');
-      setTimeout(() => setSaveMessage(''), 3000);
-    }
+    setVehicleInfo({
+      marca: '',
+      modelo: '',
+      año: '',
+      placa: '',
+      kilometraje: '',
+      color: '',
+      combustible: 'gasolina',
+      transmision: 'manual'
+    });
+    setInspectionData(initializeInspectionData());
+    setActiveTab('vehicleInfo');
+    setSaveMessage('🧹 Datos limpiados correctamente');
+    setTimeout(() => setSaveMessage(''), 3000);
   };
 
   // Componente para mostrar métricas
@@ -492,7 +493,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
                 </button>
                 
                 <button
-                  onClick={clearAllData}
+                  onClick={() => setShowClearModal(true)}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
                 >
                   <X className="h-4 w-4 mr-2" />
@@ -923,6 +924,34 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
               )}
             </div>
           </div>
+        {/* Modal de confirmación para limpiar datos */}
+        {showClearModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+              <h2 className="text-lg font-semibold mb-2 text-gray-900">¿Limpiar todos los datos?</h2>
+              <p className="mb-4 text-gray-700">
+                Esta acción no se puede deshacer. ¿Está seguro de que desea limpiar todos los datos?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowClearModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    clearAllData();
+                    setShowClearModal(false);
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         </main>
       </div>
     </ProtectedRoute>
