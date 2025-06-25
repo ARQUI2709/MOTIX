@@ -152,6 +152,9 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   const [error, setError] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [compactView, setCompactView] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [showMetrics, setShowMetrics] = useState(false);
 
   // 🔧 CORRECCIÓN PRINCIPAL: Calcular métricas de forma segura
   const metrics = React.useMemo(() => {
@@ -392,10 +395,10 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   // Renderizado condicional basado en autenticación
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Cargando aplicación...</p>
+          <RefreshCw className="mx-auto mb-4 animate-spin" size={48} />
+          <p className="text-gray-600">Cargando aplicación...</p>
         </div>
       </div>
     );
