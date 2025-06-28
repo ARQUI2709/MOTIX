@@ -338,16 +338,6 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     setActiveTab('vehicleInfo');
     setSaveMessage('🧹 Datos limpiados correctamente');
     setTimeout(() => setSaveMessage(''), 3000);
-  };aca: '',
-      kilometraje: '',
-      color: '',
-      combustible: 'gasolina',
-      transmision: 'manual'
-    });
-    setInspectionData(initializeInspectionData());
-    setActiveTab('vehicleInfo');
-    setSaveMessage('🧹 Datos limpiados correctamente');
-    setTimeout(() => setSaveMessage(''), 3000);
   };
 
   // Componente para mostrar métricas
