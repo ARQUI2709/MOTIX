@@ -148,57 +148,33 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   const [inspectionData, setInspectionData] = useState(() => initializeInspectionData());
   
   // Estados de UI y operaciones
-  const [loading_state, setLoadingState] = useState(false);
+  const [loadingState, setLoadingState] = useState(false);
   const [error, setError] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [compactView, setCompactView] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [showMetrics, setShowMetrics] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
-  // 🔧 CORRECCIÓN PRINCIPAL: Calcular métricas de forma segura
-  const metrics = React.useMemo(() => {
-    try {
-      return calculateDetailedMetrics(inspectionData);
-    } catch (error) {
-      console.error('Error calculando métricas:', error);
-      return {
-        categories: {},
-        global: {
-          totalScore: 0,
-          totalItems: 0,
-          evaluatedItems: 0,
-          totalRepairCost: 0,
-          completionPercentage: 0,
-          averageScore: 0
-        }
-      };
-    }
-  }, [inspectionData]);
+  // Calcular métricas en tiempo real
+  const metrics = calculateDetailedMetrics(inspectionData);
 
-  // Efectos para manejar autenticación
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        if (appView === 'landing') {
-          setAppView('app');
-        }
-      } else {
-        if (appView !== 'landing') {
-          setAppView('landing');
-        }
-      }
-    }
-  }, [user, loading, appView]);
-
-  // Efecto para cargar inspección cuando viene de InspectionManager
+  // 🔄 Efecto para cargar inspección cuando se pasa loadedInspection
   useEffect(() => {
     if (loadedInspection && loadedInspection.id) {
       console.log('📥 Cargando inspección desde InspectionManager:', loadedInspection.id);
       
-      // Cargar datos del vehículo
+      // Cargar información del vehículo
       if (loadedInspection.vehicle_info) {
-        setVehicleInfo(loadedInspection.vehicle_info);
+        setVehicleInfo({
+          marca: loadedInspection.vehicle_info.marca || '',
+          modelo: loadedInspection.vehicle_info.modelo || '',
+          año: loadedInspection.vehicle_info.año || '',
+          placa: loadedInspection.vehicle_info.placa || '',
+          kilometraje: loadedInspection.vehicle_info.kilometraje || '',
+          color: loadedInspection.vehicle_info.color || '',
+          combustible: loadedInspection.vehicle_info.combustible || 'gasolina',
+          transmision: loadedInspection.vehicle_info.transmision || 'manual'
+        });
       }
       
       // Cargar datos de inspección
@@ -206,24 +182,31 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
         setInspectionData(loadedInspection.inspection_data);
       }
       
-      // Limpiar el loadedInspection después de cargarlo
-      if (onLoadInspection) {
-        onLoadInspection(null);
-      }
-    }
-  }, [loadedInspection, onLoadInspection]);
-
-  // Función para actualizar items de inspección
-  const updateInspectionItem = useCallback((categoryKey, itemKey, updates) => {
-    setInspectionData(prevData => {
-      const newData = { ...prevData };
+      // Establecer la vista en la aplicación
+      setAppView('app');
+      setActiveTab('vehicleInfo');
       
-      // Asegurar que la categoría existe
+      setSaveMessage('✅ Inspección cargada correctamente');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  }, [loadedInspection]);
+
+  // 🔄 Efecto para inicializar vista cuando hay usuario
+  useEffect(() => {
+    if (user && appView === 'landing') {
+      setAppView('app');
+    }
+  }, [user, appView]);
+
+  // Función para actualizar datos de inspección
+  const updateInspectionData = useCallback((categoryKey, itemKey, updates) => {
+    setInspectionData(prev => {
+      const newData = { ...prev };
+      
       if (!newData[categoryKey]) {
         newData[categoryKey] = {};
       }
       
-      // Asegurar que el item existe
       if (!newData[categoryKey][itemKey]) {
         newData[categoryKey][itemKey] = {
           score: 0,
@@ -234,11 +217,10 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
         };
       }
       
-      // Aplicar actualizaciones
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'repairCost') {
-          newData[categoryKey][itemKey][key] = typeof value === 'string' 
-            ? parseCostFromFormatted(value) 
+          newData[categoryKey][itemKey][key] = typeof value === 'string' ? 
+            parseCostFromFormatted(value) 
             : value;
         } else if (key === 'images') {
           newData[categoryKey][itemKey][key] = Array.isArray(value) 
@@ -431,531 +413,694 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
         <AppHeader 
-          onNavigateToManager={() => setAppView('manager')}
-          user={user}
+          onOpenManager={() => setAppView('manager')}
+          compactView={compactView}
+          onToggleCompactView={() => setCompactView(!compactView)}
         />
         
-        <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Métricas globales */}
+          <MetricsDisplay />
+
           {/* Mensajes de estado */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
               <span className="text-red-700">{error}</span>
             </div>
           )}
-          
+
           {saveMessage && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+              <CheckCircle2 className="h-5 w-5 text-green-600 mr-3" />
               <span className="text-green-700">{saveMessage}</span>
             </div>
           )}
 
-          {/* Panel principal de la aplicación */}
-          <div className="bg-white rounded-lg shadow-lg">
-            {/* Encabezado con controles */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                  <Car className="h-6 w-6 mr-2" />
-                  Inspección de Vehículo
-                </h1>
-                <button
-                  onClick={() => setCompactView(!compactView)}
-                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center"
-                >
-                  {compactView ? <Eye size={16} className="mr-1" /> : <EyeOff size={16} className="mr-1" />}
-                  {compactView ? 'Vista Expandida' : 'Vista Compacta'}
-                </button>
-              </div>
-
-              {/* Métricas principales */}
-              <MetricsDisplay />
-
-              {/* Acciones principales */}
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={saveInspection}
-                  disabled={loading_state}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
-                >
-                  {loading_state ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  {loading_state ? 'Guardando...' : 'Guardar Inspección'}
-                </button>
-                
-                <button
-                  onClick={generatePDF}
-                  disabled={loading_state}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Generar PDF
-                </button>
-                
-                <button
-                  onClick={() => setShowClearModal(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpiar Todo
-                </button>
-              </div>
-            </div>
-
-            {/* Navegación por pestañas */}
-            <div className="border-b border-gray-200">
-              <nav className="flex">
-                <button
-                  onClick={() => setActiveTab('vehicleInfo')}
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === 'vehicleInfo'
-                      ? 'border-b-2 border-blue-500 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Información del Vehículo
-                </button>
-                <button
-                  onClick={() => setActiveTab('inspection')}
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === 'inspection'
-                      ? 'border-b-2 border-blue-500 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Inspección
-                </button>
-                <button
-                  onClick={() => setActiveTab('summary')}
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === 'summary'
-                      ? 'border-b-2 border-blue-500 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Resumen
-                </button>
-              </nav>
-            </div>
-
-            {/* Contenido de las pestañas */}
-            <div className="p-6">
-              {activeTab === 'vehicleInfo' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Marca *
-                    </label>
-                    <input
-                      type="text"
-                      value={vehicleInfo.marca}
-                      onChange={(e) => updateVehicleInfo('marca', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Toyota, Honda, etc."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Modelo *
-                    </label>
-                    <input
-                      type="text"
-                      value={vehicleInfo.modelo}
-                      onChange={(e) => updateVehicleInfo('modelo', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Corolla, Civic, etc."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Año
-                    </label>
-                    <input
-                      type="number"
-                      value={vehicleInfo.año}
-                      onChange={(e) => updateVehicleInfo('año', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="2020"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Placa *
-                    </label>
-                    <input
-                      type="text"
-                      value={vehicleInfo.placa}
-                      onChange={(e) => updateVehicleInfo('placa', e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="ABC123"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kilometraje
-                    </label>
-                    <input
-                      type="number"
-                      value={vehicleInfo.kilometraje}
-                      onChange={(e) => updateVehicleInfo('kilometraje', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="50000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Color
-                    </label>
-                    <input
-                      type="text"
-                      value={vehicleInfo.color}
-                      onChange={(e) => updateVehicleInfo('color', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Blanco, Negro, etc."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Combustible
-                    </label>
-                    <select
-                      value={vehicleInfo.combustible}
-                      onChange={(e) => updateVehicleInfo('combustible', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="gasolina">Gasolina</option>
-                      <option value="diesel">Diesel</option>
-                      <option value="hibrido">Híbrido</option>
-                      <option value="electrico">Eléctrico</option>
-                      <option value="gas">Gas</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Transmisión
-                    </label>
-                    <select
-                      value={vehicleInfo.transmision}
-                      onChange={(e) => updateVehicleInfo('transmision', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="manual">Manual</option>
-                      <option value="automatica">Automática</option>
-                      <option value="cvt">CVT</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'inspection' && (
-                <div className="space-y-6">
-                  {Object.entries(checklistStructure).map(([categoryKey, items]) => {
-                    const categoryMetrics = metrics.categories[categoryKey] || {
-                      evaluatedItems: 0,
-                      totalItems: items.length,
-                      completionPercentage: 0
-                    };
-
-                    return (
-                      <div key={categoryKey} className="border border-gray-200 rounded-lg">
-                        {/* Encabezado de categoría */}
-                        <div className="bg-gray-50 p-4 border-b border-gray-200">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                                {categoryKey.replace(/([A-Z])/g, ' $1').trim()}
-                              </h3>
-                              <span className="text-sm text-gray-600">
-                                ({categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems})
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-20 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${categoryMetrics.completionPercentage}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm font-medium text-gray-600">
-                                  {categoryMetrics.completionPercentage}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Items de la categoría */}
-                        <div className="p-6 space-y-4">
-                          {items.map((item, itemIndex) => {
-                            if (!item || !item.name) return null;
-                            
-                            const itemData = inspectionData[categoryKey]?.[item.name] || {
-                              score: 0,
-                              repairCost: 0,
-                              notes: '',
-                              images: [],
-                              evaluated: false
-                            };
-
-                            return (
-                              <div 
-                                key={`${categoryKey}-${item.name}`}
-                                className={`border rounded-lg p-4 ${
-                                  itemData.evaluated ? 
-                                    'border-green-200 bg-green-50' : 
-                                    'border-gray-200 bg-white'
-                                }`}
-                              >
-                                <div className="flex justify-between items-start mb-3">
-                                  <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={itemData.evaluated}
-                                      onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                        evaluated: e.target.checked
-                                      })}
-                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                    />
-                                    <span className="text-sm text-gray-600">Evaluado</span>
-                                  </div>
-                                </div>
-
-                                {itemData.evaluated && (
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* Puntuación */}
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Puntuación (1-10)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        max="10"
-                                        value={itemData.score}
-                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                          score: parseInt(e.target.value) || 0
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                      />
-                                    </div>
-
-                                    {/* Costo de reparación */}
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Costo Reparación
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={formatCost(itemData.repairCost)}
-                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                          repairCost: e.target.value
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="$0"
-                                      />
-                                    </div>
-
-                                    {/* Estrellas visuales */}
-                                    <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Calificación Visual
-                                      </label>
-                                      <div className="flex space-x-1">
-                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                                          <button
-                                            key={star}
-                                            type="button"
-                                            onClick={() => updateInspectionItem(categoryKey, item.name, {
-                                              score: star
-                                            })}
-                                            className={`p-1 rounded ${
-                                              star <= itemData.score
-                                                ? 'text-yellow-400'
-                                                : 'text-gray-300'
-                                            } hover:text-yellow-400 transition-colors`}
-                                          >
-                                            <Star size={16} fill="currentColor" />
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Notas */}
-                                    <div className="md:col-span-3">
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Notas
-                                      </label>
-                                      <textarea
-                                        value={itemData.notes}
-                                        onChange={(e) => updateInspectionItem(categoryKey, item.name, {
-                                          notes: e.target.value
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        rows="2"
-                                        placeholder="Observaciones adicionales..."
-                                      />
-                                    </div>
-
-                                    {/* Botón para fotos */}
-                                    <div className="md:col-span-3">
-                                      <button
-                                        type="button"
-                                        className="flex items-center px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                                      >
-                                        <Camera size={16} className="mr-2" />
-                                        Agregar Fotos ({itemData.images?.length || 0})
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {activeTab === 'summary' && (
-                <div className="space-y-6">
-                  {/* Resumen ejecutivo */}
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-                      <BarChart3 className="h-5 w-5 mr-2" />
-                      Resumen Ejecutivo
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h4 className="font-medium text-blue-800 mb-2">Estado General</h4>
-                        <p className="text-blue-700">
-                          Puntuación promedio: <strong>{metrics.global.averageScore.toFixed(1)}/10</strong>
-                        </p>
-                        <p className="text-blue-700">
-                          Progreso: <strong>{metrics.global.completionPercentage}%</strong> completado
-                        </p>
-                        <p className="text-blue-700">
-                          Items evaluados: <strong>{metrics.global.evaluatedItems}</strong> de {metrics.global.totalItems}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-blue-800 mb-2">Costos</h4>
-                        <p className="text-blue-700">
-                          Costo total estimado de reparaciones:
-                        </p>
-                        <p className="text-2xl font-bold text-blue-900">
-                          ${metrics.global.totalRepairCost.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Resumen por categorías */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Resumen por Categorías
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
-                        <div key={categoryName} className="border border-gray-200 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-900 capitalize mb-2">
-                            {categoryName.replace(/([A-Z])/g, ' $1').trim()}
-                          </h4>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <p>
-                              Evaluados: {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
-                            </p>
-                            <p>
-                              Promedio: {categoryMetrics.averageScore.toFixed(1)}/10
-                            </p>
-                            <p>
-                              Costo reparaciones: ${categoryMetrics.totalRepairCost.toLocaleString()}
-                            </p>
-                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${categoryMetrics.completionPercentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recomendaciones */}
-                  <div className="bg-yellow-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-yellow-900 mb-4">
-                      Recomendaciones
-                    </h3>
-                    <div className="space-y-2 text-yellow-800">
-                      {metrics.global.averageScore < 5 && (
-                        <p>• Se requiere atención inmediata a múltiples componentes del vehículo</p>
-                      )}
-                      {metrics.global.averageScore >= 5 && metrics.global.averageScore < 7 && (
-                        <p>• Se recomienda realizar reparaciones preventivas antes de la compra</p>
-                      )}
-                      {metrics.global.averageScore >= 7 && metrics.global.averageScore < 9 && (
-                        <p>• El vehículo presenta un estado general bueno con mantenimiento menor requerido</p>
-                      )}
-                      {metrics.global.averageScore >= 9 && (
-                        <p>• Vehículo en excelente estado, recomendado para compra</p>
-                      )}
-                      {metrics.global.totalRepairCost > 50000 && (
-                        <p>• Alto costo de reparaciones, considerar negociar el precio de venta</p>
-                      )}
-                      {metrics.global.completionPercentage < 80 && (
-                        <p>• Inspección incompleta, se recomienda evaluar los ítems faltantes</p>
-                      )}
-                      {metrics.global.completionPercentage >= 80 && metrics.global.averageScore >= 7 && (
-                        <p>• Inspección completa y resultados favorables</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Navegación por pestañas */}
+          <div className="mb-8">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('vehicleInfo')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'vehicleInfo'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Car className="inline-block w-4 h-4 mr-2" />
+                Información del Vehículo
+              </button>
+              <button
+                onClick={() => setActiveTab('inspection')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'inspection'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <BarChart3 className="inline-block w-4 h-4 mr-2" />
+                Lista de Verificación
+              </button>
+              <button
+                onClick={() => setActiveTab('summary')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'summary'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <CheckCircle2 className="inline-block w-4 h-4 mr-2" />
+                Resumen y Reporte
+              </button>
+            </nav>
           </div>
-        {/* Modal de confirmación para limpiar datos */}
-        {showClearModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-              <h2 className="text-lg font-semibold mb-2 text-gray-900">¿Limpiar todos los datos?</h2>
-              <p className="mb-4 text-gray-700">
-                Esta acción no se puede deshacer. ¿Está seguro de que desea limpiar todos los datos?
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowClearModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
+
+          {/* Contenido de las pestañas */}
+          {activeTab === 'vehicleInfo' && (
+            <VehicleInfoTab 
+              vehicleInfo={vehicleInfo}
+              updateVehicleInfo={updateVehicleInfo}
+              compactView={compactView}
+            />
+          )}
+
+          {activeTab === 'inspection' && (
+            <InspectionTab 
+              inspectionData={inspectionData}
+              updateInspectionData={updateInspectionData}
+              compactView={compactView}
+              metrics={metrics}
+            />
+          )}
+
+          {activeTab === 'summary' && (
+            <SummaryTab 
+              vehicleInfo={vehicleInfo}
+              inspectionData={inspectionData}
+              metrics={metrics}
+            />
+          )}
+
+          {/* Botones de acción principales */}
+          <div className="mt-8 flex flex-wrap gap-4 justify-center">
+            <button
+              onClick={saveInspection}
+              disabled={loadingState}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {loadingState ? (
+                <RefreshCw className="animate-spin h-5 w-5 mr-2" />
+              ) : (
+                <Save className="h-5 w-5 mr-2" />
+              )}
+              Guardar Inspección
+            </button>
+
+            <button
+              onClick={generatePDF}
+              disabled={loadingState}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Generar PDF
+            </button>
+
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
+            >
+              <X className="h-5 w-5 mr-2" />
+              Limpiar Todo
+            </button>
+          </div>
+
+          {/* Modal de confirmación para limpiar datos */}
+          {showClearModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Confirmar limpieza de datos
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  ¿Está seguro de que desea limpiar todos los datos? Esta acción no se puede deshacer.
+                </p>
+                <div className="flex gap-4 justify-end">
+                  <button
+                    onClick={() => setShowClearModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearAllData();
+                      setShowClearModal(false);
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal para mostrar imágenes */}
+          {showImageModal && selectedImage && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+              <div className="relative max-w-4xl max-h-full p-4">
                 <button
                   onClick={() => {
-                    clearAllData();
-                    setShowClearModal(false);
+                    setShowImageModal(false);
+                    setSelectedImage(null);
                   }}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="absolute top-4 right-4 text-white hover:text-gray-300"
                 >
-                  Limpiar
+                  <X className="h-8 w-8" />
                 </button>
+                <img
+                  src={selectedImage}
+                  alt="Imagen de inspección"
+                  className="max-w-full max-h-full object-contain"
+                />
               </div>
             </div>
-          </div>
-        )}
-        </main>
+          )}
+        </div>
       </div>
     </ProtectedRoute>
   );
 }
+
+// Componente para la pestaña de información del vehículo
+const VehicleInfoTab = ({ vehicleInfo, updateVehicleInfo, compactView }) => (
+  <div className="bg-white rounded-lg shadow-md p-6">
+    <h2 className="text-xl font-semibold text-gray-900 mb-6">
+      Información del Vehículo
+    </h2>
+    
+    <div className={`grid gap-6 ${compactView ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Marca *
+        </label>
+        <input
+          type="text"
+          value={vehicleInfo.marca}
+          onChange={(e) => updateVehicleInfo('marca', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: Toyota, Honda, Chevrolet"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Modelo *
+        </label>
+        <input
+          type="text"
+          value={vehicleInfo.modelo}
+          onChange={(e) => updateVehicleInfo('modelo', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: Corolla, Civic, Spark"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Placa *
+        </label>
+        <input
+          type="text"
+          value={vehicleInfo.placa}
+          onChange={(e) => updateVehicleInfo('placa', e.target.value.toUpperCase())}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: ABC123"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Año
+        </label>
+        <input
+          type="number"
+          value={vehicleInfo.año}
+          onChange={(e) => updateVehicleInfo('año', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: 2020"
+          min="1900"
+          max={new Date().getFullYear() + 1}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Kilometraje
+        </label>
+        <input
+          type="number"
+          value={vehicleInfo.kilometraje}
+          onChange={(e) => updateVehicleInfo('kilometraje', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: 50000"
+          min="0"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Color
+        </label>
+        <input
+          type="text"
+          value={vehicleInfo.color}
+          onChange={(e) => updateVehicleInfo('color', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: Blanco, Negro, Azul"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Tipo de Combustible
+        </label>
+        <select
+          value={vehicleInfo.combustible}
+          onChange={(e) => updateVehicleInfo('combustible', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="gasolina">Gasolina</option>
+          <option value="diesel">Diesel</option>
+          <option value="hibrido">Híbrido</option>
+          <option value="electrico">Eléctrico</option>
+          <option value="gas">Gas</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Transmisión
+        </label>
+        <select
+          value={vehicleInfo.transmision}
+          onChange={(e) => updateVehicleInfo('transmision', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="manual">Manual</option>
+          <option value="automatica">Automática</option>
+          <option value="cvt">CVT</option>
+        </select>
+      </div>
+    </div>
+  </div>
+);
+
+// Componente para la pestaña de inspección
+const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metrics }) => {
+  const [expandedCategories, setExpandedCategories] = useState(new Set());
+
+  const toggleCategory = (categoryKey) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(categoryKey)) {
+      newExpanded.delete(categoryKey);
+    } else {
+      newExpanded.add(categoryKey);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(checklistStructure).map(([categoryKey, items]) => {
+        const isExpanded = expandedCategories.has(categoryKey);
+        const categoryMetrics = metrics.categories[categoryKey] || {
+          totalItems: items.length,
+          evaluatedItems: 0,
+          averageScore: 0,
+          totalRepairCost: 0,
+          completionPercentage: 0
+        };
+
+        return (
+          <div key={categoryKey} className="bg-white rounded-lg shadow-md overflow-hidden">
+            {/* Encabezado de categoría */}
+            <div 
+              className="bg-gray-50 px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => toggleCategory(categoryKey)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                    {categoryKey.replace(/([A-Z])/g, ' $1').trim()}
+                  </h3>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600">
+                        {categoryMetrics.completionPercentage}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {isExpanded ? (
+                  <ChevronUp className="h-5 w-5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                )}
+              </div>
+            </div>
+
+            {/* Items de la categoría */}
+            {isExpanded && (
+              <div className="p-6 space-y-4">
+                {items.map((item, itemIndex) => {
+                  if (!item || !item.name) return null;
+                  
+                  const itemData = inspectionData[categoryKey]?.[item.name] || {
+                    score: 0,
+                    repairCost: 0,
+                    notes: '',
+                    images: [],
+                    evaluated: false
+                  };
+
+                  return (
+                    <div 
+                      key={`${categoryKey}-${item.name}`}
+                      className={`border rounded-lg p-4 ${
+                        itemData.evaluated 
+                          ? 'border-green-200 bg-green-50' 
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{item.name}</h4>
+                          {item.description && (
+                            <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 ml-4">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={itemData.evaluated}
+                              onChange={(e) => 
+                                updateInspectionData(categoryKey, item.name, {
+                                  evaluated: e.target.checked
+                                })
+                              }
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="ml-2 text-sm text-gray-600">Evaluado</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {itemData.evaluated && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Puntuación */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Puntuación (1-10)
+                            </label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={itemData.score}
+                                onChange={(e) => 
+                                  updateInspectionData(categoryKey, item.name, {
+                                    score: parseInt(e.target.value)
+                                  })
+                                }
+                                className="flex-1"
+                              />
+                              <span className="text-lg font-semibold text-gray-900 w-8">
+                                {itemData.score}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500 mt-1">
+                              <span>Malo</span>
+                              <span>Excelente</span>
+                            </div>
+                          </div>
+
+                          {/* Costo de reparación */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Costo de Reparación
+                            </label>
+                            <input
+                              type="text"
+                              value={formatCost(itemData.repairCost)}
+                              onChange={(e) => 
+                                updateInspectionData(categoryKey, item.name, {
+                                  repairCost: e.target.value
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="$0"
+                            />
+                          </div>
+
+                          {/* Notas */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Notas
+                            </label>
+                            <textarea
+                              value={itemData.notes}
+                              onChange={(e) => 
+                                updateInspectionData(categoryKey, item.name, {
+                                  notes: e.target.value
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Observaciones adicionales..."
+                              rows="2"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sección de imágenes */}
+                      {itemData.evaluated && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Imágenes
+                          </label>
+                          <div className="flex items-center space-x-4">
+                            <button
+                              type="button"
+                              className="flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Agregar Foto
+                            </button>
+                            
+                            {itemData.images && itemData.images.length > 0 && (
+                              <div className="flex space-x-2">
+                                {itemData.images.map((image, idx) => (
+                                  <div key={idx} className="relative">
+                                    <img
+                                      src={image}
+                                      alt={`${item.name} ${idx + 1}`}
+                                      className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-75"
+                                      onClick={() => {
+                                        setSelectedImage(image);
+                                        setShowImageModal(true);
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const newImages = itemData.images.filter((_, i) => i !== idx);
+                                        updateInspectionData(categoryKey, item.name, {
+                                          images: newImages
+                                        });
+                                      }}
+                                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Componente para la pestaña de resumen
+const SummaryTab = ({ vehicleInfo, inspectionData, metrics }) => {
+  const generateRecommendations = () => {
+    const recommendations = [];
+    
+    if (metrics.global.averageScore < 5) {
+      recommendations.push('Se requiere atención inmediata a múltiples componentes del vehículo');
+    } else if (metrics.global.averageScore < 7) {
+      recommendations.push('Se recomienda realizar reparaciones preventivas antes de la compra');
+    } else if (metrics.global.averageScore < 9) {
+      recommendations.push('El vehículo presenta un estado general bueno con mantenimiento menor requerido');
+    } else {
+      recommendations.push('Vehículo en excelente estado, recomendado para compra');
+    }
+    
+    if (metrics.global.totalRepairCost > 50000) {
+      recommendations.push('Alto costo de reparaciones, considerar negociar el precio de venta');
+    }
+    
+    if (metrics.global.completionPercentage < 80) {
+      recommendations.push('Inspección incompleta, se recomienda evaluar los ítems faltantes');
+    }
+    
+    return recommendations;
+  };
+
+  const recommendations = generateRecommendations();
+
+  return (
+    <div className="space-y-6">
+      {/* Información del vehículo */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Información del Vehículo
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Marca y Modelo</p>
+            <p className="font-medium text-gray-900">
+              {vehicleInfo.marca} {vehicleInfo.modelo}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Placa</p>
+            <p className="font-medium text-gray-900">{vehicleInfo.placa}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Año</p>
+            <p className="font-medium text-gray-900">{vehicleInfo.año || 'No especificado'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Kilometraje</p>
+            <p className="font-medium text-gray-900">
+              {vehicleInfo.kilometraje ? `${Number(vehicleInfo.kilometraje).toLocaleString()} km` : 'No especificado'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Métricas globales */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Resumen de la Inspección
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {metrics.global.averageScore.toFixed(1)}/10
+            </div>
+            <p className="text-sm text-gray-600">Puntuación Promedio</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {metrics.global.completionPercentage}%
+            </div>
+            <p className="text-sm text-gray-600">Completado</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-orange-600 mb-2">
+              {metrics.global.evaluatedItems}
+            </div>
+            <p className="text-sm text-gray-600">Ítems Evaluados</p>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-red-600 mb-2">
+              ${metrics.global.totalRepairCost.toLocaleString()}
+            </div>
+            <p className="text-sm text-gray-600">Costo Total Reparaciones</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumen por categorías */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Resumen por Categorías
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
+            <div key={categoryName} className="border border-gray-200 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 capitalize mb-2">
+                {categoryName.replace(/([A-Z])/g, ' $1').trim()}
+              </h4>
+              <div className="space-y-1 text-sm text-gray-600">
+                <p>
+                  Evaluados: {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems}
+                </p>
+                <p>
+                  Promedio: {categoryMetrics.averageScore.toFixed(1)}/10
+                </p>
+                <p>
+                  Costo reparaciones: ${categoryMetrics.totalRepairCost.toLocaleString()}
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${categoryMetrics.completionPercentage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recomendaciones */}
+      <div className="bg-yellow-50 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-yellow-900 mb-4">
+          Recomendaciones
+        </h3>
+        <ul className="space-y-2">
+          {recommendations.map((recommendation, index) => (
+            <li key={index} className="flex items-start">
+              <Star className="h-5 w-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
+              <span className="text-yellow-800">{recommendation}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
 
 export default InspectionApp;
