@@ -59,50 +59,54 @@ const calculateDetailedMetrics = (inspectionData) => {
 
       const categoryData = inspectionData[categoryName] || {};
       
-      // Métricas por categoría
-      let categoryTotalScore = 0;
-      let categoryEvaluatedItems = 0;
-      let categoryScoredItems = 0;
-      let categoryRepairCost = 0;
+      // Métricas por categoría (se inicializan aquí, se calculan en reduce)
       const categoryTotalItems = items.length;
 
-      // 🔧 CORRECCIÓN PRINCIPAL: Bucle completo y correcto
-      items.forEach((item) => {
+      // 🔧 CORRECCIÓN PRINCIPAL: Usando reduce() en lugar de forEach()
+      const categoryResult = items.reduce((acc, item) => {
         if (!item || !item.name) {
           console.warn(`Item inválido en categoría ${categoryName}`);
-          return;
+          return acc;
         }
 
         const itemName = item.name;
         const itemData = categoryData[itemName] || {};
         
+        // Incrementar contadores globales
         globalMetrics.totalItems++;
         
         if (itemData.evaluated) {
           globalMetrics.evaluatedItems++;
-          categoryEvaluatedItems++;
+          acc.categoryEvaluatedItems++;
           
           if (itemData.score > 0) {
             globalMetrics.totalScore += itemData.score;
-            categoryTotalScore += itemData.score;
-            categoryScoredItems++;
+            acc.categoryTotalScore += itemData.score;
+            acc.categoryScoredItems++;
           }
           
           const repairCost = parseFloat(itemData.repairCost) || 0;
           globalMetrics.totalRepairCost += repairCost;
-          categoryRepairCost += repairCost;
+          acc.categoryRepairCost += repairCost;
         }
+
+        return acc;
+      }, {
+        categoryTotalScore: 0,
+        categoryEvaluatedItems: 0,
+        categoryScoredItems: 0,
+        categoryRepairCost: 0
       });
 
-      // Calcular métricas de la categoría
+      // Calcular métricas de la categoría usando los resultados del reduce
       categoryMetrics[categoryName] = {
         totalItems: categoryTotalItems,
-        evaluatedItems: categoryEvaluatedItems,
-        scoredItems: categoryScoredItems,
-        averageScore: categoryScoredItems > 0 ? (categoryTotalScore / categoryScoredItems) : 0,
-        totalRepairCost: categoryRepairCost,
+        evaluatedItems: categoryResult.categoryEvaluatedItems,
+        scoredItems: categoryResult.categoryScoredItems,
+        averageScore: categoryResult.categoryScoredItems > 0 ? (categoryResult.categoryTotalScore / categoryResult.categoryScoredItems) : 0,
+        totalRepairCost: categoryResult.categoryRepairCost,
         completionPercentage: categoryTotalItems > 0 ? 
-          Math.round((categoryEvaluatedItems / categoryTotalItems) * 100) : 0
+          Math.round((categoryResult.categoryEvaluatedItems / categoryTotalItems) * 100) : 0
       };
     });
 
@@ -329,6 +333,16 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
       año: '',
       placa: '',
       kilometraje: ''
+    });
+    setInspectionData(initializeInspectionData());
+    setActiveTab('vehicleInfo');
+    setSaveMessage('🧹 Datos limpiados correctamente');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };aca: '',
+      kilometraje: '',
+      color: '',
+      combustible: 'gasolina',
+      transmision: 'manual'
     });
     setInspectionData(initializeInspectionData());
     setActiveTab('vehicleInfo');
