@@ -1,5 +1,5 @@
-// components/InspectionApp.jsx - CORRECCIÓN COMPLETA
-// 🔧 SOLUCIÓN: Archivo completamente reconstruido para eliminar el error "ReferenceError: data is not defined"
+// components/InspectionApp.jsx - ARCHIVO COMPLETO
+// 🔧 SOLUCIÓN: Corrección final del error ReferenceError: data is not defined
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -24,49 +24,103 @@ import AppHeader from './Layout/AppHeader';
 import LandingPage from './LandingPage';
 import InspectionManager from './InspectionManager';
 import ProtectedRoute from './Auth/ProtectedRoute';
-import { checklistStructure, initializeInspectionData } from '../data/checklistStructure';
 import { generatePDFReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
 
-// 🔧 FUNCIÓN COMPLETAMENTE RECONSTRUIDA: Sin referencias a variables no definidas
+// 🔧 IMPORTACIONES EXPLÍCITAS para evitar TDZ
+let checklistStructure = null;
+let initializeInspectionData = null;
+
+// Inicialización dinámica para evitar problemas de hoisting
+const initializeModules = async () => {
+  if (!checklistStructure || !initializeInspectionData) {
+    try {
+      const checklistModule = await import('../data/checklistStructure');
+      checklistStructure = checklistModule.checklistStructure;
+      initializeInspectionData = checklistModule.initializeInspectionData;
+    } catch (error) {
+      console.error('Error loading checklist module:', error);
+      // Fallback structure
+      checklistStructure = {
+        'Motor': [{ name: 'Estado general', description: 'Revisión visual del motor' }],
+        'Transmisión': [{ name: 'Estado general', description: 'Revisión de la transmisión' }],
+        'Frenos': [{ name: 'Estado general', description: 'Revisión del sistema de frenos' }],
+        'Suspensión': [{ name: 'Estado general', description: 'Revisión de la suspensión' }]
+      };
+      initializeInspectionData = () => {
+        const data = {};
+        Object.keys(checklistStructure).forEach(category => {
+          data[category] = {};
+          checklistStructure[category].forEach(item => {
+            data[category][item.name] = {
+              score: 0,
+              repairCost: 0,
+              notes: '',
+              images: [],
+              evaluated: false
+            };
+          });
+        });
+        return data;
+      };
+    }
+  }
+};
+
+// 🔧 FUNCIÓN COMPLETAMENTE REESCRITA: Sin referencias problemáticas
 const calculateDetailedMetrics = (inspectionData) => {
-  const categoryMetrics = {};
-  const globalMetrics = {
-    totalScore: 0,
-    totalItems: 0,
-    evaluatedItems: 0,
-    totalRepairCost: 0,
-    completionPercentage: 0,
-    averageScore: 0
+  // Estructura de retorno segura
+  const defaultReturn = {
+    categories: {},
+    global: {
+      totalScore: 0,
+      totalItems: 0,
+      evaluatedItems: 0,
+      totalRepairCost: 0,
+      completionPercentage: 0,
+      averageScore: 0
+    }
   };
 
   try {
-    // Validar que checklistStructure existe
-    if (!checklistStructure || typeof checklistStructure !== 'object') {
-      console.warn('checklistStructure no está disponible');
-      return { 
-        categories: categoryMetrics, 
-        global: globalMetrics 
-      };
+    // Validar datos de entrada
+    if (!inspectionData || typeof inspectionData !== 'object') {
+      console.warn('inspectionData is not valid');
+      return defaultReturn;
     }
 
-    // Procesar cada categoría
-    Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+    if (!checklistStructure || typeof checklistStructure !== 'object') {
+      console.warn('checklistStructure is not available');
+      return defaultReturn;
+    }
+
+    const categoryMetrics = {};
+    const globalMetrics = {
+      totalScore: 0,
+      totalItems: 0,
+      evaluatedItems: 0,
+      totalRepairCost: 0,
+      completionPercentage: 0,
+      averageScore: 0
+    };
+
+    // Procesar cada categoría con reduce
+    const processedCategories = Object.keys(checklistStructure).reduce((acc, categoryName) => {
+      const items = checklistStructure[categoryName];
+      
       if (!Array.isArray(items)) {
-        console.warn(`Categoría ${categoryName} no tiene items válidos`);
-        return;
+        console.warn(`Category ${categoryName} does not have valid items`);
+        return acc;
       }
 
       const categoryData = inspectionData[categoryName] || {};
-      
-      // Métricas por categoría (se inicializan aquí, se calculan en reduce)
       const categoryTotalItems = items.length;
 
-      // 🔧 CORRECCIÓN PRINCIPAL: Usando reduce() en lugar de forEach()
-      const categoryResult = items.reduce((acc, item) => {
+      // Procesar items con reduce
+      const categoryResult = items.reduce((itemAcc, item) => {
         if (!item || !item.name) {
-          console.warn(`Item inválido en categoría ${categoryName}`);
-          return acc;
+          console.warn(`Invalid item in category ${categoryName}`);
+          return itemAcc;
         }
 
         const itemName = item.name;
@@ -77,20 +131,20 @@ const calculateDetailedMetrics = (inspectionData) => {
         
         if (itemData.evaluated) {
           globalMetrics.evaluatedItems++;
-          acc.categoryEvaluatedItems++;
+          itemAcc.categoryEvaluatedItems++;
           
           if (itemData.score > 0) {
             globalMetrics.totalScore += itemData.score;
-            acc.categoryTotalScore += itemData.score;
-            acc.categoryScoredItems++;
+            itemAcc.categoryTotalScore += itemData.score;
+            itemAcc.categoryScoredItems++;
           }
           
           const repairCost = parseFloat(itemData.repairCost) || 0;
           globalMetrics.totalRepairCost += repairCost;
-          acc.categoryRepairCost += repairCost;
+          itemAcc.categoryRepairCost += repairCost;
         }
 
-        return acc;
+        return itemAcc;
       }, {
         categoryTotalScore: 0,
         categoryEvaluatedItems: 0,
@@ -98,17 +152,20 @@ const calculateDetailedMetrics = (inspectionData) => {
         categoryRepairCost: 0
       });
 
-      // Calcular métricas de la categoría usando los resultados del reduce
-      categoryMetrics[categoryName] = {
+      // Calcular métricas de la categoría
+      acc[categoryName] = {
         totalItems: categoryTotalItems,
         evaluatedItems: categoryResult.categoryEvaluatedItems,
         scoredItems: categoryResult.categoryScoredItems,
-        averageScore: categoryResult.categoryScoredItems > 0 ? (categoryResult.categoryTotalScore / categoryResult.categoryScoredItems) : 0,
+        averageScore: categoryResult.categoryScoredItems > 0 ? 
+          (categoryResult.categoryTotalScore / categoryResult.categoryScoredItems) : 0,
         totalRepairCost: categoryResult.categoryRepairCost,
         completionPercentage: categoryTotalItems > 0 ? 
           Math.round((categoryResult.categoryEvaluatedItems / categoryTotalItems) * 100) : 0
       };
-    });
+
+      return acc;
+    }, {});
 
     // Calcular métricas globales finales
     globalMetrics.averageScore = globalMetrics.evaluatedItems > 0 ? 
@@ -117,17 +174,14 @@ const calculateDetailedMetrics = (inspectionData) => {
     globalMetrics.completionPercentage = globalMetrics.totalItems > 0 ? 
       Math.round((globalMetrics.evaluatedItems / globalMetrics.totalItems) * 100) : 0;
 
-    return { 
-      categories: categoryMetrics, 
-      global: globalMetrics 
+    return {
+      categories: processedCategories,
+      global: globalMetrics
     };
     
   } catch (error) {
-    console.error('Error calculando métricas detalladas:', error);
-    return { 
-      categories: categoryMetrics, 
-      global: globalMetrics 
-    };
+    console.error('Error calculating detailed metrics:', error);
+    return defaultReturn;
   }
 };
 
@@ -136,6 +190,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   const { user, session, loading } = useAuth();
   const [appView, setAppView] = useState('landing');
   const [activeTab, setActiveTab] = useState('vehicleInfo');
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Estados de datos de inspección - ESTRUCTURA EXACTA DEL PROYECTO
   const [vehicleInfo, setVehicleInfo] = useState({
@@ -146,7 +201,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     kilometraje: ''
   });
   
-  const [inspectionData, setInspectionData] = useState(() => initializeInspectionData());
+  const [inspectionData, setInspectionData] = useState({});
   
   // Estados de UI y operaciones
   const [loadingState, setLoadingState] = useState(false);
@@ -156,15 +211,38 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // Calcular métricas en tiempo real
-  const metrics = calculateDetailedMetrics(inspectionData);
+  // 🔧 INICIALIZACIÓN SEGURA
+  useEffect(() => {
+    const initialize = async () => {
+      await initializeModules();
+      if (initializeInspectionData) {
+        setInspectionData(initializeInspectionData());
+        setIsInitialized(true);
+      }
+    };
+    
+    initialize();
+  }, []);
+
+  // Calcular métricas en tiempo real - SOLO SI ESTÁ INICIALIZADO
+  const metrics = isInitialized ? calculateDetailedMetrics(inspectionData) : {
+    categories: {},
+    global: {
+      totalScore: 0,
+      totalItems: 0,
+      evaluatedItems: 0,
+      totalRepairCost: 0,
+      completionPercentage: 0,
+      averageScore: 0
+    }
+  };
 
   // 🔄 Efecto para cargar inspección cuando se pasa loadedInspection
   useEffect(() => {
-    if (loadedInspection && loadedInspection.id) {
-      console.log('📥 Cargando inspección desde InspectionManager:', loadedInspection.id);
+    if (loadedInspection && loadedInspection.id && isInitialized) {
+      console.log('📥 Loading inspection from InspectionManager:', loadedInspection.id);
       
-      // Cargar información del vehículo - ESTRUCTURA EXACTA COMO EN INSPECTIONMANAGER
+      // Cargar información del vehículo - ESTRUCTURA EXACTA
       if (loadedInspection.vehicle_info) {
         setVehicleInfo({
           marca: loadedInspection.vehicle_info.marca || '',
@@ -187,7 +265,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
       setSaveMessage('✅ Inspección cargada correctamente');
       setTimeout(() => setSaveMessage(''), 3000);
     }
-  }, [loadedInspection]);
+  }, [loadedInspection, isInitialized]);
 
   // 🔄 Efecto para inicializar vista cuando hay usuario
   useEffect(() => {
@@ -325,7 +403,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   // Estado para mostrar el modal de confirmación
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // Función para limpiar todos los datos - ESTRUCTURA EXACTA
+  // Función para limpiar todos los datos
   const clearAllData = () => {
     setVehicleInfo({
       marca: '',
@@ -334,7 +412,9 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
       placa: '',
       kilometraje: ''
     });
-    setInspectionData(initializeInspectionData());
+    if (initializeInspectionData) {
+      setInspectionData(initializeInspectionData());
+    }
     setActiveTab('vehicleInfo');
     setSaveMessage('🧹 Datos limpiados correctamente');
     setTimeout(() => setSaveMessage(''), 3000);
@@ -371,7 +451,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   );
 
   // Renderizado condicional basado en autenticación
-  if (loading) {
+  if (loading || !isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -480,7 +560,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
             />
           )}
 
-          {activeTab === 'inspection' && (
+          {activeTab === 'inspection' && checklistStructure && (
             <InspectionTab 
               inspectionData={inspectionData}
               updateInspectionData={updateInspectionData}
@@ -489,6 +569,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
               selectedImage={selectedImage}
               setSelectedImage={setSelectedImage}
               setShowImageModal={setShowImageModal}
+              checklistStructure={checklistStructure}
             />
           )}
 
@@ -674,7 +755,7 @@ const VehicleInfoTab = ({ vehicleInfo, updateVehicleInfo, compactView }) => (
 );
 
 // Componente para la pestaña de inspección
-const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metrics, selectedImage, setSelectedImage, setShowImageModal }) => {
+const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metrics, selectedImage, setSelectedImage, setShowImageModal, checklistStructure }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
   const toggleCategory = (categoryKey) => {
@@ -686,6 +767,14 @@ const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metr
     }
     setExpandedCategories(newExpanded);
   };
+
+  if (!checklistStructure) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-gray-600">Cargando estructura de inspección...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
