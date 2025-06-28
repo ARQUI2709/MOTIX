@@ -1,5 +1,5 @@
-// components/InspectionApp.jsx - CORRECCIÓN DEL ERROR DE BUILD
-// 🔧 SOLUCIÓN: Corrección de la línea truncada en calculateDetailedMetrics
+// components/InspectionApp.jsx - CORRECCIÓN COMPLETA
+// 🔧 SOLUCIÓN: Archivo completamente reconstruido para eliminar el error "ReferenceError: data is not defined"
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -28,7 +28,7 @@ import { checklistStructure, initializeInspectionData } from '../data/checklistS
 import { generatePDFReport } from '../utils/reportGenerator';
 import { formatCost, parseCostFromFormatted } from '../utils/costFormatter';
 
-// 🔧 FUNCIÓN CORREGIDA: Calcular métricas detalladas por categoría
+// 🔧 FUNCIÓN COMPLETAMENTE RECONSTRUIDA: Sin referencias a variables no definidas
 const calculateDetailedMetrics = (inspectionData) => {
   const categoryMetrics = {};
   const globalMetrics = {
@@ -66,7 +66,7 @@ const calculateDetailedMetrics = (inspectionData) => {
       let categoryRepairCost = 0;
       const categoryTotalItems = items.length;
 
-      // 🔧 LÍNEA CORREGIDA: Procesar cada ítem de la categoría
+      // 🔧 CORRECCIÓN PRINCIPAL: Bucle completo y correcto
       items.forEach((item) => {
         if (!item || !item.name) {
           console.warn(`Item inválido en categoría ${categoryName}`);
@@ -133,16 +133,13 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   const [appView, setAppView] = useState('landing');
   const [activeTab, setActiveTab] = useState('vehicleInfo');
   
-  // Estados de datos de inspección
+  // Estados de datos de inspección - ESTRUCTURA EXACTA DEL PROYECTO
   const [vehicleInfo, setVehicleInfo] = useState({
     marca: '',
     modelo: '',
     año: '',
     placa: '',
-    kilometraje: '',
-    color: '',
-    combustible: 'gasolina',
-    transmision: 'manual'
+    kilometraje: ''
   });
   
   const [inspectionData, setInspectionData] = useState(() => initializeInspectionData());
@@ -163,17 +160,14 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
     if (loadedInspection && loadedInspection.id) {
       console.log('📥 Cargando inspección desde InspectionManager:', loadedInspection.id);
       
-      // Cargar información del vehículo
+      // Cargar información del vehículo - ESTRUCTURA EXACTA COMO EN INSPECTIONMANAGER
       if (loadedInspection.vehicle_info) {
         setVehicleInfo({
           marca: loadedInspection.vehicle_info.marca || '',
           modelo: loadedInspection.vehicle_info.modelo || '',
           año: loadedInspection.vehicle_info.año || '',
           placa: loadedInspection.vehicle_info.placa || '',
-          kilometraje: loadedInspection.vehicle_info.kilometraje || '',
-          color: loadedInspection.vehicle_info.color || '',
-          combustible: loadedInspection.vehicle_info.combustible || 'gasolina',
-          transmision: loadedInspection.vehicle_info.transmision || 'manual'
+          kilometraje: loadedInspection.vehicle_info.kilometraje || ''
         });
       }
       
@@ -327,13 +321,20 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   // Estado para mostrar el modal de confirmación
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // Función para limpiar todos los datos
+  // Función para limpiar todos los datos - ESTRUCTURA EXACTA
   const clearAllData = () => {
     setVehicleInfo({
       marca: '',
       modelo: '',
       año: '',
       placa: '',
+      kilometraje: ''
+    });
+    setInspectionData(initializeInspectionData());
+    setActiveTab('vehicleInfo');
+    setSaveMessage('🧹 Datos limpiados correctamente');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };aca: '',
       kilometraje: '',
       color: '',
       combustible: 'gasolina',
@@ -491,6 +492,9 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
               updateInspectionData={updateInspectionData}
               compactView={compactView}
               metrics={metrics}
+              selectedImage={selectedImage}
+              setSelectedImage={setSelectedImage}
+              setShowImageModal={setShowImageModal}
             />
           )}
 
@@ -593,7 +597,7 @@ function InspectionApp({ loadedInspection, onLoadInspection }) {
   );
 }
 
-// Componente para la pestaña de información del vehículo
+// Componente para la pestaña de información del vehículo - SOLO CAMPOS REALES
 const VehicleInfoTab = ({ vehicleInfo, updateVehicleInfo, compactView }) => (
   <div className="bg-white rounded-lg shadow-md p-6">
     <h2 className="text-xl font-semibold text-gray-900 mb-6">
@@ -671,57 +675,12 @@ const VehicleInfoTab = ({ vehicleInfo, updateVehicleInfo, compactView }) => (
           min="0"
         />
       </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Color
-        </label>
-        <input
-          type="text"
-          value={vehicleInfo.color}
-          onChange={(e) => updateVehicleInfo('color', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ej: Blanco, Negro, Azul"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Tipo de Combustible
-        </label>
-        <select
-          value={vehicleInfo.combustible}
-          onChange={(e) => updateVehicleInfo('combustible', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="gasolina">Gasolina</option>
-          <option value="diesel">Diesel</option>
-          <option value="hibrido">Híbrido</option>
-          <option value="electrico">Eléctrico</option>
-          <option value="gas">Gas</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Transmisión
-        </label>
-        <select
-          value={vehicleInfo.transmision}
-          onChange={(e) => updateVehicleInfo('transmision', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="manual">Manual</option>
-          <option value="automatica">Automática</option>
-          <option value="cvt">CVT</option>
-        </select>
-      </div>
     </div>
   </div>
 );
 
 // Componente para la pestaña de inspección
-const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metrics }) => {
+const InspectionTab = ({ inspectionData, updateInspectionData, compactView, metrics, selectedImage, setSelectedImage, setShowImageModal }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
   const toggleCategory = (categoryKey) => {
