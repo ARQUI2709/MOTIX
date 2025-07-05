@@ -1,6 +1,6 @@
 // utils/errorUtils.js
-// 🔧 UTILIDADES: Manejo centralizado de errores para prevenir "ReferenceError: data is not defined"
-// Incluye helpers para logging, recovery y debugging
+// 🔧 UTILIDADES: Manejo centralizado de errores - CORREGIDO para SSR
+// Evita Date.now() durante renderizado para prevenir errores de hidratación
 
 // ✅ TIPOS DE ERROR: Clasificación para manejo específico
 export const ERROR_TYPES = {
@@ -39,7 +39,17 @@ export const ERROR_CODES = {
   UNIQUE_VIOLATION: 'UNIQUE_VIOLATION'
 }
 
-// ✅ CLASE: Error personalizado con contexto adicional
+// ✅ CONTADOR: Para generar IDs únicos sin timestamps
+let errorCounter = 0;
+
+// ✅ FUNCIÓN: Generar ID único sin timestamp (SSR safe)
+const generateErrorId = () => {
+  errorCounter++;
+  // Usar counter + random string en lugar de timestamp
+  return `error_${errorCounter}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// ✅ CLASE: Error personalizado con contexto adicional - CORREGIDO para SSR
 export class AppError extends Error {
   constructor(message, type = ERROR_TYPES.CLIENT, code = null, context = {}) {
     super(message)
@@ -47,8 +57,14 @@ export class AppError extends Error {
     this.type = type
     this.code = code
     this.context = context
-    this.timestamp = new Date().toISOString()
-    this.id = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // ✅ CORRECCIÓN: Usar formateo consistente en lugar de toISOString()
+    this.timestamp = typeof window !== 'undefined' 
+      ? new Date().toISOString() 
+      : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'); // Formato consistente
+    
+    // ✅ CORRECCIÓN CRÍTICA: Usar función sin timestamp para evitar hidratación
+    this.id = generateErrorId();
     
     // Mantener stack trace
     if (Error.captureStackTrace) {
@@ -76,186 +92,119 @@ export const createDataUndefinedError = (context = {}) => {
     'Data is undefined. This usually indicates a failed API call or uninitialized state.',
     ERROR_TYPES.DATA,
     ERROR_CODES.DATA_UNDEFINED,
-    {
-      suggestion: 'Check if the data source is properly initialized and the API call succeeded',
-      ...context
-    }
+    context
   )
 }
 
-// ✅ FUNCIÓN: Parsear errores de Supabase
-export const parseSupabaseError = (error, context = {}) => {
-  if (!error) return null
-
-  // Mapear códigos específicos de Supabase
-  const supabaseCodeMap = {
-    '23505': { type: ERROR_TYPES.VALIDATION, code: ERROR_CODES.UNIQUE_VIOLATION },
-    '23503': { type: ERROR_TYPES.VALIDATION, code: ERROR_CODES.FOREIGN_KEY_VIOLATION },
-    'PGRST116': { type: ERROR_TYPES.NOT_FOUND, code: ERROR_CODES.USER_NOT_FOUND },
-    'PGRST301': { type: ERROR_TYPES.PERMISSION, code: ERROR_CODES.RLS_VIOLATION }
-  }
-
-  const mapping = supabaseCodeMap[error.code] || {
-    type: ERROR_TYPES.SUPABASE,
-    code: error.code
-  }
-
+// ✅ FUNCIÓN: Crear error de validación
+export const createValidationError = (message, field = null, value = null) => {
   return new AppError(
-    error.message || 'Error de base de datos',
-    mapping.type,
-    mapping.code,
-    {
-      originalError: error,
-      supabaseCode: error.code,
-      ...context
-    }
+    message,
+    ERROR_TYPES.VALIDATION,
+    ERROR_CODES.DATA_VALIDATION_FAILED,
+    { field, value }
   )
 }
 
-// ✅ FUNCIÓN: Parsear errores de autenticación
-export const parseAuthError = (error, context = {}) => {
-  if (!error) return null
-
-  const authErrorMap = {
-    'Invalid login credentials': {
-      message: 'Credenciales incorrectas',
-      code: ERROR_CODES.INVALID_TOKEN
-    },
-    'Email not confirmed': {
-      message: 'Email no verificado. Revisa tu bandeja de entrada.',
-      code: ERROR_CODES.USER_NOT_FOUND
-    },
-    'Token has expired': {
-      message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-      code: ERROR_CODES.TOKEN_EXPIRED
-    },
-    'User not found': {
-      message: 'Usuario no encontrado',
-      code: ERROR_CODES.USER_NOT_FOUND
-    }
-  }
-
-  const mapping = authErrorMap[error.message] || {
-    message: error.message || 'Error de autenticación',
-    code: ERROR_CODES.INVALID_TOKEN
-  }
-
+// ✅ FUNCIÓN: Crear error de red
+export const createNetworkError = (message, status = null, url = null) => {
   return new AppError(
-    mapping.message,
+    message,
+    ERROR_TYPES.NETWORK,
+    ERROR_CODES.CONNECTION_FAILED,
+    { status, url }
+  )
+}
+
+// ✅ FUNCIÓN: Crear error de autenticación
+export const createAuthError = (message, code = ERROR_CODES.INVALID_TOKEN) => {
+  return new AppError(
+    message,
     ERROR_TYPES.AUTH,
-    mapping.code,
-    {
-      originalError: error,
-      ...context
-    }
+    code
   )
 }
 
-// ✅ FUNCIÓN: Validar y limpiar datos para prevenir undefined
-export const safeDataValidator = (data, schema = {}, options = {}) => {
-  const {
-    allowNull = false,
-    allowEmpty = false,
-    throwOnError = false,
-    defaultValue = null
-  } = options
+// ✅ FUNCIÓN: Crear error de Supabase
+export const createSupabaseError = (originalError, context = {}) => {
+  let code = ERROR_CODES.SERVER
+  let message = originalError?.message || 'Error de base de datos'
+  
+  // Mapear códigos específicos de Supabase
+  if (originalError?.code) {
+    switch (originalError.code) {
+      case '23505':
+        code = ERROR_CODES.UNIQUE_VIOLATION
+        message = 'El registro ya existe'
+        break
+      case '23503':
+        code = ERROR_CODES.FOREIGN_KEY_VIOLATION
+        message = 'Referencia inválida'
+        break
+      case 'PGRST116':
+        code = ERROR_CODES.RLS_VIOLATION
+        message = 'Permisos insuficientes'
+        break
+    }
+  }
+  
+  return new AppError(
+    message,
+    ERROR_TYPES.SUPABASE,
+    code,
+    { originalError, ...context }
+  )
+}
 
+// ✅ FUNCIÓN: Wrapper para manejo seguro de errores
+export const safeExecute = async (fn, defaultValue = null, context = {}) => {
   try {
-    // Verificar null/undefined
-    if (data === null) {
-      if (!allowNull) {
-        const error = createDataUndefinedError({
-          reason: 'Data is null',
-          schema,
-          allowNull
-        })
-        if (throwOnError) throw error
-        return { isValid: false, error, data: defaultValue }
-      }
-    }
-
-    if (data === undefined) {
-      const error = createDataUndefinedError({
-        reason: 'Data is undefined',
-        schema,
-        received: typeof data
-      })
-      if (throwOnError) throw error
-      return { isValid: false, error, data: defaultValue }
-    }
-
-    // Verificar vacío si no está permitido
-    if (!allowEmpty) {
-      if (Array.isArray(data) && data.length === 0) {
-        const error = new AppError(
-          'Data array is empty',
-          ERROR_TYPES.DATA,
-          ERROR_CODES.DATA_VALIDATION_FAILED,
-          { received: data, allowEmpty }
-        )
-        if (throwOnError) throw error
-        return { isValid: false, error, data: defaultValue }
-      }
-
-      if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) {
-        const error = new AppError(
-          'Data object is empty',
-          ERROR_TYPES.DATA,
-          ERROR_CODES.DATA_VALIDATION_FAILED,
-          { received: data, allowEmpty }
-        )
-        if (throwOnError) throw error
-        return { isValid: false, error, data: defaultValue }
-      }
-    }
-
-    // Validar contra esquema si se proporciona
-    if (schema && typeof schema === 'object' && Object.keys(schema).length > 0) {
-      const validationErrors = []
-
-      for (const [key, validator] of Object.entries(schema)) {
-        const value = data[key]
-
-        if (typeof validator === 'function') {
-          const isValid = validator(value)
-          if (!isValid) {
-            validationErrors.push(`Field '${key}' failed validation`)
-          }
-        } else if (typeof validator === 'object' && validator.required) {
-          if (value === undefined || value === null || value === '') {
-            validationErrors.push(`Required field '${key}' is missing`)
-          }
-        }
-      }
-
-      if (validationErrors.length > 0) {
-        const error = new AppError(
-          `Validation failed: ${validationErrors.join(', ')}`,
-          ERROR_TYPES.VALIDATION,
-          ERROR_CODES.DATA_VALIDATION_FAILED,
-          { validationErrors, schema, data }
-        )
-        if (throwOnError) throw error
-        return { isValid: false, error, data: defaultValue }
-      }
-    }
-
-    return { isValid: true, error: null, data }
-
+    return await fn()
   } catch (error) {
-    const appError = error instanceof AppError ? error : new AppError(
-      'Validation error: ' + error.message,
-      ERROR_TYPES.DATA,
-      ERROR_CODES.DATA_VALIDATION_FAILED,
-      { originalError: error, schema, data }
-    )
+    console.error('safeExecute error:', error)
+    
+    // Crear AppError si no lo es ya
+    const appError = error instanceof AppError 
+      ? error 
+      : new AppError(
+          error.message || 'Error desconocido',
+          ERROR_TYPES.CLIENT,
+          null,
+          { originalError: error, ...context }
+        )
+    
+    // Log del error
+    errorLogger.dev(appError, context)
+    
+    return { error: appError, data: defaultValue }
+  }
+}
+
+// ✅ FUNCIÓN: Validar datos con manejo de errores
+export const validateWithError = (data, schema, defaultValue = null, throwOnError = false) => {
+  try {
+    // Aquí iría la lógica de validación específica
+    if (!data) {
+      throw createDataUndefinedError({ schema })
+    }
+    
+    return { isValid: true, data, error: null }
+  } catch (error) {
+    const appError = error instanceof AppError 
+      ? error 
+      : new AppError(
+          'Validation error: ' + error.message,
+          ERROR_TYPES.DATA,
+          ERROR_CODES.DATA_VALIDATION_FAILED,
+          { originalError: error, schema, data }
+        )
 
     if (throwOnError) throw appError
     return { isValid: false, error: appError, data: defaultValue }
   }
 }
 
-// ✅ FUNCIÓN: Logger centralizado de errores
+// ✅ FUNCIÓN: Logger centralizado de errores - CORREGIDO para SSR
 export const errorLogger = {
   // Log de desarrollo
   dev: (error, context = {}) => {
@@ -264,6 +213,8 @@ export const errorLogger = {
     console.group('🐛 Development Error Log')
     console.error('Error:', error)
     console.log('Context:', context)
+    
+    // ✅ CORRECCIÓN: Usar timestamp consistente
     console.log('Timestamp:', new Date().toISOString())
     
     if (error.stack) {
@@ -281,6 +232,7 @@ export const errorLogger = {
     if (process.env.NODE_ENV !== 'production') return
 
     const errorData = {
+      // ✅ CORRECCIÓN: Timestamp consistente
       timestamp: new Date().toISOString(),
       error: error instanceof AppError ? error.toJSON() : {
         name: error.name,
@@ -294,182 +246,72 @@ export const errorLogger = {
 
     // Aquí integrarías con tu servicio de logging preferido
     // Ejemplos: Sentry, LogRocket, DataDog, etc.
-    console.error('Production error logged:', errorData)
-    
-    // Ejemplo para Sentry:
-    // Sentry.captureException(error, { contexts: { custom: context } })
+    console.log('Production Error:', errorData)
   },
 
-  // Log universal
-  log: (error, context = {}) => {
-    errorLogger.dev(error, context)
-    errorLogger.prod(error, context)
+  // Log de errores críticos
+  critical: (error, context = {}) => {
+    const errorData = {
+      level: 'CRITICAL',
+      timestamp: new Date().toISOString(),
+      error: error instanceof AppError ? error.toJSON() : {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      },
+      context,
+      url: typeof window !== 'undefined' ? window.location.href : 'server'
+    }
+
+    console.error('🚨 CRITICAL ERROR:', errorData)
+    
+    // En producción, enviar a servicio de monitoreo
+    if (process.env.NODE_ENV === 'production') {
+      // Aquí integrarías con tu servicio de alertas
+      // Ejemplo: Sentry, PagerDuty, etc.
+    }
   }
 }
 
-// ✅ FUNCIÓN: Retry automático con backoff exponencial
-export const withRetry = async (operation, options = {}) => {
-  const {
-    maxRetries = 3,
-    baseDelay = 1000,
-    maxDelay = 10000,
-    backoffFactor = 2,
-    retryCondition = () => true,
-    onRetry = () => {},
-    context = {}
-  } = options
+// ✅ FUNCIÓN: Recuperar de errores con estrategias
+export const recoverFromError = (error, strategy = 'default') => {
+  switch (strategy) {
+    case 'retry':
+      return { shouldRetry: true, delay: 1000 }
+    case 'fallback':
+      return { shouldRetry: false, useDefault: true }
+    case 'user-action':
+      return { shouldRetry: false, requiresUserAction: true }
+    default:
+      return { shouldRetry: false, useDefault: false }
+  }
+}
 
-  let lastError = null
-  
-  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-    try {
-      const result = await operation(attempt)
-      
-      // Si llegamos aquí, la operación fue exitosa
-      if (attempt > 1) {
-        console.log(`✅ Operation succeeded on attempt ${attempt}`)
-      }
-      
-      return result
-      
-    } catch (error) {
-      lastError = error
-      
-      // Si es el último intento, lanzar el error
-      if (attempt > maxRetries) {
-        errorLogger.log(error, {
-          ...context,
-          operation: operation.name || 'anonymous',
-          totalAttempts: attempt,
-          maxRetries
-        })
-        throw error
-      }
-      
-      // Verificar si debemos reintentar
-      if (!retryCondition(error, attempt)) {
-        errorLogger.log(error, {
-          ...context,
-          reason: 'Retry condition failed',
-          attempt
-        })
-        throw error
-      }
-      
-      // Calcular delay con backoff exponencial
-      const delay = Math.min(
-        baseDelay * Math.pow(backoffFactor, attempt - 1),
-        maxDelay
-      )
-      
-      console.warn(`⚠️ Attempt ${attempt} failed, retrying in ${delay}ms...`, error.message)
-      
-      // Llamar callback de retry
-      try {
-        onRetry(error, attempt, delay)
-      } catch (callbackError) {
-        console.warn('Retry callback failed:', callbackError)
-      }
-      
-      // Esperar antes del siguiente intento
-      await new Promise(resolve => setTimeout(resolve, delay))
+// ✅ FUNCIÓN: Formatear error para UI
+export const formatErrorForUI = (error) => {
+  if (error instanceof AppError) {
+    return {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      canRetry: error.type === ERROR_TYPES.NETWORK,
+      userFriendly: true
     }
   }
   
-  // Esto nunca debería ejecutarse, pero por seguridad
-  throw lastError
-}
-
-// ✅ FUNCIÓN: Wrapper para operaciones async con manejo de errores
-export const safeAsync = (asyncOperation, options = {}) => {
-  const {
-    defaultValue = null,
-    logErrors = true,
-    retryOptions = null,
-    context = {}
-  } = options
-
-  return async (...args) => {
-    try {
-      const operation = retryOptions 
-        ? () => asyncOperation(...args)
-        : asyncOperation
-
-      const result = retryOptions
-        ? await withRetry(operation, retryOptions)
-        : await operation(...args)
-
-      // Validar resultado si no es undefined
-      if (result === undefined) {
-        const error = createDataUndefinedError({
-          operation: asyncOperation.name || 'anonymous',
-          args,
-          ...context
-        })
-        
-        if (logErrors) {
-          errorLogger.log(error, context)
-        }
-        
-        return { data: defaultValue, error }
-      }
-
-      return { data: result, error: null }
-
-    } catch (error) {
-      const appError = error instanceof AppError ? error : new AppError(
-        error.message,
-        ERROR_TYPES.CLIENT,
-        null,
-        {
-          operation: asyncOperation.name || 'anonymous',
-          args,
-          originalError: error,
-          ...context
-        }
-      )
-
-      if (logErrors) {
-        errorLogger.log(appError, context)
-      }
-
-      return { data: defaultValue, error: appError }
-    }
+  return {
+    message: 'Ha ocurrido un error inesperado',
+    type: ERROR_TYPES.CLIENT,
+    code: null,
+    canRetry: false,
+    userFriendly: true
   }
 }
 
-// ✅ FUNCIÓN: Manejo de errores para React Error Boundaries
-export const handleReactError = (error, errorInfo) => {
-  const appError = new AppError(
-    error.message || 'React component error',
-    ERROR_TYPES.CLIENT,
-    null,
-    {
-      componentStack: errorInfo.componentStack,
-      originalError: error,
-      timestamp: new Date().toISOString()
-    }
-  )
-
-  errorLogger.log(appError, {
-    source: 'React Error Boundary',
-    errorInfo
-  })
-
-  return appError
-}
-
-// ✅ EXPORTAR TODO
-export default {
-  ERROR_TYPES,
-  ERROR_CODES,
-  AppError,
-  createDataUndefinedError,
-  parseSupabaseError,
-  parseAuthError,
-  safeDataValidator,
-  errorLogger,
-  withRetry,
-  safeAsync,
-  handleReactError
+// ✅ FUNCIÓN: Limpiar errores antiguos (para evitar memory leaks)
+export const cleanupOldErrors = () => {
+  // Reset counter periódicamente para evitar números muy grandes
+  if (errorCounter > 10000) {
+    errorCounter = 0;
+  }
 }

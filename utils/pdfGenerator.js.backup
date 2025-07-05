@@ -4,7 +4,6 @@
 
 import jsPDF from 'jspdf';
 import { formatDateConsistently, formatDateTimeConsistently, formatNumberConsistently } from './dateUtils';
-import { formatDateConsistently, formatDateTimeConsistently, formatNumberConsistently } from './dateUtils';
 
 /**
  * Genera un reporte PDF completo de la inspección
