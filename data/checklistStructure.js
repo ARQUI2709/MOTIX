@@ -1,8 +1,16 @@
-// data/checklistStructure.js - VERSIÓN CORREGIDA
-// Estructura de checklist para inspección de vehículos 4x4
+// data/checklistStructure.js
+// 🔧 VERSIÓN CORREGIDA: Estructura de checklist con exportaciones seguras
+// Previene errores TDZ y garantiza inicialización correcta
 
-import { safeObjectEntries, safeObjectValues, isValidObject } from '../utils/safeUtils.js';
+import { 
+  safeObjectValues, 
+  safeObjectEntries, 
+  safeGet,
+  isEmpty,
+  isValidObject 
+} from '../utils/safeUtils.js';
 
+// ✅ ESTRUCTURA DEL CHECKLIST - Definición completa y estática
 export const checklistStructure = {
     'Revisión Documental y Legal': [
       { name: 'SOAT vigente', description: 'Verificar fecha de vencimiento en el documento físico o digital. Consultar en www.runt.com.co si es auténtico.' },
@@ -135,56 +143,49 @@ export const checklistStructure = {
     ]
   };
 
-// Función para inicializar datos de inspección - VERSIÓN SEGURA
+// ✅ FUNCIÓN: Inicializar datos de inspección - Versión segura y sincrónica
 export const initializeInspectionData = () => {
   const inspectionData = {};
   
   try {
-    Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+    const entries = Object.entries(checklistStructure);
+    
+    for (const [categoryName, items] of entries) {
       if (!inspectionData[categoryName]) {
         inspectionData[categoryName] = {};
       }
       
       if (Array.isArray(items)) {
-        items.forEach(item => {
+        for (const item of items) {
           if (item && typeof item.name === 'string') {
             inspectionData[categoryName][item.name] = {
               score: 0,
               repairCost: 0,
               notes: '',
-              images: [], // ✅ AGREGAR ESTE CAMPO
+              images: [],
               evaluated: false
             };
           }
-        });
+        }
       }
-    });
+    }
   } catch (error) {
     console.error('Error initializing inspection data:', error);
     // Retornar estructura mínima en caso de error
-    return {
-      'Motor': {},
-      'Transmisión': {},
-      'Dirección y Suspensión': {},
-      'Sistema de Frenos': {},
-      'Llantas y Rines': {},
-      'Carrocería': {},
-      'Interior': {},
-      'Seguridad': {}
-    };
+    return Object.keys(checklistStructure).reduce((acc, category) => {
+      acc[category] = {};
+      return acc;
+    }, {});
   }
   
   return inspectionData;
 };
 
-// Función helper para obtener el total de ítems - VERSIÓN SEGURA
+// ✅ FUNCIONES HELPER - Todas exportadas de forma segura
 export const getTotalItems = () => {
   try {
-    return safeObjectValues(checklistStructure).reduce((acc, category) => {
-      if (Array.isArray(category)) {
-        return acc + category.length;
-      }
-      return acc;
+    return Object.values(checklistStructure).reduce((acc, category) => {
+      return Array.isArray(category) ? acc + category.length : acc;
     }, 0);
   } catch (error) {
     console.error('Error getting total items:', error);
@@ -192,76 +193,15 @@ export const getTotalItems = () => {
   }
 };
 
-// Función helper para obtener las categorías - VERSIÓN SEGURA
 export const getCategories = () => {
   try {
-    return Object.keys(checklistStructure || {});
+    return Object.keys(checklistStructure);
   } catch (error) {
     console.error('Error getting categories:', error);
     return [];
   }
 };
 
-// Función helper para obtener un número consecutivo de ítem - VERSIÓN SEGURA
-export const getItemNumber = (categoryName, itemName) => {
-  try {
-    let counter = 0;
-    const entries = safeObjectEntries(checklistStructure);
-    
-    for (const [catName, items] of entries) {
-      if (catName === categoryName) {
-        if (Array.isArray(items)) {
-          const itemIndex = items.findIndex(item => item && item.name === itemName);
-          if (itemIndex !== -1) {
-            return counter + itemIndex + 1;
-          }
-        }
-        break;
-      }
-      if (Array.isArray(items)) {
-        counter += items.length;
-      }
-    }
-    
-    return counter;
-  } catch (error) {
-    console.error('Error getting item number:', error);
-    return 0;
-  }
-};
-
-// Función para validar la estructura del checklist - VERSIÓN SEGURA
-export const validateChecklistStructure = () => {
-  try {
-    if (!isValidObject(checklistStructure)) {
-      console.error('checklistStructure is not a valid object');
-      return false;
-    }
-
-    const entries = safeObjectEntries(checklistStructure);
-    
-    for (const [categoryName, items] of entries) {
-      if (typeof categoryName !== 'string' || !Array.isArray(items)) {
-        console.error(`Invalid category: ${categoryName}`);
-        return false;
-      }
-
-      for (const item of items) {
-        if (!isValidObject(item) || typeof item.name !== 'string' || typeof item.description !== 'string') {
-          console.error(`Invalid item in category ${categoryName}:`, item);
-          return false;
-        }
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error validating checklist structure:', error);
-    return false;
-  }
-};
-
-// Función para obtener información de una categoría específica - VERSIÓN SEGURA
 export const getCategoryInfo = (categoryName) => {
   try {
     if (!categoryName || typeof categoryName !== 'string') {
@@ -283,7 +223,6 @@ export const getCategoryInfo = (categoryName) => {
   }
 };
 
-// Función para obtener información de un ítem específico - VERSIÓN SEGURA
 export const getItemInfo = (categoryName, itemName) => {
   try {
     const categoryInfo = getCategoryInfo(categoryName);
@@ -296,7 +235,6 @@ export const getItemInfo = (categoryName, itemName) => {
   }
 };
 
-// Función para obtener estadísticas del checklist - VERSIÓN SEGURA
 export const getChecklistStats = () => {
   try {
     const stats = {
@@ -305,7 +243,7 @@ export const getChecklistStats = () => {
       itemsByCategory: {}
     };
 
-    const entries = safeObjectEntries(checklistStructure);
+    const entries = Object.entries(checklistStructure);
     stats.totalCategories = entries.length;
 
     entries.forEach(([categoryName, items]) => {
@@ -329,11 +267,71 @@ export const getChecklistStats = () => {
   }
 };
 
-// Validar la estructura al cargar el módulo
+export const validateChecklistStructure = () => {
+  try {
+    if (!checklistStructure || typeof checklistStructure !== 'object') {
+      console.error('checklistStructure is not a valid object');
+      return false;
+    }
+
+    const entries = Object.entries(checklistStructure);
+    
+    for (const [categoryName, items] of entries) {
+      if (typeof categoryName !== 'string' || !Array.isArray(items)) {
+        console.error(`Invalid category: ${categoryName}`);
+        return false;
+      }
+
+      for (const item of items) {
+        if (!item || typeof item !== 'object' || 
+            typeof item.name !== 'string' || 
+            typeof item.description !== 'string') {
+          console.error(`Invalid item in category ${categoryName}:`, item);
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error validating checklist structure:', error);
+    return false;
+  }
+};
+
+export const getItemNumber = (categoryName, itemName) => {
+  try {
+    let counter = 0;
+    const entries = Object.entries(checklistStructure);
+    
+    for (const [catName, items] of entries) {
+      if (catName === categoryName) {
+        if (Array.isArray(items)) {
+          const itemIndex = items.findIndex(item => item && item.name === itemName);
+          if (itemIndex !== -1) {
+            return counter + itemIndex + 1;
+          }
+        }
+        break;
+      }
+      if (Array.isArray(items)) {
+        counter += items.length;
+      }
+    }
+    
+    return counter;
+  } catch (error) {
+    console.error('Error getting item number:', error);
+    return 0;
+  }
+};
+
+// ✅ VALIDACIÓN INICIAL - Solo en browser, no en SSR
 if (typeof window !== 'undefined') {
-  // Solo validar en el browser, no en SSR
   const isValid = validateChecklistStructure();
   if (!isValid) {
-    console.warn('checklistStructure validation failed');
+    console.warn('⚠️ checklistStructure validation failed');
+  } else {
+    console.log('✅ checklistStructure validated successfully');
   }
 }

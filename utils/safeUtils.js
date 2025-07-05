@@ -1,102 +1,94 @@
-// utils/safeUtils.js - Utilidades seguras para evitar errores TDZ
+// utils/safeUtils.js
+// 🔧 UTILIDADES SEGURAS: Funciones helper para prevenir errores de runtime
+// Incluye validaciones y manejo seguro de objetos/arrays
 
-/**
- * Versión segura de Object.values que maneja casos nulos/undefined
- * @param {Object} obj - Objeto del cual extraer valores
- * @returns {Array} Array de valores o array vacío si el objeto es inválido
- */
+// ✅ FUNCIÓN: Verificar si un valor es un objeto válido
+export const isValidObject = (obj) => {
+  return obj !== null && obj !== undefined && typeof obj === 'object' && !Array.isArray(obj);
+};
+
+// ✅ FUNCIÓN: Verificar si un valor está vacío
+export const isEmpty = (value) => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+};
+
+// ✅ FUNCIÓN: Object.values seguro
 export const safeObjectValues = (obj) => {
-  if (!obj || typeof obj !== 'object') {
-    return [];
-  }
-  
   try {
+    if (!isValidObject(obj)) {
+      console.warn('safeObjectValues: Invalid object provided');
+      return [];
+    }
     return Object.values(obj);
   } catch (error) {
-    console.warn('Error in safeObjectValues:', error);
+    console.error('safeObjectValues error:', error);
     return [];
   }
 };
 
-/**
- * Versión segura de Object.entries que maneja casos nulos/undefined
- * @param {Object} obj - Objeto del cual extraer entradas
- * @returns {Array} Array de [clave, valor] o array vacío si el objeto es inválido
- */
+// ✅ FUNCIÓN: Object.entries seguro
 export const safeObjectEntries = (obj) => {
-  if (!obj || typeof obj !== 'object') {
-    return [];
-  }
-  
   try {
+    if (!isValidObject(obj)) {
+      console.warn('safeObjectEntries: Invalid object provided');
+      return [];
+    }
     return Object.entries(obj);
   } catch (error) {
-    console.warn('Error in safeObjectEntries:', error);
+    console.error('safeObjectEntries error:', error);
     return [];
   }
 };
 
-/**
- * Versión segura de Object.keys que maneja casos nulos/undefined
- * @param {Object} obj - Objeto del cual extraer claves
- * @returns {Array} Array de claves o array vacío si el objeto es inválido
- */
+// ✅ FUNCIÓN: Object.keys seguro
 export const safeObjectKeys = (obj) => {
-  if (!obj || typeof obj !== 'object') {
-    return [];
-  }
-  
   try {
+    if (!isValidObject(obj)) {
+      console.warn('safeObjectKeys: Invalid object provided');
+      return [];
+    }
     return Object.keys(obj);
   } catch (error) {
-    console.warn('Error in safeObjectKeys:', error);
+    console.error('safeObjectKeys error:', error);
     return [];
   }
 };
 
-/**
- * Obtiene un valor de un objeto de manera segura usando una ruta
- * @param {Object} obj - Objeto fuente
- * @param {string} path - Ruta separada por puntos (ej: 'user.profile.name')
- * @param {*} defaultValue - Valor por defecto si no se encuentra la ruta
- * @returns {*} Valor encontrado o valor por defecto
- */
+// ✅ FUNCIÓN: Obtener valor anidado de forma segura
 export const safeGet = (obj, path, defaultValue = undefined) => {
-  if (!obj || typeof obj !== 'object' || !path) {
-    return defaultValue;
-  }
-
   try {
-    const keys = path.split('.');
-    let current = obj;
-
-    for (const key of keys) {
-      if (current === null || current === undefined || typeof current !== 'object') {
-        return defaultValue;
-      }
-      current = current[key];
+    if (!obj || typeof path !== 'string') {
+      return defaultValue;
     }
 
-    return current !== undefined ? current : defaultValue;
+    const keys = path.split('.');
+    let result = obj;
+
+    for (const key of keys) {
+      if (result === null || result === undefined) {
+        return defaultValue;
+      }
+      result = result[key];
+    }
+
+    return result !== undefined ? result : defaultValue;
   } catch (error) {
-    console.warn('Error in safeGet:', error);
+    console.error('safeGet error:', error);
     return defaultValue;
   }
 };
 
-/**
- * Establece un valor en un objeto de manera segura usando una ruta
- * @param {Object} obj - Objeto objetivo
- * @param {string} path - Ruta separada por puntos
- * @param {*} value - Valor a establecer
- * @returns {Object} Objeto modificado
- */
+// ✅ FUNCIÓN: Establecer valor anidado de forma segura
 export const safeSet = (obj, path, value) => {
-  if (!obj || typeof obj !== 'object' || !path) {
-    return obj;
-  }
-
   try {
+    if (!isValidObject(obj) || typeof path !== 'string') {
+      return false;
+    }
+
     const keys = path.split('.');
     let current = obj;
 
@@ -108,301 +100,248 @@ export const safeSet = (obj, path, value) => {
       current = current[key];
     }
 
-    const lastKey = keys[keys.length - 1];
-    current[lastKey] = value;
-
-    return obj;
-  } catch (error) {
-    console.warn('Error in safeSet:', error);
-    return obj;
-  }
-};
-
-/**
- * Verifica si un valor está vacío (null, undefined, "", [], {})
- * @param {*} value - Valor a verificar
- * @returns {boolean} true si está vacío
- */
-export const isEmpty = (value) => {
-  if (value === null || value === undefined) {
+    current[keys[keys.length - 1]] = value;
     return true;
-  }
-
-  if (typeof value === 'string') {
-    return value.trim().length === 0;
-  }
-
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-
-  if (typeof value === 'object') {
-    return Object.keys(value).length === 0;
-  }
-
-  return false;
-};
-
-/**
- * Verifica si un valor es un objeto válido (no null, no array)
- * @param {*} value - Valor a verificar
- * @returns {boolean} true si es un objeto válido
- */
-export const isValidObject = (value) => {
-  return value !== null && 
-         value !== undefined && 
-         typeof value === 'object' && 
-         !Array.isArray(value);
-};
-
-/**
- * Clona un objeto de manera segura (deep clone simple)
- * @param {*} obj - Objeto a clonar
- * @returns {*} Copia del objeto
- */
-export const safeClone = (obj) => {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  try {
-    return JSON.parse(JSON.stringify(obj));
   } catch (error) {
-    console.warn('Error in safeClone, falling back to shallow copy:', error);
-    if (typeof obj === 'object') {
-      return Array.isArray(obj) ? [...obj] : { ...obj };
+    console.error('safeSet error:', error);
+    return false;
+  }
+};
+
+// ✅ FUNCIÓN: Array.map seguro
+export const safeArrayMap = (arr, callback, defaultValue = []) => {
+  try {
+    if (!Array.isArray(arr)) {
+      console.warn('safeArrayMap: Invalid array provided');
+      return defaultValue;
     }
-    return obj;
-  }
-};
-
-/**
- * Combina objetos de manera segura (como Object.assign pero más seguro)
- * @param {Object} target - Objeto objetivo
- * @param {...Object} sources - Objetos fuente
- * @returns {Object} Objeto combinado
- */
-export const safeMerge = (target, ...sources) => {
-  if (!isValidObject(target)) {
-    target = {};
-  }
-
-  try {
-    for (const source of sources) {
-      if (isValidObject(source)) {
-        Object.assign(target, source);
-      }
-    }
-    return target;
+    return arr.map(callback);
   } catch (error) {
-    console.warn('Error in safeMerge:', error);
-    return target;
-  }
-};
-
-/**
- * Filtra un array de manera segura
- * @param {Array} arr - Array a filtrar
- * @param {Function} predicate - Función de filtrado
- * @returns {Array} Array filtrado
- */
-export const safeFilter = (arr, predicate) => {
-  if (!Array.isArray(arr)) {
-    return [];
-  }
-
-  try {
-    return arr.filter(predicate);
-  } catch (error) {
-    console.warn('Error in safeFilter:', error);
-    return [];
-  }
-};
-
-/**
- * Mapea un array de manera segura
- * @param {Array} arr - Array a mapear
- * @param {Function} mapper - Función de mapeo
- * @returns {Array} Array mapeado
- */
-export const safeMap = (arr, mapper) => {
-  if (!Array.isArray(arr)) {
-    return [];
-  }
-
-  try {
-    return arr.map(mapper);
-  } catch (error) {
-    console.warn('Error in safeMap:', error);
-    return [];
-  }
-};
-
-/**
- * Reduce un array de manera segura
- * @param {Array} arr - Array a reducir
- * @param {Function} reducer - Función reductora
- * @param {*} initialValue - Valor inicial
- * @returns {*} Valor reducido
- */
-export const safeReduce = (arr, reducer, initialValue) => {
-  if (!Array.isArray(arr)) {
-    return initialValue;
-  }
-
-  try {
-    return arr.reduce(reducer, initialValue);
-  } catch (error) {
-    console.warn('Error in safeReduce:', error);
-    return initialValue;
-  }
-};
-
-/**
- * Encuentra un elemento en un array de manera segura
- * @param {Array} arr - Array donde buscar
- * @param {Function} predicate - Función de búsqueda
- * @returns {*} Elemento encontrado o undefined
- */
-export const safeFind = (arr, predicate) => {
-  if (!Array.isArray(arr)) {
-    return undefined;
-  }
-
-  try {
-    return arr.find(predicate);
-  } catch (error) {
-    console.warn('Error in safeFind:', error);
-    return undefined;
-  }
-};
-
-/**
- * Busca el índice de un elemento en un array de manera segura
- * @param {Array} arr - Array donde buscar
- * @param {Function} predicate - Función de búsqueda
- * @returns {number} Índice encontrado o -1
- */
-export const safeFindIndex = (arr, predicate) => {
-  if (!Array.isArray(arr)) {
-    return -1;
-  }
-
-  try {
-    return arr.findIndex(predicate);
-  } catch (error) {
-    console.warn('Error in safeFindIndex:', error);
-    return -1;
-  }
-};
-
-/**
- * Verifica si todos los elementos de un array cumplen una condición
- * @param {Array} arr - Array a verificar
- * @param {Function} predicate - Función de verificación
- * @returns {boolean} true si todos cumplen la condición
- */
-export const safeEvery = (arr, predicate) => {
-  if (!Array.isArray(arr)) {
-    return false;
-  }
-
-  try {
-    return arr.every(predicate);
-  } catch (error) {
-    console.warn('Error in safeEvery:', error);
-    return false;
-  }
-};
-
-/**
- * Verifica si algún elemento de un array cumple una condición
- * @param {Array} arr - Array a verificar
- * @param {Function} predicate - Función de verificación
- * @returns {boolean} true si algún elemento cumple la condición
- */
-export const safeSome = (arr, predicate) => {
-  if (!Array.isArray(arr)) {
-    return false;
-  }
-
-  try {
-    return arr.some(predicate);
-  } catch (error) {
-    console.warn('Error in safeSome:', error);
-    return false;
-  }
-};
-
-/**
- * Convierte un valor a string de manera segura
- * @param {*} value - Valor a convertir
- * @param {string} defaultValue - Valor por defecto
- * @returns {string} String resultante
- */
-export const safeString = (value, defaultValue = '') => {
-  if (value === null || value === undefined) {
-    return defaultValue;
-  }
-
-  try {
-    return String(value);
-  } catch (error) {
-    console.warn('Error in safeString:', error);
+    console.error('safeArrayMap error:', error);
     return defaultValue;
   }
 };
 
-/**
- * Convierte un valor a número de manera segura
- * @param {*} value - Valor a convertir
- * @param {number} defaultValue - Valor por defecto
- * @returns {number} Número resultante
- */
+// ✅ FUNCIÓN: Array.filter seguro
+export const safeArrayFilter = (arr, callback, defaultValue = []) => {
+  try {
+    if (!Array.isArray(arr)) {
+      console.warn('safeArrayFilter: Invalid array provided');
+      return defaultValue;
+    }
+    return arr.filter(callback);
+  } catch (error) {
+    console.error('safeArrayFilter error:', error);
+    return defaultValue;
+  }
+};
+
+// ✅ FUNCIÓN: Array.reduce seguro
+export const safeArrayReduce = (arr, callback, initialValue) => {
+  try {
+    if (!Array.isArray(arr)) {
+      console.warn('safeArrayReduce: Invalid array provided');
+      return initialValue;
+    }
+    return arr.reduce(callback, initialValue);
+  } catch (error) {
+    console.error('safeArrayReduce error:', error);
+    return initialValue;
+  }
+};
+
+// ✅ FUNCIÓN: Convertir valor a booleano de forma segura
+export const safeBoolean = (value, defaultValue = false) => {
+  try {
+    if (value === null || value === undefined) {
+      return defaultValue;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return !!value;
+  } catch (error) {
+    console.error('safeBoolean error:', error);
+    return defaultValue;
+  }
+};
+
+// ✅ FUNCIÓN: Convertir a número de forma segura
 export const safeNumber = (value, defaultValue = 0) => {
-  if (value === null || value === undefined || value === '') {
-    return defaultValue;
-  }
-
   try {
+    if (value === null || value === undefined) {
+      return defaultValue;
+    }
     const num = Number(value);
     return isNaN(num) ? defaultValue : num;
   } catch (error) {
-    console.warn('Error in safeNumber:', error);
+    console.error('safeNumber error:', error);
     return defaultValue;
   }
 };
 
-/**
- * Parsea JSON de manera segura
- * @param {string} jsonString - String JSON a parsear
- * @param {*} defaultValue - Valor por defecto si falla el parseo
- * @returns {*} Objeto parseado o valor por defecto
- */
-export const safeJSONParse = (jsonString, defaultValue = null) => {
-  if (typeof jsonString !== 'string') {
-    return defaultValue;
-  }
-
+// ✅ FUNCIÓN: Convertir a string de forma segura
+export const safeString = (value, defaultValue = '') => {
   try {
-    return JSON.parse(jsonString);
+    if (value === null || value === undefined) {
+      return defaultValue;
+    }
+    return String(value);
   } catch (error) {
-    console.warn('Error in safeJSONParse:', error);
+    console.error('safeString error:', error);
     return defaultValue;
   }
 };
 
-/**
- * Convierte a JSON de manera segura
- * @param {*} obj - Objeto a convertir
- * @param {string} defaultValue - Valor por defecto si falla la conversión
- * @returns {string} String JSON o valor por defecto
- */
-export const safeJSONStringify = (obj, defaultValue = '{}') => {
+// ✅ FUNCIÓN: Clonar objeto de forma segura (shallow)
+export const safeClone = (obj) => {
   try {
-    return JSON.stringify(obj);
+    if (Array.isArray(obj)) {
+      return [...obj];
+    }
+    if (isValidObject(obj)) {
+      return { ...obj };
+    }
+    return obj;
   } catch (error) {
-    console.warn('Error in safeJSONStringify:', error);
+    console.error('safeClone error:', error);
+    return obj;
+  }
+};
+
+// ✅ FUNCIÓN: Clonar objeto de forma profunda
+export const safeDeepClone = (obj) => {
+  try {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    if (obj instanceof Date) {
+      return new Date(obj.getTime());
+    }
+    if (obj instanceof Array) {
+      return obj.map(item => safeDeepClone(item));
+    }
+    if (obj instanceof Object) {
+      const clonedObj = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          clonedObj[key] = safeDeepClone(obj[key]);
+        }
+      }
+      return clonedObj;
+    }
+    return obj;
+  } catch (error) {
+    console.error('safeDeepClone error:', error);
+    return obj;
+  }
+};
+
+// ✅ FUNCIÓN: Merge de objetos de forma segura
+export const safeMerge = (target, source) => {
+  try {
+    if (!isValidObject(target) || !isValidObject(source)) {
+      return target || source || {};
+    }
+    return { ...target, ...source };
+  } catch (error) {
+    console.error('safeMerge error:', error);
+    return target || {};
+  }
+};
+
+// ✅ FUNCIÓN: Try-catch wrapper genérico
+export const safeTry = (fn, defaultValue = null) => {
+  try {
+    return fn();
+  } catch (error) {
+    console.error('safeTry error:', error);
     return defaultValue;
   }
+};
+
+// ✅ FUNCIÓN: Ejecutar función asíncrona de forma segura
+export const safeAsync = async (fn, defaultValue = null) => {
+  try {
+    return await fn();
+  } catch (error) {
+    console.error('safeAsync error:', error);
+    return defaultValue;
+  }
+};
+
+// ✅ FUNCIÓN: Validar y sanitizar entrada de usuario
+export const sanitizeInput = (input, options = {}) => {
+  const {
+    maxLength = 1000,
+    allowHtml = false,
+    trim = true
+  } = options;
+
+  try {
+    if (!input || typeof input !== 'string') {
+      return '';
+    }
+
+    let sanitized = input;
+
+    // Limitar longitud
+    if (sanitized.length > maxLength) {
+      sanitized = sanitized.substring(0, maxLength);
+    }
+
+    // Eliminar HTML si no está permitido
+    if (!allowHtml) {
+      sanitized = sanitized.replace(/<[^>]*>/g, '');
+    }
+
+    // Trim si está habilitado
+    if (trim) {
+      sanitized = sanitized.trim();
+    }
+
+    return sanitized;
+  } catch (error) {
+    console.error('sanitizeInput error:', error);
+    return '';
+  }
+};
+
+// ✅ FUNCIÓN: Debounce seguro
+export const safeDebounce = (func, wait) => {
+  let timeout;
+  
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      try {
+        func(...args);
+      } catch (error) {
+        console.error('safeDebounce execution error:', error);
+      }
+    };
+    
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// ✅ FUNCIÓN: Throttle seguro
+export const safeThrottle = (func, limit) => {
+  let inThrottle;
+  
+  return function executedFunction(...args) {
+    if (!inThrottle) {
+      try {
+        func.apply(this, args);
+      } catch (error) {
+        console.error('safeThrottle execution error:', error);
+      }
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
 };

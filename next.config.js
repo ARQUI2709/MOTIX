@@ -3,57 +3,82 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-  // CORRECCIÓN: Configuración experimental mejorada
+  // Configuración para evitar problemas de compilación
   experimental: {
-    esmExternals: false,
-    // Evitar problemas con importaciones circulares
+    // Forzar transformaciones SWC para evitar problemas de hoisting
     forceSwcTransforms: true,
   },
   
-  // CORRECCIÓN: Configuración webpack mejorada para evitar TDZ
+  // Configuración webpack mejorada para evitar TDZ y errores de referencia
   webpack: (config, { isServer, dev }) => {
-    // Configuración para manejar archivos .js como módulos ES
+    // Resolver extensiones de archivo correctamente
     config.resolve.extensionAlias = {
-      '.js': ['.js', '.ts', '.jsx', '.tsx'],
+      '.js': ['.js', '.jsx'],
+      '.ts': ['.ts', '.tsx'],
     };
 
-    // Evitar problemas de hoisting y TDZ
+    // Configuración de fallback para módulos Node.js
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
       os: false,
+      crypto: false,
     };
 
     // Configuración específica para el servidor
     if (isServer) {
-      config.externals = config.externals || [];
-      // Evitar problemas con importaciones dinámicas de CDN
-      config.externals.push(/^https?:\/\//);
+      // Evitar problemas con importaciones externas
+      config.externals = [...(config.externals || [])];
     }
 
-    // NUEVO: Configuración para optimización de módulos
+    // Optimización mejorada
     config.optimization = {
       ...config.optimization,
-      usedExports: true,
+      // Mantener nombres de módulos para debugging
+      moduleIds: dev ? 'named' : 'deterministic',
+      // Evitar problemas de tree-shaking agresivo en desarrollo
       sideEffects: false,
+      usedExports: true,
     };
 
-    // NUEVO: Evitar problemas con variables antes de inicialización
+    // En desarrollo, minimizar optimizaciones que puedan causar TDZ
     if (dev) {
       config.optimization.minimize = false;
+      config.optimization.concatenateModules = false;
     }
+
+    // Agregar plugin para manejar importaciones circulares
+    config.module.rules.push({
+      test: /\.(js|jsx)$/,
+      exclude: /node_modules/,
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: ['next/babel'],
+          plugins: [
+            // Plugin para evitar problemas de hoisting
+            ['@babel/plugin-transform-runtime', {
+              regenerator: true,
+              useESModules: true,
+            }],
+          ],
+        },
+      },
+    });
 
     return config;
   },
   
   // Configuración para manejar errores de ESLint durante el build
   eslint: {
+    // No ignorar errores durante el build
     ignoreDuringBuilds: false,
-    dirs: ['pages', 'components', 'lib', 'utils', 'data']
+    // Directorios a verificar
+    dirs: ['pages', 'components', 'lib', 'utils', 'data', 'contexts']
   },
   
-  // CORRECCIÓN: Configurar CORS para APIs con headers más completos
+  // Configurar CORS para APIs
   async headers() {
     return [
       {
@@ -63,23 +88,34 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
-          // NUEVO: Headers adicionales para evitar problemas de caché
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' }
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
     ];
   },
 
-  // NUEVO: Configuración de compilación transpilada
-  transpilePackages: ['@supabase/supabase-js'],
-
-  // NUEVO: Configuración para evitar errores de hidratación
+  // Configuración para evitar errores de hidratación
   onDemandEntries: {
+    // Periodo de inactividad antes de desechar páginas en memoria
     maxInactiveAge: 25 * 1000,
+    // Número de páginas a mantener en memoria
     pagesBufferLength: 2,
   },
+
+  // Configuración de imágenes (si se usan)
+  images: {
+    domains: ['localhost', 'your-domain.com'],
+    unoptimized: true, // Temporalmente para evitar problemas de optimización
+  },
+
+  // Variables de entorno que se expondrán al cliente
+  env: {
+    NEXT_PUBLIC_APP_VERSION: '1.0.0',
+  },
+
+  // Configuración de output
+  output: 'standalone',
 }
 
 module.exports = nextConfig
