@@ -372,7 +372,6 @@ console.log('3. Vercel desplegará automáticamente');
 console.log('\n🔄 PARA REVERTIR (si es necesario):');
 console.log('   cp utils/pdfGenerator.js.backup-build utils/pdfGenerator.js');
 console.log('   cp utils/costFormatter.js.backup-build utils/costFormatter.js');
-`;
 
 // Ejecutar las correcciones
 filesToFix.forEach(([filePath, fileName]) => {
