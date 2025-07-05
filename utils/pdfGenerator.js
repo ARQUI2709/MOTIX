@@ -47,9 +47,6 @@ const formatNumberConsistently = (number) => {
 
 export const generatePDFReport = (inspectionData, vehicleInfo, userInfo, checklistStructure) => {
   try {
-      throw new Error('Datos insuficientes para generar el reporte');
-    }
-
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
