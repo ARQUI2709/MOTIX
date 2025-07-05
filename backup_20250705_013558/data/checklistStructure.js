@@ -32,7 +32,7 @@ export const checklistStructure = {
       { name: 'Soldaduras visibles', description: 'Buscar en uniones de paneles, especialmente torre de amortiguadores y largueros. Soldaduras no originales = accidente grave.' },
       { name: 'Vidrios', description: 'Revisar fechas de fabricación en cada vidrio (deben ser similares). Fisuras, rajaduras o sellos despegados.' },
       { name: 'Emblemas y molduras', description: 'Verificar que estén completos, bien fijados y sean originales. Faltantes pueden indicar repintado barato.' },
-      { name: 'Antena', description: 'Probar funcionamiento de radio AM/FM. Verificar que se extienda/retraiga correctamente si es automática.' },
+      { name: 'Antena', description: 'Probar funcionamiento de radio AM/FM. Verificar que se extienda/retraiga correctamente si es automática.' }
     ],
     'Motor': [
       { name: 'Limpieza general', description: 'Motor moderadamente sucio es normal. Excesivamente limpio = sospechoso (oculta fugas). Muy sucio = mal mantenimiento.' },
@@ -57,7 +57,7 @@ export const checklistStructure = {
       { name: 'Rines', description: 'Girar llanta y buscar: fisuras en rayos, reparaciones (soldaduras), oxidación en la pestaña.' },
       { name: 'Amortiguadores', description: 'Buscar manchas de aceite en el vástago. Presionar cada esquina: debe rebotar solo una vez.' },
       { name: 'Espirales/muelles', description: 'Verificar con linterna: sin fracturas, óxido excesivo o espiras juntas. Altura uniforme lado a lado.' },
-      { name: 'Bujes de suspensión', description: 'Goma en puntos de unión brazos-chasis. Buscar grietas, desprendimiento o ausencia de material.' },
+      { name: 'Bujes de suspensión', description: 'Goma en puntos de unión brazos-chasis. Buscar grietas, desprendimiento o ausencia de material.' }
     ],
     'Sistema de Frenos': [
       { name: 'Discos y pastillas', description: 'Inspeccionar sin desmontar. Discos sin ranuras profundas ni rebordes. Pastillas con más de 3 mm.' },
@@ -66,7 +66,7 @@ export const checklistStructure = {
       { name: 'Freno de parqueo', description: 'SProbar retención total en rampa. Accionamiento mecánico o eléctrico debe ser firme y efectivo.' },
       { name: 'ABS', description: 'Si tiene, verificar luz de advertencia en tablero. Debe apagarse al arrancar. Probar frenado brusco para sentir pulsaciones.' },
       { name: 'Frenos de emergencia', description: 'Probar frenado con freno de mano a baja velocidad. Debe detener el vehículo sin problemas.' },
-      { name: 'Sensor de desgaste de pastillas', description: 'Si tiene, verificar que no esté activado. Luz en tablero indica pastillas desgastadas.' },
+      { name: 'Sensor de desgaste de pastillas', description: 'Si tiene, verificar que no esté activado. Luz en tablero indica pastillas desgastadas.' }
     ],
     'Luces': [
       { name: 'Farolas principales', description: 'Probar luces altas y bajas. Verificar alcance del haz de luz (30-50m en bajas, 100m en altas).' },
@@ -76,7 +76,7 @@ export const checklistStructure = {
       { name: 'Luces de freno', description: 'Pedir ayuda para verificar. Las 3 deben encender simultáneamente al pisar el freno.' },
       { name: 'Luces de reversa', description: 'Ambas deben encender en reversa. Luz blanca brillante, no amarillenta.' },
       { name: 'Luz de placa', description: 'Debe iluminar claramente la placa trasera. Generalmente son 2 pequeñas luces blancas.' },
-      { name: 'Luces antiniebla', description: 'Delanteras: luz amarilla o blanca baja. Traseras: luz roja intensa. Verificar interruptores.' },
+      { name: 'Luces antiniebla', description: 'Delanteras: luz amarilla o blanca baja. Traseras: luz roja intensa. Verificar interruptores.' }
     ],
     'Interior': [
       { name: 'Asientos', description: 'Revisar: rasgaduras, funcionamiento de ajustes eléctricos/manuales, rieles sin óxido, anclajes firmes.' },
@@ -335,6 +335,3 @@ if (typeof window !== 'undefined') {
     console.log('✅ checklistStructure validated successfully');
   }
 }
-
-// ✅ EXPORTAR COMO DEFAULT PARA COMPATIBILIDAD
-export default checklistStructure;
