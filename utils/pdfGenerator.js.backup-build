@@ -1,0 +1,386 @@
+// utils/pdfGenerator.js
+// 🔧 VERSIÓN CORREGIDA: Generador de PDF con formateo consistente de fechas
+// Soluciona errores de hidratación usando formateo manual en lugar de toLocaleString()
+
+import jsPDF from 'jspdf';
+import { formatDateConsistently, formatDateTimeConsistently, formatNumberConsistently } from './dateUtils';
+import { formatDateConsistently, formatDateTimeConsistently, formatNumberConsistently } from './dateUtils';
+
+/**
+ * Genera un reporte PDF completo de la inspección
+ * @param {Object} inspectionData - Datos de la inspección
+ * @param {Object} vehicleInfo - Información del vehículo
+ * @param {Object} userInfo - Información del inspector
+ * @param {Object} checklistStructure - Estructura del checklist
+ * @returns {Object} - Resultado de la generación
+ */
+export const generatePDFReport = (inspectionData, vehicleInfo, userInfo, checklistStructure) => {
+  try {
+    // Validación de datos de entrada
+    if (!inspectionData || !vehicleInfo || !checklistStructure) {
+      throw new Error('Datos insuficientes para generar el reporte');
+    }
+
+    // Crear nuevo documento PDF
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPosition = margin;
+
+    // Función para verificar si necesita nueva página
+    const checkPageBreak = (requiredHeight) => {
+      if (yPosition + requiredHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+    };
+
+    // Función para añadir texto con ajuste de líneas
+    const addText = (text, x, y, options = {}) => {
+      const { fontSize = 10, maxWidth = contentWidth, lineHeight = 1.2 } = options;
+      doc.setFontSize(fontSize);
+      
+      const lines = doc.splitTextToSize(text, maxWidth);
+      let currentY = y;
+      
+      lines.forEach(line => {
+        checkPageBreak(fontSize * lineHeight);
+        doc.text(line, x, currentY);
+        currentY += fontSize * lineHeight;
+      });
+      
+      return currentY;
+    };
+
+    // ENCABEZADO DEL DOCUMENTO
+    doc.setFillColor(37, 99, 235); // blue-600
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORTE DE INSPECCIÓN VEHICULAR', margin, 25);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sistema de Inspección 4x4', margin, 35);
+
+    // Resetear color de texto
+    doc.setTextColor(0, 0, 0);
+    yPosition = 50;
+
+    // INFORMACIÓN DEL VEHÍCULO
+    checkPageBreak(60);
+    doc.setFillColor(249, 250, 251); // gray-50
+    doc.rect(margin, yPosition, contentWidth, 30, 'F');
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INFORMACIÓN DEL VEHÍCULO', margin + 5, yPosition + 10);
+    
+    yPosition += 35;
+
+    // Datos del vehículo en dos columnas
+    const vehicleData = [
+      [`Marca: ${vehicleInfo.marca || 'N/A'}`, `Modelo: ${vehicleInfo.modelo || 'N/A'}`],
+      [`Año: ${vehicleInfo.año || 'N/A'}`, `Placa: ${vehicleInfo.placa || 'N/A'}`],
+      [`Kilometraje: ${vehicleInfo.kilometraje ? formatNumberConsistently(vehicleInfo.kilometraje) : 'N/A'}`, `Combustible: ${vehicleInfo.combustible || 'N/A'}`],
+      [`Transmisión: ${vehicleInfo.transmision || 'N/A'}`, `Color: ${vehicleInfo.color || 'N/A'}`],
+      [`Precio: ${vehicleInfo.precio ? '$' + formatNumberConsistently(vehicleInfo.precio) : 'N/A'}`, `Vendedor: ${vehicleInfo.vendedor || 'N/A'}`],
+      // ✅ CORRECCIÓN: Usar formateo consistente en lugar de toLocaleDateString
+      [`Fecha de Inspección: ${vehicleInfo.fecha ? formatDateConsistently(vehicleInfo.fecha) : formatDateConsistently(new Date())}`, '']
+    ];
+
+    vehicleData.forEach(([left, right]) => {
+      checkPageBreak(15);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(left, margin + 5, yPosition);
+      if (right) {
+        doc.text(right, margin + (contentWidth / 2), yPosition);
+      }
+      yPosition += 12;
+    });
+
+    yPosition += 10;
+
+    // CALCULAR MÉTRICAS
+    const metrics = calculateDetailedMetrics(inspectionData, checklistStructure);
+    
+    // Determinar condición general
+    const condition = getVehicleCondition(metrics.averageScore);
+
+    // RESUMEN EJECUTIVO
+    checkPageBreak(40);
+    doc.setFillColor(243, 244, 246);
+    doc.rect(margin, yPosition - 5, contentWidth, 25, 'F');
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN EJECUTIVO', margin + 5, yPosition + 5);
+
+    yPosition += 25;
+
+    // Métricas principales
+    const metricsData = [
+      ['Puntuación General:', `${metrics.averageScore}/10`, condition.text],
+      // ✅ CORRECCIÓN: Usar formateo consistente de números
+      ['Costo de Reparaciones:', `$${formatNumberConsistently(metrics.totalRepairCost)}`, ''],
+      ['Ítems Evaluados:', `${metrics.evaluatedItems}/${metrics.totalItems}`, `${formatNumberConsistently(metrics.completionPercentage)}%`],
+      ['Estado General:', condition.text, '']
+    ];
+
+    metricsData.forEach(([label, value, extra]) => {
+      checkPageBreak(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, margin + 5, yPosition);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, margin + 80, yPosition);
+      if (extra) {
+        doc.text(extra, margin + 140, yPosition);
+      }
+      yPosition += 12;
+    });
+
+    yPosition += 15;
+
+    // RECOMENDACIONES GENERALES
+    checkPageBreak(30);
+    doc.setFillColor(254, 226, 226); // red-100
+    doc.rect(margin, yPosition - 5, contentWidth, 20, 'F');
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECOMENDACIONES GENERALES', margin + 5, yPosition + 8);
+
+    yPosition += 25;
+
+    const recommendations = [];
+    if (parseFloat(metrics.averageScore) < 6) {
+      recommendations.push('• Se recomienda una inspección mecánica profesional antes de la compra');
+    }
+    if (metrics.totalRepairCost > 2000000) {
+      recommendations.push('• El costo de reparaciones es elevado, considere negociar el precio');
+    }
+    if (parseFloat(metrics.completionPercentage) < 80) {
+      recommendations.push('• La inspección está incompleta, complete todas las categorías');
+    }
+    if (recommendations.length === 0) {
+      recommendations.push('• El vehículo presenta un buen estado general');
+    }
+
+    recommendations.forEach(rec => {
+      yPosition = addText(rec, margin + 5, yPosition, { fontSize: 10, maxWidth: contentWidth - 10 });
+      yPosition += 5;
+    });
+
+    yPosition += 15;
+
+    // DETALLE POR CATEGORÍAS
+    checkPageBreak(30);
+    doc.setFillColor(37, 99, 235);
+    doc.rect(margin, yPosition - 5, contentWidth, 20, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLE POR CATEGORÍAS', margin + 5, yPosition + 8);
+    
+    doc.setTextColor(0, 0, 0);
+    yPosition += 25;
+
+    // Iterar por cada categoría
+    Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+      checkPageBreak(40);
+      
+      // Encabezado de categoría
+      doc.setFillColor(229, 231, 235); // gray-200
+      doc.rect(margin, yPosition - 5, contentWidth, 20, 'F');
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(categoryName.toUpperCase(), margin + 5, yPosition + 8);
+      
+      // Calcular puntuación de la categoría
+      const categoryData = inspectionData[categoryName] || {};
+      const categoryItems = items.filter(item => categoryData[item.name]?.evaluated);
+      const categoryScore = categoryItems.length > 0 
+        ? categoryItems.reduce((sum, item) => sum + (categoryData[item.name]?.score || 0), 0) / categoryItems.length
+        : 0;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Puntuación: ${categoryScore.toFixed(1)}/10`, pageWidth - margin - 50, yPosition + 8);
+      
+      yPosition += 25;
+
+      // Detalles de cada ítem
+      items.forEach(item => {
+        const itemData = categoryData[item.name] || {};
+        
+        checkPageBreak(25);
+        
+        // Nombre del ítem
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(`${item.name}`, margin + 5, yPosition);
+
+        // Puntuación
+        if (itemData.evaluated) {
+          const scoreColor = itemData.score >= 8 ? '#16a34a' : itemData.score >= 5 ? '#ca8a04' : '#dc2626';
+          doc.text(`${itemData.score}/10`, pageWidth - margin - 30, yPosition);
+        } else {
+          doc.text('No evaluado', pageWidth - margin - 35, yPosition);
+        }
+
+        yPosition += 12;
+
+        // Descripción
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        yPosition = addText(item.description || '', margin + 10, yPosition, { fontSize: 8, maxWidth: contentWidth - 50 });
+        yPosition += 5;
+
+        // Costo de reparación si existe
+        if (itemData.repairCost && parseFloat(itemData.repairCost) > 0) {
+          doc.setFont('helvetica', 'bold');
+          // ✅ CORRECCIÓN: Usar formateo consistente de números
+          yPosition = addText(`Costo estimado reparación: ${formatNumberConsistently(itemData.repairCost)}`, 
+            margin + 10, yPosition, { fontSize: 9 });
+          yPosition += 5;
+        }
+
+        // Notas si existen
+        if (itemData.notes && itemData.notes.trim()) {
+          doc.setFont('helvetica', 'italic');
+          yPosition = addText(`Notas: ${itemData.notes}`, margin + 10, yPosition, { fontSize: 9 });
+          yPosition += 5;
+        }
+
+        yPosition += 8;
+      });
+
+      yPosition += 10;
+    });
+
+    // PIE DE PÁGINA EN ÚLTIMA PÁGINA
+    checkPageBreak(30);
+    yPosition = pageHeight - 40;
+
+    doc.setFillColor(243, 244, 246);
+    doc.rect(margin, yPosition, contentWidth, 25, 'F');
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Este reporte fue generado por la aplicación de Inspección de Vehículos 4x4', margin + 5, yPosition + 8);
+    
+    // ✅ CORRECCIÓN CRÍTICA: Usar formateo consistente en lugar de toLocaleString
+    doc.text(`Fecha y hora: ${formatDateTimeConsistently(new Date())}`, margin + 5, yPosition + 16);
+    
+    if (userInfo) {
+      doc.text(`Inspector: ${userInfo.name || userInfo.email}`, pageWidth - margin - 80, yPosition + 8);
+    }
+
+    // Numeración de páginas
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 20, pageHeight - 10);
+    }
+
+    // Generar nombre del archivo
+    const fileName = `inspeccion_${vehicleInfo.placa || 'SIN_PLACA'}_${vehicleInfo.fecha ? formatDateConsistently(vehicleInfo.fecha) : formatDateConsistently(new Date())}.pdf`;
+
+    // Descargar el PDF
+    doc.save(fileName);
+
+    return {
+      success: true,
+      fileName,
+      message: 'Reporte PDF generado exitosamente'
+    };
+
+  } catch (error) {
+    console.error('Error generando PDF:', error);
+    return {
+      success: false,
+      error: error.message || 'Error desconocido al generar PDF'
+    };
+  }
+};
+
+/**
+ * Calcula métricas detalladas de la inspección
+ * @param {Object} inspectionData - Datos de la inspección
+ * @param {Object} checklistStructure - Estructura del checklist
+ * @returns {Object} - Métricas calculadas
+ */
+const calculateDetailedMetrics = (inspectionData, checklistStructure) => {
+  let totalScore = 0;
+  let totalItems = 0;
+  let evaluatedItems = 0;
+  let totalRepairCost = 0;
+  const categories = {};
+
+  Object.entries(checklistStructure).forEach(([categoryName, items]) => {
+    const categoryData = inspectionData[categoryName] || {};
+    let categoryScore = 0;
+    let categoryEvaluated = 0;
+    let categoryRepairCost = 0;
+
+    items.forEach(item => {
+      totalItems++;
+      const itemData = categoryData[item.name] || {};
+      
+      if (itemData.evaluated) {
+        evaluatedItems++;
+        categoryEvaluated++;
+        const score = parseFloat(itemData.score) || 0;
+        totalScore += score;
+        categoryScore += score;
+        
+        const repairCost = parseFloat(itemData.repairCost) || 0;
+        totalRepairCost += repairCost;
+        categoryRepairCost += repairCost;
+      }
+    });
+
+    categories[categoryName] = {
+      totalItems: items.length,
+      evaluatedItems: categoryEvaluated,
+      averageScore: categoryEvaluated > 0 ? (categoryScore / categoryEvaluated).toFixed(1) : 0,
+      totalRepairCost: categoryRepairCost,
+      completionPercentage: items.length > 0 ? ((categoryEvaluated / items.length) * 100).toFixed(1) : 0
+    };
+  });
+
+  return {
+    categories,
+    totalItems,
+    evaluatedItems,
+    averageScore: evaluatedItems > 0 ? (totalScore / evaluatedItems).toFixed(1) : 0,
+    totalRepairCost,
+    completionPercentage: totalItems > 0 ? ((evaluatedItems / totalItems) * 100).toFixed(1) : 0
+  };
+};
+
+/**
+ * Determina la condición general del vehículo
+ * @param {number} averageScore - Puntuación promedio
+ * @returns {Object} - Condición del vehículo
+ */
+const getVehicleCondition = (averageScore) => {
+  const score = parseFloat(averageScore);
+  
+  if (score >= 8) {
+    return { text: 'Excelente', color: '#16a34a' };
+  } else if (score >= 6) {
+    return { text: 'Bueno', color: '#ca8a04' };
+  } else if (score >= 4) {
+    return { text: 'Regular', color: '#ea580c' };
+  } else {
+    return { text: 'Deficiente', color: '#dc2626' };
+  }
+};
