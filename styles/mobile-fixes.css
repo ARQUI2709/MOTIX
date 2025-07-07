@@ -1,230 +1,413 @@
 /* styles/mobile-fixes.css - Correcciones específicas para móviles */
+/* 🔧 VERSIÓN CORREGIDA: Responsividad completa y diseño mejorado */
+
+/* CORRECCIÓN: Estilos base para todas las pantallas */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+/* CORRECCIÓN: Container principal con espaciado adecuado */
+.main-container {
+  padding-top: 80px; /* Espacio para header fijo */
+  min-height: 100vh;
+}
 
 /* CORRECCIÓN: Mejorar área táctil en dispositivos móviles */
 @media (max-width: 768px) {
   
   /* Asegurar que todos los botones tengan área táctil mínima de 44px */
   button, 
-  .touch-target {
+  .touch-target,
+  .star-button,
+  .photo-upload-button {
     min-height: 44px;
     min-width: 44px;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
 
-  /* Mejorar la expansión de acordeones en móviles */
+  /* CORRECCIÓN: Header responsivo */
+  .mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 16px;
+  }
+
+  /* CORRECCIÓN: Contenedor principal con padding apropiado */
+  .mobile-container {
+    padding: 16px 16px 120px 16px; /* Espacio extra abajo para botones flotantes */
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* CORRECCIÓN: Mejorar el diseño de acordeones en móviles */
   .accordion-header {
-    padding: 12px 16px;
+    padding: 16px;
     min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .accordion-header:active {
+    background-color: #f9fafb;
+    transform: scale(0.98);
+  }
+
+  /* CORRECCIÓN: Contenido de acordeón responsive */
+  .accordion-content {
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 0 0 8px 8px;
+    margin-top: -8px;
   }
 
   /* CORRECCIÓN: Textarea comentarios - diseño responsivo mejorado */
-  .inspection-textarea {
+  .inspection-textarea,
+  .comments-textarea-mobile {
     min-height: 80px !important;
     max-height: 200px !important;
     resize: none;
     overflow-y: auto;
     line-height: 1.5;
-    font-size: 14px;
-    transition: height 0.2s ease;
+    font-size: 16px; /* Prevenir zoom en iOS */
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    width: 100%;
   }
 
-  /* Forzar scroll interno en textarea cuando sea necesario */
-  .inspection-textarea:focus {
-    min-height: 100px !important;
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
+  .inspection-textarea:focus,
+  .comments-textarea-mobile:focus {
+    min-height: 120px !important;
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
-  /* Mejorar el diseño de los star ratings en móviles */
-  .star-rating {
-    gap: 8px;
+  /* CORRECCIÓN: Sistema de calificación de 10 estrellas responsivo */
+  .star-rating-10 {
+    display: flex;
     flex-wrap: wrap;
+    gap: 6px;
     justify-content: flex-start;
+    align-items: center;
+    padding: 8px 0;
   }
 
-  .star-rating button {
-    min-width: 24px;
-    min-height: 24px;
+  .star-rating-10 button {
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
     padding: 4px;
-    border-radius: 4px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.15s ease;
+    cursor: pointer;
   }
 
-  .star-rating button:active {
+  .star-rating-10 button:hover {
+    transform: scale(1.05);
+    border-color: #fbbf24;
+    background-color: #fef3c7;
+  }
+
+  .star-rating-10 button:active {
     transform: scale(0.95);
-    background-color: rgba(59, 130, 246, 0.1);
   }
 
-  /* Mejorar espaciado en secciones de inspección */
-  .inspection-section {
-    margin-bottom: 8px;
+  .star-rating-10 button.selected {
+    background-color: #fbbf24;
+    border-color: #f59e0b;
+    color: white;
   }
 
-  .inspection-item {
-    margin-bottom: 8px;
+  /* CORRECCIÓN: Inputs y formularios responsivos */
+  .mobile-input,
+  .mobile-textarea,
+  .mobile-select {
+    font-size: 16px !important; /* Prevenir zoom en iOS */
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  /* CORRECCIÓN: Contenedor principal con padding apropiado para móviles */
-  .mobile-container {
-    padding: 16px 16px 100px 16px; /* Espacio extra abajo para botón flotante */
+  .mobile-input:focus,
+  .mobile-textarea:focus,
+  .mobile-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
   }
 
-  /* Botón flotante de guardar en móviles */
+  /* CORRECCIÓN: Grid responsivo para formularios */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .mobile-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* CORRECCIÓN: Botones flotantes en móviles */
   .mobile-save-button {
     position: fixed !important;
     bottom: 16px;
     left: 16px;
     right: 16px;
     z-index: 40;
-    min-height: 48px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-height: 56px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #3b82f6;
+    color: white;
+    border: none;
     border-radius: 12px;
-  }
-
-  /* Mejorar el diseño de inputs en móviles */
-  .mobile-input {
-    font-size: 16px; /* Prevenir zoom en iOS */
-    padding: 12px 16px;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-  }
-
-  .mobile-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-    outline: none;
-  }
-
-  /* Header navigation en móviles */
-  .mobile-nav {
-    padding: 8px 16px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .mobile-nav button {
-    padding: 8px 12px;
-    min-height: 40px;
-    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     transition: all 0.2s ease;
   }
 
-  .mobile-nav button:active {
+  .mobile-save-button:active {
     transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
   }
 
-  /* CORRECCIÓN: Mejorar grid layout en móviles */
-  .mobile-grid {
+  .mobile-save-button:disabled {
+    background: #9ca3af;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  /* CORRECCIÓN: Botón de fotos compacto y táctil */
+  .photo-upload-compact {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    background-color: #dbeafe;
+    color: #2563eb;
+    border: 2px solid #bfdbfe;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .photo-upload-compact:hover {
+    background-color: #bfdbfe;
+    border-color: #93c5fd;
+    transform: scale(1.05);
+  }
+
+  .photo-upload-compact:active {
+    transform: scale(0.95);
+  }
+
+  /* CORRECCIÓN: Vista previa de imágenes responsiva */
+  .image-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .image-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    background: #f3f4f6;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+  }
+
+  .image-preview-remove {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
+
+  .image-preview-item:hover .image-preview-remove {
+    opacity: 1;
+  }
+
+  /* CORRECCIÓN: Secciones de inspección con mejor espaciado */
+  .inspection-section {
+    margin-bottom: 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .inspection-item {
+    margin-bottom: 12px;
+    padding: 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  /* CORRECCIÓN: Métricas y estadísticas responsivas */
+  .metrics-grid {
+    display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .mobile-grid-2 {
-    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
 
-  /* Galería de imágenes responsiva */
-  .image-gallery {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+  @media (min-width: 480px) {
+    .metrics-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
-  .image-gallery img {
-    aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 6px;
+  .metric-card {
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
   }
 
-  /* Modal responsivo */
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  /* CORRECCIÓN: Navegación responsive */
+  .mobile-nav {
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 8px 16px;
+  }
+
+  .mobile-nav-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+    min-height: 48px;
+  }
+
+  .mobile-nav-item:active {
+    background-color: #f3f4f6;
+    transform: scale(0.98);
+  }
+
+  /* CORRECCIÓN: Modales responsivos */
   .mobile-modal {
-    margin: 16px;
-    max-height: calc(100vh - 32px);
-    border-radius: 12px;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .mobile-modal-content {
-    padding: 16px;
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-  }
-
-  /* Mejorar visibility de elementos en pantallas pequeñas */
-  .hide-mobile {
-    display: none !important;
-  }
-
-  .show-mobile {
-    display: block !important;
-  }
-
-  /* Texto truncado con mejor manejo en móviles */
-  .mobile-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 200px;
-  }
-
-  /* Mejorar contraste y legibilidad */
-  .mobile-text-small {
-    font-size: 13px;
-    line-height: 1.4;
-  }
-
-  .mobile-text-medium {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* Espaciado mejorado para listas */
-  .mobile-list-item {
-    padding: 12px 0;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .mobile-list-item:last-child {
-    border-bottom: none;
-  }
-
-  /* CORRECCIÓN: Progress bars más visibles en móviles */
-  .mobile-progress {
-    height: 6px;
-    border-radius: 3px;
-    background-color: #e5e7eb;
-  }
-
-  .mobile-progress-bar {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.3s ease;
-  }
-
-  /* Mejorar indicadores de estado */
-  .mobile-badge {
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
-  }
-
-  /* Scroll suave en contenedores */
-  .mobile-scroll {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-
-  /* Header sticky mejorado */
-  .mobile-header {
-    position: sticky;
-    top: 0;
     background: white;
-    z-index: 50;
-    border-bottom: 1px solid #e5e7eb;
-    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   }
 
-  /* Animaciones optimizadas para móviles */
+  .mobile-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-modal-body {
+    padding: 20px;
+  }
+
+  /* CORRECCIÓN: Auto-resize para textareas */
+  .auto-resize-textarea {
+    overflow: hidden;
+    resize: none;
+    min-height: 80px;
+    max-height: 200px;
+  }
+
+  /* CORRECCIÓN: Utilidades responsive */
+  .no-scroll-x {
+    overflow-x: hidden;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* CORRECCIÓN: Animaciones optimizadas para móviles */
   .mobile-transition {
     transition: all 0.2s ease;
   }
@@ -244,51 +427,121 @@
     }
   }
 
-  /* Prevenir zoom accidental en inputs */
+  /* CORRECCIÓN: Estados de carga */
+  .loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f4f6;
+    border-radius: 50%;
+    border-top: 2px solid #3b82f6;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* CORRECCIÓN: Prevenir zoom accidental en inputs */
   input[type="text"],
   input[type="number"],
   input[type="tel"],
+  input[type="email"],
+  input[type="password"],
   textarea,
   select {
     font-size: 16px !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 
-  /* Mejorar tap targets */
+  /* CORRECCIÓN: Mejorar tap targets */
   .tap-target {
     padding: 12px;
     margin: 4px;
     border-radius: 8px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
-  /* Optimizar scroll en listas largas */
+  /* CORRECCIÓN: Optimizar scroll en listas largas */
   .mobile-scroll-container {
     height: calc(100vh - 160px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 
-  /* Estilos para safe area en dispositivos con notch */
-  .safe-area-top {
-    padding-top: env(safe-area-inset-top);
+  /* CORRECCIÓN: Estilos específicos para notificaciones */
+  .mobile-notification {
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    right: 16px;
+    z-index: 50;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
   }
 
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+  @keyframes slideDown {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .mobile-notification.success {
+    background: #10b981;
+    color: white;
+  }
+
+  .mobile-notification.error {
+    background: #ef4444;
+    color: white;
+  }
+
+  .mobile-notification.warning {
+    background: #f59e0b;
+    color: white;
+  }
+
+  /* CORRECCIÓN: Estilos para estados disabled */
+  .disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* CORRECCIÓN: Focus visible mejorado */
+  .focus-visible:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 }
 
 /* CORRECCIÓN: Estilos para tablets (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
   .tablet-grid {
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
   }
 
   .tablet-container {
     padding: 24px;
+    max-width: 1024px;
+    margin: 0 auto;
   }
 
-  /* Mejorar diseño de acordeones en tablets */
+  /* CORRECCIÓN: Acordeones optimizados para tablets */
   .tablet-accordion {
     margin-bottom: 16px;
   }
@@ -302,20 +555,37 @@
     padding: 20px;
   }
 
-  /* Textarea con mejor height en tablets */
+  /* CORRECCIÓN: Textarea con mejor height en tablets */
   .tablet-textarea {
     min-height: 100px;
     max-height: 250px;
+    font-size: 14px;
   }
 
-  /* Star rating optimizado para tablets */
+  /* CORRECCIÓN: Star rating optimizado para tablets */
   .tablet-star-rating {
     gap: 12px;
   }
 
   .tablet-star-rating button {
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: 36px;
+  }
+
+  /* CORRECCIÓN: Botones más grandes en tablets */
+  .tablet-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  /* CORRECCIÓN: Métricas en grid de 4 columnas para tablets */
+  .tablet-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
   }
 }
 
@@ -327,268 +597,212 @@
 
   .tiny-screen h1 {
     font-size: 1.5rem;
+    line-height: 1.2;
   }
 
   .tiny-screen h2 {
     font-size: 1.25rem;
+    line-height: 1.3;
   }
 
   .tiny-screen h3 {
     font-size: 1.125rem;
+    line-height: 1.4;
   }
 
-  /* Grid de una sola columna en pantallas muy pequeñas */
+  /* CORRECCIÓN: Grid de una sola columna en pantallas muy pequeñas */
   .tiny-grid {
+    display: grid;
     grid-template-columns: 1fr !important;
     gap: 12px;
   }
 
-  /* Reducir padding en contenedores */
+  /* CORRECCIÓN: Reducir padding en contenedores */
   .tiny-container {
     padding: 12px;
   }
 
-  /* Botones más compactos */
+  /* CORRECCIÓN: Botones más compactos */
   .tiny-button {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 14px;
     min-height: 40px;
   }
 
-  /* Modal que ocupa casi toda la pantalla */
-  .tiny-modal {
-    margin: 8px;
-    border-radius: 8px;
-  }
-
-  /* Header más compacto */
-  .tiny-header {
-    height: 56px;
-  }
-
-  .tiny-header h1 {
-    font-size: 1.25rem;
-  }
-
-  /* Textarea más pequeña pero funcional */
-  .tiny-textarea {
-    min-height: 60px;
-    max-height: 120px;
-    font-size: 13px;
-  }
-
-  /* Galería de imágenes en columna única */
-  .tiny-image-gallery {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  /* Progress bars más finas */
-  .tiny-progress {
-    height: 4px;
-  }
-
-  /* Badges más pequeñas */
-  .tiny-badge {
-    font-size: 10px;
-    padding: 2px 4px;
-  }
-}
-
-/* Utilities para debug responsive */
-@media (max-width: 768px) {
-  .debug-mobile::before {
-    content: "MOBILE";
-    position: fixed;
-    top: 0;
-    right: 0;
-    background: red;
-    color: white;
-    padding: 4px 8px;
-    font-size: 12px;
-    z-index: 9999;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1024px) {
-  .debug-tablet::before {
-    content: "TABLET";
-    position: fixed;
-    top: 0;
-    right: 0;
-    background: orange;
-    color: white;
-    padding: 4px 8px;
-    font-size: 12px;
-    z-index: 9999;
-  }
-}
-
-/* Correcciones específicas para InspectionApp */
-.inspection-app-mobile {
-  /* Asegurar que el contenido principal no quede oculto bajo el header */
-  padding-top: 64px;
-}
-
-.inspection-item-mobile {
-  /* Mejorar la separación entre elementos */
-  margin-bottom: 12px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.inspection-item-header-mobile {
-  /* Asegurar área táctil adecuada */
-  min-height: 64px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  background: #f9fafb;
-  transition: background-color 0.2s ease;
-}
-
-.inspection-item-header-mobile:active {
-  background: #f3f4f6;
-}
-
-.inspection-item-content-mobile {
-  /* Contenido expandible con animación suave */
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-  background: white;
-}
-
-.inspection-item-content-mobile.expanded {
-  max-height: 1000px; /* Altura suficiente para contenido expandido */
-}
-
-.inspection-form-mobile {
-  /* Formulario optimizado para móviles */
-  padding: 16px;
-  margin-top: 16px;
-}
-
-.inspection-form-mobile label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 6px;
-  display: block;
-}
-
-.inspection-form-mobile input,
-.inspection-form-mobile textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 16px; /* Prevenir zoom en iOS */
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.inspection-form-mobile input:focus,
-.inspection-form-mobile textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* CORRECCIÓN: Clase específica para el textarea de comentarios */
-.comments-textarea-mobile {
-  min-height: 80px !important;
-  max-height: 200px !important;
-  resize: none;
-  line-height: 1.5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.comments-textarea-mobile:focus {
-  min-height: 120px !important;
-}
-
-/* Auto-resize para textareas */
-.auto-resize-textarea {
-  overflow: hidden;
-  resize: none;
-  min-height: 80px;
-  max-height: 200px;
-}
-
-/* Utilidad para ocultar scroll horizontal */
-.no-scroll-x {
-  overflow-x: hidden;
-}
-
-/* Utilidad para scroll suave */
-.smooth-scroll {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Print styles - ocultar elementos no necesarios al imprimir */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .mobile-save-button {
-    display: none !important;
-  }
-  
-  .mobile-nav {
-    display: none !important;
-  }
-}
-
-/* Estilos para calificación de 10 estrellas */
-.star-rating-10 {
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-
-.star-rating-10 button {
-  min-width: 24px;
-  min-height: 24px;
-  padding: 2px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-/* Botón de fotos compacto */
-.photo-upload-compact {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  background-color: rgb(219, 234, 254);
-  color: rgb(37, 99, 235);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.photo-upload-compact:hover {
-  background-color: rgb(191, 219, 254);
-  transform: scale(1.05);
-}
-
-@media (max-width: 768px) {
-  .star-rating-10 {
-    gap: 2px;
-  }
-  
-  .star-rating-10 button {
-    min-width: 20px;
-    min-height: 20px;
-  }
-  
-  .photo-upload-compact {
+  /* CORRECCIÓN: Star rating más compacto */
+  .tiny-star-rating button {
+    min-width: 28px;
+    min-height: 28px;
     width: 28px;
     height: 28px;
   }
+
+  /* CORRECCIÓN: Modales de pantalla completa en móviles pequeños */
+  .tiny-modal {
+    margin: 8px;
+    height: calc(100vh - 16px);
+  }
+
+  .tiny-modal-content {
+    height: 100%;
+    border-radius: 8px;
+  }
+
+  /* CORRECCIÓN: Texto más pequeño pero legible */
+  .tiny-text {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  /* CORRECCIÓN: Espaciado reducido */
+  .tiny-spacing {
+    margin: 8px 0;
+    padding: 8px;
+  }
 }
+
+/* CORRECCIÓN: Estilos para impresión */
+@media print {
+  .no-print,
+  .mobile-save-button,
+  .mobile-nav,
+  .photo-upload-compact,
+  button {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    font-size: 12px;
+    line-height: 1.4;
+    color: black;
+    background: white;
+  }
+
+  .inspection-section,
+  .metric-card {
+    border: 1px solid #000;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+  }
+}
+
+/* CORRECCIÓN: Estilos para modo oscuro (preferencia del sistema) */
+@media (prefers-color-scheme: dark) {
+  .dark-mode-auto {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+
+  .dark-mode-auto .inspection-section,
+  .dark-mode-auto .metric-card {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+
+  .dark-mode-auto .mobile-input,
+  .dark-mode-auto .mobile-textarea {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+
+  .dark-mode-auto .star-rating-10 button {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+
+  .dark-mode-auto .star-rating-10 button.selected {
+    background-color: #fbbf24;
+    border-color: #f59e0b;
+  }
+}
+
+/* CORRECCIÓN: Animaciones reducidas para usuarios que las prefieren */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .mobile-fade-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* CORRECCIÓN: Estilos para accesibilidad */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.focus-outline:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* CORRECCIÓN: Estados hover solo para dispositivos que lo soporten */
+@media (hover: hover) and (pointer: fine) {
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+
+  .hover-shadow:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .hover-bg:hover {
+    background-color: #f3f4f6;
+  }
+}
+
+/* CORRECCIÓN: Utilidades de espaciado consistente */
+.spacing-xs { margin: 4px; padding: 4px; }
+.spacing-sm { margin: 8px; padding: 8px; }
+.spacing-md { margin: 16px; padding: 16px; }
+.spacing-lg { margin: 24px; padding: 24px; }
+.spacing-xl { margin: 32px; padding: 32px; }
+
+/* CORRECCIÓN: Utilidades de color consistentes */
+.text-primary { color: #3b82f6; }
+.text-secondary { color: #6b7280; }
+.text-success { color: #10b981; }
+.text-warning { color: #f59e0b; }
+.text-error { color: #ef4444; }
+
+.bg-primary { background-color: #3b82f6; }
+.bg-secondary { background-color: #f3f4f6; }
+.bg-success { background-color: #10b981; }
+.bg-warning { background-color: #f59e0b; }
+.bg-error { background-color: #ef4444; }
+
+/* CORRECCIÓN: Utilidades de border radius */
+.rounded-sm { border-radius: 4px; }
+.rounded-md { border-radius: 8px; }
+.rounded-lg { border-radius: 12px; }
+.rounded-xl { border-radius: 16px; }
+.rounded-full { border-radius: 50%; }
+
+/* CORRECCIÓN: Utilidades de shadow */
+.shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.shadow-md { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.shadow-lg { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+.shadow-xl { box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
+
+/* CORRECCIÓN: Fin del archivo */

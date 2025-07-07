@@ -1,6 +1,6 @@
 // components/InspectionApp.jsx
-// 🔧 CORRECCIÓN CRÍTICA: Manejo robusto de estados de autenticación
-// Soluciona pantalla en blanco con fallbacks y mensajes de error
+// 🔧 VERSIÓN COMPATIBLE: Mejoras graduales respetando estructura existente
+// Conserva imports y estructura actual, agrega funcionalidades paso a paso
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -21,20 +21,22 @@ import {
   Loader,
   Settings,
   Home,
-  WifiOff
+  WifiOff,
+  Plus,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import AppHeader from './Layout/AppHeader';
 import LandingPage from './LandingPage';
 
-// 🔧 IMPORTACIÓN SEGURA: Verificar que existe checklistStructure
+// ✅ IMPORTACIÓN SEGURA: Mantener estructura existente
 let checklistStructure = {};
 let initializeInspectionData = () => ({});
 
 try {
   const checklistModule = require('../data/checklistStructure');
-  checklistStructure = checklistModule.checklistStructure || {};
+  checklistStructure = checklistModule.checklistStructure || checklistModule.default || {};
   initializeInspectionData = checklistModule.initializeInspectionData || (() => ({}));
   
   console.log('✅ checklistStructure cargado:', Object.keys(checklistStructure).length > 0);
@@ -43,12 +45,12 @@ try {
   // Fallback básico para evitar crashes
   checklistStructure = {
     'Motor': [
-      { name: 'aceite', category: 'Motor', priority: 'high', cost: 50 },
-      { name: 'refrigerante', category: 'Motor', priority: 'medium', cost: 30 }
+      { name: 'aceite', description: 'Estado del aceite del motor', priority: 'high', cost: 50 },
+      { name: 'refrigerante', description: 'Nivel y estado del refrigerante', priority: 'medium', cost: 30 }
     ],
     'Frenos': [
-      { name: 'pastillas', category: 'Frenos', priority: 'high', cost: 100 },
-      { name: 'discos', category: 'Frenos', priority: 'medium', cost: 200 }
+      { name: 'pastillas', description: 'Estado de las pastillas de freno', priority: 'high', cost: 100 },
+      { name: 'discos', description: 'Estado de los discos de freno', priority: 'medium', cost: 200 }
     ]
   };
   initializeInspectionData = () => {
@@ -69,380 +71,633 @@ try {
   };
 }
 
-// 🔧 COMPONENTE PRINCIPAL
+// ✅ FUNCIÓN: Calcular métricas mejoradas
+const calculateDetailedMetrics = (inspectionData) => {
+  const defaultReturn = {
+    categories: {},
+    global: {
+      totalScore: 0,
+      totalItems: 0,
+      evaluatedItems: 0,
+      totalRepairCost: 0,
+      completionPercentage: 0,
+      averageScore: 0
+    }
+  };
+
+  try {
+    if (!inspectionData || typeof inspectionData !== 'object') {
+      return defaultReturn;
+    }
+
+    let totalScore = 0;
+    let totalItems = 0;
+    let evaluatedItems = 0;
+    let scoredItems = 0;
+    let totalRepairCost = 0;
+    const processedCategories = {};
+
+    Object.entries(checklistStructure).forEach(([categoryName, categoryItems]) => {
+      if (!Array.isArray(categoryItems)) return;
+
+      const categoryData = inspectionData[categoryName] || {};
+      let catTotalItems = categoryItems.length;
+      let catEvaluatedItems = 0;
+      let catTotalScore = 0;
+      let catScoredItems = 0;
+      let catTotalRepairCost = 0;
+
+      totalItems += catTotalItems;
+
+      categoryItems.forEach(item => {
+        if (!item?.name) return;
+
+        const itemData = categoryData[item.name];
+        
+        if (itemData?.evaluated) {
+          evaluatedItems++;
+          catEvaluatedItems++;
+          
+          if (itemData.score > 0) {
+            totalScore += itemData.score;
+            scoredItems++;
+            catTotalScore += itemData.score;
+            catScoredItems++;
+          }
+          
+          if (itemData.repairCost > 0) {
+            totalRepairCost += itemData.repairCost;
+            catTotalRepairCost += itemData.repairCost;
+          }
+        }
+      });
+
+      processedCategories[categoryName] = {
+        totalItems: catTotalItems,
+        evaluatedItems: catEvaluatedItems,
+        averageScore: catScoredItems > 0 ? catTotalScore / catScoredItems : 0,
+        totalRepairCost: catTotalRepairCost,
+        completionPercentage: catTotalItems > 0 ? (catEvaluatedItems / catTotalItems) * 100 : 0
+      };
+    });
+
+    return {
+      categories: processedCategories,
+      global: {
+        totalScore,
+        totalItems,
+        evaluatedItems,
+        totalRepairCost,
+        completionPercentage: totalItems > 0 ? (evaluatedItems / totalItems) * 100 : 0,
+        averageScore: scoredItems > 0 ? totalScore / scoredItems : 0
+      }
+    };
+
+  } catch (error) {
+    console.error('Error calculating metrics:', error);
+    return defaultReturn;
+  }
+};
+
+// ✅ COMPONENTE PRINCIPAL
 const InspectionApp = () => {
   const { user, loading, initialized } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [inspectionData, setInspectionData] = useState({});
+  
+  // ✅ MEJORA: Agregar campos requeridos al vehicleInfo
   const [vehicleInfo, setVehicleInfo] = useState({
-    brand: '',
-    model: '',
-    year: '',
-    licensePlate: '',
-    mileage: '',
+    marca: '',
+    modelo: '',
+    placa: '',
+    año: '',
+    kilometraje: '',
+    combustible: '',
+    transmision: '',
     color: '',
-    chassisNumber: '',
-    motorNumber: ''
+    // ✅ NUEVOS CAMPOS AGREGADOS
+    precio: '',
+    vendedor: '',
+    telefono: ''
   });
+  
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [appView, setAppView] = useState('app');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
+  
+  // ✅ MEJORA: Estados para nuevas funcionalidades
+  const [showPreview, setShowPreview] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [expandedItems, setExpandedItems] = useState({});
 
-  // 🔧 CRÍTICO: Manejo de montaje del componente
+  // ✅ Hook de montaje
   useEffect(() => {
-    console.log('🔧 InspectionApp: Montando componente...');
     setMounted(true);
-    
-    // Inicializar datos de inspección
-    try {
-      const initialData = initializeInspectionData();
-      setInspectionData(initialData);
-      console.log('✅ Datos de inspección inicializados');
-    } catch (error) {
-      console.error('❌ Error inicializando datos:', error);
+    if (Object.keys(inspectionData).length === 0) {
+      setInspectionData(initializeInspectionData());
     }
-    
-    return () => {
-      setMounted(false);
-    };
   }, []);
 
-  // 🔧 ESTADOS DE CARGA Y ERROR
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [expandedCategories, setExpandedCategories] = useState({});
-  const [showPreview, setShowPreview] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [error, setError] = useState(null);
+  // ✅ Expansión por defecto de categorías
+  useEffect(() => {
+    if (Object.keys(expandedCategories).length === 0) {
+      const defaultExpanded = {};
+      Object.keys(checklistStructure).forEach(category => {
+        defaultExpanded[category] = true;
+      });
+      setExpandedCategories(defaultExpanded);
+    }
+  }, [expandedCategories]);
 
-  // 🔧 RENDERIZADO CONDICIONAL ROBUSTO
-  console.log('🔧 InspectionApp render:', { 
-    mounted, 
-    loading, 
-    initialized, 
-    hasUser: !!user,
-    currentView 
-  });
+  // ✅ FUNCIÓN: Actualizar datos de inspección
+  const updateInspectionItem = useCallback((category, itemName, field, value) => {
+    setInspectionData(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [itemName]: {
+          ...prev[category]?.[itemName],
+          [field]: value,
+          evaluated: true
+        }
+      }
+    }));
+  }, []);
 
-  // 1. Mientras no esté montado, mostrar loading
-  if (!mounted) {
+  // ✅ FUNCIÓN: Validar datos mínimos mejorada
+  const validateMinimumData = () => {
+    const errors = [];
+    
+    if (!vehicleInfo.marca?.trim()) {
+      errors.push('La marca del vehículo es requerida');
+    }
+    
+    if (!vehicleInfo.modelo?.trim()) {
+      errors.push('El modelo del vehículo es requerido');
+    }
+    
+    if (!vehicleInfo.placa?.trim()) {
+      errors.push('La placa del vehículo es requerida');
+    }
+
+    return errors;
+  };
+
+  // ✅ FUNCIÓN: Guardar inspección mejorada
+  const saveInspection = async () => {
+    const validationErrors = validateMinimumData();
+    
+    if (validationErrors.length > 0) {
+      // ✅ MEJORA: Notificación controlada en lugar de alert del sistema
+      setError(validationErrors.join(', '));
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const metrics = calculateDetailedMetrics(inspectionData);
+      
+      const inspectionRecord = {
+        user_id: user.id,
+        vehicle_info: vehicleInfo,
+        inspection_data: inspectionData,
+        total_score: metrics.global.averageScore,
+        total_repair_cost: metrics.global.totalRepairCost,
+        completed_items: metrics.global.evaluatedItems,
+        status: metrics.global.completionPercentage >= 80 ? 'completed' : 'in_progress',
+        notes: '',
+        photos: {}
+      };
+
+      const { data, error } = await supabase
+        .from('inspections')
+        .insert([inspectionRecord])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // ✅ MEJORA: Notificación estilizada en lugar de alert()
+      setSaveMessage('Inspección guardada exitosamente');
+      setTimeout(() => setSaveMessage(''), 3000);
+
+    } catch (error) {
+      console.error('Error saving inspection:', error);
+      setError('Error al guardar la inspección');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ✅ Renderizado de carga
+  if (loading || !initialized || !mounted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <RefreshCw className="animate-spin h-8 w-8 mx-auto text-blue-600 mb-4" />
           <p className="text-gray-600">Cargando aplicación...</p>
         </div>
       </div>
     );
   }
 
-  // 2. Si hay error crítico, mostrar mensaje de error
-  if (error) {
+  // ✅ Renderizar Landing Page si no hay usuario
+  if (!user || appView === 'landing') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            Error en la aplicación
-          </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Recargar página
-          </button>
-        </div>
-      </div>
+      <LandingPage 
+        onEnterApp={() => {
+          if (user) {
+            setAppView('app');
+          }
+        }} 
+      />
     );
   }
 
-  // 3. Si auth está cargando, mostrar loading
-  if (loading || !initialized) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Verificando autenticación...</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Estado: {loading ? 'Cargando...' : 'Inicializando...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Calcular métricas para mostrar
+  const metrics = calculateDetailedMetrics(inspectionData);
 
-  // 4. Si no hay usuario, mostrar landing page
-  if (!user) {
-    console.log('🔧 Mostrando LandingPage - No hay usuario');
-    return <LandingPage />;
-  }
-
-  // 5. Usuario autenticado - mostrar aplicación principal
-  console.log('✅ Renderizando aplicación principal para usuario:', user.email);
-
-  // 🔧 FUNCIÓN: Alternar categorías expandidas
-  const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
-
-  // 🔧 FUNCIÓN: Actualizar item de inspección
-  const updateInspectionItem = (category, itemName, field, value) => {
-    setInspectionData(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [itemName]: {
-          ...prev[category][itemName],
-          [field]: value
-        }
-      }
-    }));
-  };
-
-  // 🔧 FUNCIÓN: Validar formulario
-  const validateForm = () => {
-    const { brand, model, licensePlate } = vehicleInfo;
-    if (!brand.trim() || !model.trim() || !licensePlate.trim()) {
-      setError('Por favor complete al menos: Marca, Modelo y Placa');
-      return false;
-    }
-    return true;
-  };
-
-  // 🔧 FUNCIÓN: Guardar inspección
-  const saveInspection = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setIsGeneratingReport(true);
-      
-      const inspectionRecord = {
-        user_id: user.id,
-        vehicle_info: vehicleInfo,
-        inspection_data: inspectionData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('inspections')
-        .insert([inspectionRecord])
-        .select();
-
-      if (error) throw error;
-
-      console.log('✅ Inspección guardada:', data);
-      alert('Inspección guardada exitosamente');
-      
-    } catch (error) {
-      console.error('❌ Error guardando inspección:', error);
-      setError('Error al guardar la inspección: ' + error.message);
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
-
-  // 🔧 RENDERIZADO PRINCIPAL
+  // ✅ RENDERIZAR APLICACIÓN PRINCIPAL
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader 
-        user={user}
-        currentView={currentView}
-        onViewChange={setCurrentView}
+        currentView="inspection"
+        onNavigateToHome={() => setAppView('app')}
+        onNavigateToInspections={() => setAppView('manage')}
+        showInstructions={showInstructions}
+        setShowInstructions={setShowInstructions}
       />
       
-      <main className="container mx-auto px-4 py-8">
-        {/* Header de la inspección */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
+      {/* ✅ MEJORA: Espaciado correcto para que no se oculte tras el header */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ paddingTop: '6rem' }}>
+        
+        {/* ✅ MEJORA: Mensajes estilizados (no alert del sistema) */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
-              <Car className="w-8 h-8 text-blue-600 mr-3" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Nueva Inspección
-                </h1>
-                <p className="text-gray-600">
-                  Complete los datos del vehículo y realice la inspección
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              <AlertCircle className="h-5 w-5 text-red-400 mr-3" />
+              <p className="text-sm text-red-700">{error}</p>
+              <button 
+                onClick={() => setError('')}
+                className="ml-auto text-red-400 hover:text-red-600"
               >
-                {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                {showPreview ? 'Ocultar' : 'Previsualizar'}
-              </button>
-              
-              <button
-                onClick={saveInspection}
-                disabled={isGeneratingReport}
-                className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {isGeneratingReport ? (
-                  <Loader className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {isGeneratingReport ? 'Guardando...' : 'Guardar Inspección'}
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
+        )}
 
-          {/* Información del vehículo */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Marca *
-              </label>
-              <input
-                type="text"
-                value={vehicleInfo.brand}
-                onChange={(e) => setVehicleInfo(prev => ({ ...prev, brand: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ej: Toyota"
-              />
+        {saveMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <CheckCircle2 className="h-5 w-5 text-green-400 mr-3" />
+              <p className="text-sm text-green-700">{saveMessage}</p>
+              <button 
+                onClick={() => setSaveMessage('')}
+                className="ml-auto text-green-400 hover:text-green-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Modelo *
-              </label>
-              <input
-                type="text"
-                value={vehicleInfo.model}
-                onChange={(e) => setVehicleInfo(prev => ({ ...prev, model: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ej: Corolla"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Año
-              </label>
-              <input
-                type="number"
-                value={vehicleInfo.year}
-                onChange={(e) => setVehicleInfo(prev => ({ ...prev, year: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ej: 2020"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Placa *
-              </label>
-              <input
-                type="text"
-                value={vehicleInfo.licensePlate}
-                onChange={(e) => setVehicleInfo(prev => ({ ...prev, licensePlate: e.target.value.toUpperCase() }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ej: ABC-123"
-              />
+          </div>
+        )}
+
+        {/* ✅ MEJORA: Información del vehículo con campos nuevos */}
+        <div className="bg-white shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+              <Car className="w-5 h-5 mr-2 text-blue-600" />
+              Información del Vehículo
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Campos existentes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Marca *
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.marca}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, marca: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Toyota, Ford..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Modelo *
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.modelo}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, modelo: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Corolla, F-150..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Placa *
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.placa}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, placa: e.target.value.toUpperCase() }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ABC-123"
+                />
+              </div>
+
+              {/* ✅ NUEVOS CAMPOS AGREGADOS */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Precio
+                </label>
+                <input
+                  type="number"
+                  value={vehicleInfo.precio}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, precio: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="15000"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vendedor
+                </label>
+                <input
+                  type="text"
+                  value={vehicleInfo.vendedor}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, vendedor: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Nombre del vendedor"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={vehicleInfo.telefono}
+                  onChange={(e) => setVehicleInfo(prev => ({ ...prev, telefono: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="+1 234 567 8900"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Lista de categorías de inspección */}
-        <div className="space-y-4">
-          {Object.keys(checklistStructure).map(category => (
-            <div key={category} className="bg-white rounded-lg shadow-sm overflow-hidden">
+        {/* ✅ MEJORA: Panel de métricas con botón previsualizar funcional */}
+        <div className="bg-white shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+                Resumen de Inspección
+              </h2>
+              
+              {/* ✅ MEJORA: Botón Previsualizar/Ocultar funcional */}
               <button
-                onClick={() => toggleCategory(category)}
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                {showPreview ? (
+                  <>
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    Ocultar Resumen
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Resumen
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* ✅ MEJORA: Métricas visibles solo cuando showPreview es true */}
+          {showPreview && (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {metrics.global.averageScore.toFixed(1)}/10
+                  </div>
+                  <div className="text-sm text-blue-800">Puntuación Promedio</div>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-600">
+                    {metrics.global.completionPercentage.toFixed(0)}%
+                  </div>
+                  <div className="text-sm text-green-800">Completado</div>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {metrics.global.evaluatedItems}/{metrics.global.totalItems}
+                  </div>
+                  <div className="text-sm text-purple-800">Ítems Evaluados</div>
+                </div>
+                
+                <div className="bg-red-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-red-600">
+                    ${metrics.global.totalRepairCost.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-red-800">Costo Total Reparaciones</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ✅ MEJORA: Categorías de inspección con sistema de 10 estrellas */}
+        <div className="space-y-4">
+          {Object.entries(checklistStructure).map(([category, items]) => (
+            <div key={category} className="bg-white shadow rounded-lg">
+              <button
+                onClick={() => setExpandedCategories(prev => ({
+                  ...prev,
+                  [category]: !prev[category]
+                }))}
                 className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center">
-                  <h3 className="text-lg font-semibold text-gray-900">{category}</h3>
-                  <span className="ml-3 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    {checklistStructure[category].length} elementos
+                  <h3 className="text-lg font-medium text-gray-900">{category}</h3>
+                  <span className="ml-3 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                    {items.length} ítems
+                  </span>
+                  {/* ✅ MEJORA: Puntuación por categoría visible */}
+                  <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                    {metrics.categories[category]?.averageScore?.toFixed(1) || '0'}/10
                   </span>
                 </div>
-                {expandedCategories[category] ? 
-                  <ChevronUp className="w-5 h-5 text-gray-400" /> : 
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
-                }
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-500 mr-2">
+                    {metrics.categories[category]?.completionPercentage?.toFixed(0) || 0}% completado
+                  </span>
+                  {expandedCategories[category] ? (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
               </button>
 
               {expandedCategories[category] && (
-                <div className="px-6 pb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {checklistStructure[category].map(item => (
-                      <div key={item.name} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-gray-900 capitalize">
-                            {item.name.replace(/([A-Z])/g, ' $1').trim()}
-                          </h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            item.priority === 'high' ? 'bg-red-100 text-red-800' :
-                            item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {item.priority}
-                          </span>
-                        </div>
+                <div className="border-t border-gray-200">
+                  <div className="p-6 space-y-4">
+                    {items.map(item => {
+                      const itemKey = `${category}-${item.name}`;
+                      const itemData = inspectionData[category]?.[item.name] || {};
+                      const isItemExpanded = expandedItems[itemKey];
 
-                        <div className="space-y-3">
-                          {/* Calificación */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Calificación (1-5)
-                            </label>
-                            <div className="flex gap-1">
-                              {[1, 2, 3, 4, 5].map(score => (
-                                <button
-                                  key={score}
-                                  onClick={() => {
-                                    updateInspectionItem(category, item.name, 'score', score);
-                                    updateInspectionItem(category, item.name, 'evaluated', true);
-                                  }}
-                                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                    inspectionData[category]?.[item.name]?.score >= score
-                                      ? 'bg-yellow-400 border-yellow-400 text-white'
-                                      : 'border-gray-300 hover:border-yellow-400'
-                                  }`}
-                                >
-                                  <Star className="w-4 h-4" />
-                                </button>
-                              ))}
+                      return (
+                        <div key={item.name} className="border border-gray-200 rounded-lg">
+                          <div
+                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => setExpandedItems(prev => ({
+                              ...prev,
+                              [itemKey]: !prev[itemKey]
+                            }))}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center">
+                                  <h4 className="font-medium text-gray-900 capitalize">
+                                    {item.name.replace(/([A-Z])/g, ' $1').trim()}
+                                  </h4>
+                                  {itemData.evaluated && (
+                                    <CheckCircle2 className="w-4 h-4 text-green-500 ml-2" />
+                                  )}
+                                </div>
+                                {/* ✅ MEJORA: Mostrar descripción del ítem */}
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {item.description || `Inspección de ${item.name}`}
+                                </p>
+                                {/* ✅ MEJORA: Mostrar puntuación actual */}
+                                {itemData.score > 0 && (
+                                  <div className="text-sm font-medium text-blue-600 mt-1">
+                                    Puntuación: {itemData.score}/10
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center ml-4">
+                                {isItemExpanded ? (
+                                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Notas */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Observaciones
-                            </label>
-                            <textarea
-                              value={inspectionData[category]?.[item.name]?.notes || ''}
-                              onChange={(e) => updateInspectionItem(category, item.name, 'notes', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              rows="2"
-                              placeholder="Escriba sus observaciones..."
-                            />
-                          </div>
+                          {isItemExpanded && (
+                            <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50">
+                              <div className="mt-4 space-y-4">
+                                {/* ✅ MEJORA: Sistema de calificación de 10 estrellas */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Calificación (1-10 estrellas)
+                                  </label>
+                                  <div className="flex flex-wrap gap-1">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(score => (
+                                      <button
+                                        key={score}
+                                        onClick={() => {
+                                          updateInspectionItem(category, item.name, 'score', score);
+                                        }}
+                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                                          itemData.score >= score
+                                            ? 'bg-yellow-400 border-yellow-400 text-white hover:bg-yellow-500'
+                                            : 'border-gray-300 hover:border-yellow-400 hover:bg-yellow-50'
+                                        }`}
+                                        title={`${score} estrella${score !== 1 ? 's' : ''}`}
+                                      >
+                                        <Star className="w-4 h-4" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="mt-2 text-sm text-gray-600">
+                                    {itemData.score === 0 && 'Sin calificar'}
+                                    {itemData.score >= 1 && itemData.score <= 3 && '⭐ Mal estado - Reparación urgente'}
+                                    {itemData.score >= 4 && itemData.score <= 5 && '⭐⭐ Estado regular - Requiere atención'}
+                                    {itemData.score >= 6 && itemData.score <= 7 && '⭐⭐⭐ Buen estado - Mantenimiento menor'}
+                                    {itemData.score >= 8 && itemData.score <= 10 && '⭐⭐⭐⭐ Excelente estado - Sin problemas'}
+                                  </div>
+                                </div>
 
-                          {/* Costo estimado */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Costo estimado de reparación
-                            </label>
-                            <input
-                              type="number"
-                              value={inspectionData[category]?.[item.name]?.repairCost || ''}
-                              onChange={(e) => updateInspectionItem(category, item.name, 'repairCost', parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="0.00"
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
+                                {/* ✅ MEJORA: Comentarios/observaciones visibles */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Observaciones y comentarios
+                                  </label>
+                                  <textarea
+                                    value={itemData.notes || ''}
+                                    onChange={(e) => updateInspectionItem(category, item.name, 'notes', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    rows="3"
+                                    placeholder="Escriba sus observaciones detalladas aquí..."
+                                  />
+                                </div>
+
+                                {/* ✅ MEJORA: Costo estimado de reparación */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Costo estimado de reparación
+                                  </label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                    <input
+                                      type="number"
+                                      value={itemData.repairCost || ''}
+                                      onChange={(e) => updateInspectionItem(category, item.name, 'repairCost', parseFloat(e.target.value) || 0)}
+                                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      placeholder="0.00"
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* ✅ MEJORA: Botón para agregar fotos (funcionalidad básica) */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Fotografías
+                                  </label>
+                                  <button
+                                    onClick={() => {
+                                      // ✅ FUNCIONALIDAD BÁSICA: Placeholder para fotos
+                                      alert('Funcionalidad de fotos será implementada próximamente');
+                                    }}
+                                    className="flex items-center px-3 py-2 text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition-colors"
+                                  >
+                                    <Camera className="w-4 h-4 mr-2" />
+                                    Agregar Fotos
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -450,16 +705,120 @@ const InspectionApp = () => {
           ))}
         </div>
 
-        {/* Mensaje de estado */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
-            <CheckCircle2 className="w-5 h-5 mr-2" />
-            <span>Aplicación cargada correctamente</span>
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Usuario: {user.email} | Categorías: {Object.keys(checklistStructure).length}
-          </p>
+        {/* ✅ MEJORA: Botones de acción mejorados */}
+        <div className="mt-8 flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={saveInspection}
+            disabled={saving}
+            className={`flex-1 flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-colors ${
+              saving 
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {saving ? (
+              <>
+                <Loader className="w-5 h-5 mr-2 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5 mr-2" />
+                Guardar Inspección
+              </>
+            )}
+          </button>
+
+          {/* ✅ MEJORA: Botón para generar PDF (funcionalidad básica) */}
+          <button
+            onClick={() => {
+              const validationErrors = validateMinimumData();
+              
+              if (validationErrors.length > 0) {
+                setError('Complete los datos mínimos del vehículo antes de generar el PDF');
+                setTimeout(() => setError(''), 5000);
+                return;
+              }
+              
+              // ✅ FUNCIONALIDAD BÁSICA: Placeholder para PDF
+              alert('Funcionalidad de generación PDF será implementada próximamente');
+            }}
+            className="flex-1 flex items-center justify-center px-6 py-3 bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium transition-colors"
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Generar PDF
+          </button>
         </div>
+
+        {/* ✅ MEJORA: Resumen detallado */}
+        <div className="mt-8 bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+              <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+              Resumen Detallado
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Estadísticas por categoría */}
+              <div>
+                <h3 className="text-md font-medium text-gray-900 mb-4">Puntuación por Categoría</h3>
+                <div className="space-y-3">
+                  {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
+                    <div key={categoryName} className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">{categoryName}</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(categoryMetrics.averageScore / 10) * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 w-12 text-right">
+                          {categoryMetrics.averageScore.toFixed(1)}/10
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Costos por categoría */}
+              <div>
+                <h3 className="text-md font-medium text-gray-900 mb-4">Costos de Reparación</h3>
+                <div className="space-y-3">
+                  {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
+                    <div key={categoryName} className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">{categoryName}</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        ${categoryMetrics.totalRepairCost.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 flex justify-between items-center font-bold">
+                    <span className="text-gray-900">Total</span>
+                    <span className="text-red-600">
+                      ${metrics.global.totalRepairCost.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ✅ Información de estado para desarrollo */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-8 text-center text-sm text-gray-500">
+            <div className="bg-gray-100 rounded-lg p-4">
+              <p><strong>Estado de desarrollo:</strong></p>
+              <p>Categorías cargadas: {Object.keys(checklistStructure).length}</p>
+              <p>Usuario: {user?.email}</p>
+              <p>Ítems evaluados: {metrics.global.evaluatedItems}/{metrics.global.totalItems}</p>
+              <p>Progreso: {metrics.global.completionPercentage.toFixed(1)}%</p>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
