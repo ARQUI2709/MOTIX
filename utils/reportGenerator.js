@@ -1,4 +1,4 @@
-  // utils/reportGenerator.js
+// utils/ReportGenerator.js
 // 🔧 VERSIÓN CORREGIDA: Generador de reportes PDF funcional
 // Genera reportes completos con métricas y formato profesional
 
@@ -203,54 +203,52 @@ export const generatePDFReport = async (inspectionData, vehicleInfo, photos = {}
 
     // Función para agregar texto con wrap
     const addText = (text, x, y, options = {}) => {
-      const { fontSize = 10, fontStyle = 'normal', maxWidth = contentWidth, align = 'left' } = options;
-      doc.setFontSize(fontSize);
-      doc.setFont('helvetica', fontStyle);
-      
-      const lines = doc.splitTextToSize(text, maxWidth);
-      let currentY = y;
-      
-      lines.forEach(line => {
-        checkPageBreak(fontSize * 1.2);
-        doc.text(line, x, currentY, { align });
-        currentY += fontSize * 1.2;
-      });
-      
-      return currentY;
+      try {
+        const maxWidth = options.maxWidth || contentWidth;
+        const fontSize = options.fontSize || 10;
+        
+        doc.setFontSize(fontSize);
+        
+        if (typeof text === 'string' && text.length > 50) {
+          const lines = doc.splitTextToSize(text, maxWidth);
+          lines.forEach((line, index) => {
+            if (index > 0) {
+              yPosition += 6;
+              checkPageBreak();
+            }
+            doc.text(line, x, y + (index * 6));
+          });
+          return lines.length * 6;
+        } else {
+          doc.text(String(text), x, y);
+          return fontSize;
+        }
+      } catch (error) {
+        console.error('Error adding text:', error);
+        doc.text('Error de texto', x, y);
+        return 10;
+      }
     };
 
-    // ENCABEZADO DEL DOCUMENTO
-    doc.setFillColor(37, 99, 235); // blue-600
-    doc.rect(0, 0, pageWidth, 40, 'F');
-    
-    doc.setTextColor(255, 255, 255);
+    // TÍTULO PRINCIPAL
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('REPORTE DE INSPECCIÓN VEHICULAR', margin, 25);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text('InspecciónPro 4x4 - Sistema de Inspección Profesional', margin, 35);
-
-    // Resetear color de texto
-    doc.setTextColor(0, 0, 0);
-    yPosition = 50;
+    doc.text('REPORTE DE INSPECCIÓN VEHICULAR', margin, yPosition);
+    yPosition += 30;
 
     // INFORMACIÓN DEL VEHÍCULO
-    checkPageBreak(60);
-    doc.setFillColor(249, 250, 251);
-    doc.rect(margin, yPosition, contentWidth, 5, 'F');
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yPosition - 5, contentWidth, 20, 'F');
     
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('INFORMACIÓN DEL VEHÍCULO', margin + 5, yPosition + 15);
-    
+    doc.text('INFORMACIÓN DEL VEHÍCULO', margin + 5, yPosition + 10);
     yPosition += 25;
 
-    // Datos del vehículo en tabla
+    // Datos del vehículo en formato de tabla
     const vehicleData = [
       [`Marca: ${vehicleInfo.marca || 'N/A'}`, `Modelo: ${vehicleInfo.modelo || 'N/A'}`],
-      [`Año: ${vehicleInfo.año || 'N/A'}`, `Placa: ${vehicleInfo.placa || 'N/A'}`],
+      [`Año: ${vehicleInfo.ano || 'N/A'}`, `Placa: ${vehicleInfo.placa || 'N/A'}`],
       [`Kilometraje: ${vehicleInfo.kilometraje ? formatNumber(vehicleInfo.kilometraje) + ' km' : 'N/A'}`, `Combustible: ${vehicleInfo.combustible || 'N/A'}`],
       [`Transmisión: ${vehicleInfo.transmision || 'N/A'}`, `Color: ${vehicleInfo.color || 'N/A'}`]
     ];
@@ -329,257 +327,91 @@ export const generatePDFReport = async (inspectionData, vehicleInfo, photos = {}
     const barHeight = 8;
     const progressWidth = (barWidth * stats.completionPercentage) / 100;
     
-    doc.setFillColor(229, 231, 235); // gray-200
+    // Fondo de la barra
+    doc.setFillColor(230, 230, 230);
     doc.rect(margin, yPosition, barWidth, barHeight, 'F');
     
-    doc.setFillColor(59, 130, 246); // blue-600
+    // Progreso de la barra
+    doc.setFillColor(34, 197, 94);
     doc.rect(margin, yPosition, progressWidth, barHeight, 'F');
     
-    yPosition += 20;
+    yPosition += 25;
 
-    // DETALLES POR CATEGORÍA
-    checkPageBreak(40);
-    
-    doc.setFillColor(249, 250, 251);
-    doc.rect(margin, yPosition, contentWidth, 5, 'F');
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALLES POR CATEGORÍA', margin + 5, yPosition + 15);
-    
-    yPosition += 30;
-
-    // Procesar cada categoría
-    Object.entries(checklistStructure).forEach(([categoryName, categoryItems]) => {
-      checkPageBreak(60);
-      
-      const categoryData = inspectionData[categoryName] || {};
-      const categoryStat = stats.categoryStats[categoryName] || {};
-      
-      // Encabezado de categoría
-      doc.setFillColor(59, 130, 246); // blue-600
-      doc.rect(margin, yPosition, contentWidth, 8, 'F');
-      
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(categoryName.toUpperCase(), margin + 5, yPosition + 6);
-      
-      // Estadísticas de categoría
-      const catText = `Puntuación: ${categoryStat.averageScore?.toFixed(1) || '0'}/10 | Completado: ${categoryStat.completionPercentage?.toFixed(0) || '0'}% | Costo: $${formatNumber(categoryStat.totalRepairCost || 0)}`;
-      doc.setFontSize(8);
-      doc.text(catText, pageWidth - margin - 5, yPosition + 6, { align: 'right' });
-      
-      doc.setTextColor(0, 0, 0);
-      yPosition += 15;
-
-      // Ítems de la categoría
-      if (Array.isArray(categoryItems)) {
-        categoryItems.forEach(item => {
-          checkPageBreak(25);
-          
-          const itemData = categoryData[item.name] || {};
-          
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          
-          // Nombre del ítem
-          const itemName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
-          doc.text(`• ${itemName}`, margin + 5, yPosition);
-          
-          // Estado y puntuación
-          if (itemData.evaluated) {
-            doc.setFont('helvetica', 'bold');
-            doc.text(`${itemData.score || 0}/10`, margin + 120, yPosition);
-            
-            if (itemData.repairCost > 0) {
-              doc.text(`$${formatNumber(itemData.repairCost)}`, margin + 150, yPosition);
-            }
-            
-            doc.setFont('helvetica', 'normal');
-          } else {
-            doc.setTextColor(128, 128, 128);
-            doc.text('No evaluado', margin + 120, yPosition);
-            doc.setTextColor(0, 0, 0);
-          }
-          
-          yPosition += 12;
-          
-          // Comentarios si existen
-          if (itemData.notes && itemData.notes.trim()) {
-            checkPageBreak(15);
-            doc.setFontSize(8);
-            doc.setTextColor(64, 64, 64);
-            yPosition = addText(`   Observaciones: ${itemData.notes}`, margin + 10, yPosition, { fontSize: 8, maxWidth: contentWidth - 20 });
-            doc.setTextColor(0, 0, 0);
-            yPosition += 3;
-          }
-        });
-      }
-      
-      yPosition += 10;
-    });
-
-    // CONCLUSIONES
-    checkPageBreak(60);
-    
-    doc.setFillColor(249, 250, 251);
-    doc.rect(margin, yPosition, contentWidth, 5, 'F');
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CONCLUSIONES Y RECOMENDACIONES', margin + 5, yPosition + 15);
-    
-    yPosition += 30;
-
-    // Generar conclusiones automáticas
-    const conclusions = [];
-    
-    if (stats.averageScore >= 8) {
-      conclusions.push('El vehículo se encuentra en excelente estado general.');
-    } else if (stats.averageScore >= 6) {
-      conclusions.push('El vehículo presenta un estado bueno con mantenimientos menores requeridos.');
-    } else if (stats.averageScore >= 4) {
-      conclusions.push('El vehículo requiere atención en varios aspectos importantes.');
-    } else {
-      conclusions.push('El vehículo presenta problemas significativos que requieren reparación urgente.');
-    }
-
-    if (stats.totalRepairCost > 0) {
-      conclusions.push(`Costo estimado total de reparaciones: $${formatNumber(stats.totalRepairCost)}`);
-    }
-
-    if (stats.completionPercentage < 80) {
-      conclusions.push('Se recomienda completar la inspección para obtener un reporte más preciso.');
-    }
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    conclusions.forEach(conclusion => {
-      checkPageBreak(15);
-      yPosition = addText(`• ${conclusion}`, margin, yPosition, { fontSize: 10 });
-      yPosition += 5;
-    });
-
-    // CATEGORÍAS CON MAYOR ATENCIÓN
-    const categoriesNeedingAttention = Object.entries(stats.categoryStats)
-      .filter(([_, stat]) => stat.averageScore < 6 && stat.averageScore > 0)
-      .sort((a, b) => a[1].averageScore - b[1].averageScore);
-
-    if (categoriesNeedingAttention.length > 0) {
-      yPosition += 10;
+    // DETALLES POR CATEGORÍAS
+    Object.entries(stats.categoryStats).forEach(([categoryName, categoryData]) => {
       checkPageBreak(40);
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('CATEGORÍAS QUE REQUIEREN ATENCIÓN:', margin, yPosition);
+      doc.text(`CATEGORÍA: ${categoryName.toUpperCase()}`, margin, yPosition);
       yPosition += 15;
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       
-      categoriesNeedingAttention.forEach(([categoryName, stat]) => {
+      const categoryInfo = [
+        `Ítems evaluados: ${categoryData.evaluatedItems}/${categoryData.totalItems}`,
+        `Puntuación promedio: ${categoryData.averageScore.toFixed(1)}/10`,
+        `Costo de reparaciones: $${formatNumber(categoryData.totalRepairCost)}`,
+        `Progreso: ${categoryData.completionPercentage.toFixed(0)}%`
+      ];
+      
+      categoryInfo.forEach(info => {
         checkPageBreak(12);
-        const priorityText = `• ${categoryName}: ${stat.averageScore.toFixed(1)}/10 - Costo estimado: ${formatNumber(stat.totalRepairCost)}`;
-        doc.text(priorityText, margin, yPosition);
+        doc.text(`• ${info}`, margin + 10, yPosition);
         yPosition += 12;
       });
-    }
+      
+      yPosition += 10;
+    });
 
-    // INFORMACIÓN DEL INSPECTOR
-    yPosition += 20;
+    // RECOMENDACIONES
     checkPageBreak(40);
     
     doc.setFillColor(249, 250, 251);
     doc.rect(margin, yPosition, contentWidth, 5, 'F');
     
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('INFORMACIÓN DEL INSPECTOR', margin + 5, yPosition + 15);
-    
+    doc.text('RECOMENDACIONES', margin + 5, yPosition + 15);
     yPosition += 25;
-
+    
+    const recommendations = generateRecommendations(stats);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     
-    const inspectorInfo = [
-      `Inspector: ${userInfo?.email || 'Sistema InspecciónPro'}`,
-      `Fecha del reporte: ${formatDate()}`,
-      `Hora: ${new Date().toLocaleTimeString()}`,
-      `Sistema: InspecciónPro 4x4 v1.0`
-    ];
-
-    inspectorInfo.forEach(info => {
-      checkPageBreak(12);
-      doc.text(info, margin, yPosition);
-      yPosition += 12;
+    recommendations.forEach((recommendation, index) => {
+      checkPageBreak(15);
+      addText(`${index + 1}. ${recommendation}`, margin, yPosition, { maxWidth: contentWidth - 20 });
+      yPosition += 15;
     });
 
-    // PIE DE PÁGINA CON NUMERACIÓN
-    const addFooter = (pageNum) => {
-      const date = formatDate();
-      doc.setFontSize(8);
-      doc.setTextColor(128, 128, 128);
-      
-      doc.text(`Generado el ${date}`, margin, pageHeight - 10);
-      doc.text(`Página ${pageNum}`, pageWidth - margin - 20, pageHeight - 10);
-      
-      // Línea de separación
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
-      
-      doc.setTextColor(0, 0, 0);
-    };
+    // PIE DE PÁGINA
+    const finalY = doc.internal.pageSize.height - 30;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Generado por InspecciónPro - ${formatDate()}`, margin, finalY);
+    doc.text(`Usuario: ${userInfo?.email || 'Sistema'}`, margin, finalY + 10);
 
-    // Agregar footer a todas las páginas
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(i);
-    }
-
-    // Generar nombre del archivo
-    const fileName = `Inspeccion_${vehicleInfo.marca || 'Vehiculo'}_${vehicleInfo.modelo || 'Modelo'}_${vehicleInfo.placa || 'SinPlaca'}_${new Date().getTime()}.pdf`;
-
-    // Guardar el PDF
+    // Generar y descargar PDF
+    const fileName = `Inspeccion_${vehicleInfo.marca}_${vehicleInfo.modelo}_${new Date().getTime()}.pdf`;
     doc.save(fileName);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       fileName,
-      message: 'Reporte PDF generado exitosamente',
-      stats
+      message: 'PDF generado exitosamente'
     };
 
   } catch (error) {
     console.error('Error generando PDF:', error);
     
-    // Fallback a descarga de JSON si falla el PDF
     try {
-      const fallbackData = {
-        vehicleInfo,
-        inspectionData,
-        stats: calculateInspectionStats(inspectionData, {}),
-        generatedAt: new Date().toISOString(),
-        error: error.message
-      };
-      
-      const dataStr = JSON.stringify(fallbackData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Inspeccion_Fallback_${new Date().getTime()}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
+      // Fallback: generar reporte JSON
+      const result = generateJSONReport(inspectionData, vehicleInfo, photos, userInfo);
       return {
-        success: false,
-        error: `Error generando PDF: ${error.message}. Se descargó un archivo JSON como respaldo.`,
+        ...result,
+        message: `Error generando PDF, se descargó un archivo JSON como respaldo.`,
         fallback: true
       };
     } catch (fallbackError) {
