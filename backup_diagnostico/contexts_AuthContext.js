@@ -1,7 +1,4 @@
 // contexts/AuthContext.js
-// 🔧 CORRECCIÓN CRÍTICA: Manejo robusto de sesión inicial
-// Soluciona el problema de pantalla en blanco con INITIAL_SESSION null
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -11,42 +8,24 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    console.log('🔐 AuthProvider: Inicializando...');
-
-    // 🔧 CORRECCIÓN CRÍTICA: Obtener sesión inicial de forma robusta
+    // Obtener sesión inicial
     const getInitialSession = async () => {
       try {
-        console.log('🔐 Obteniendo sesión inicial...');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
         if (error) {
-          console.error('❌ Error obteniendo sesión:', error);
-        }
-        
-        if (isMounted) {
-          console.log('🔐 Sesión inicial obtenida:', { 
-            hasSession: !!session, 
-            hasUser: !!session?.user 
-          });
-          
+          console.error('Error getting session:', error);
+        } else if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          setInitialized(true);
-          
-          // 🔧 CRÍTICO: Finalizar loading después de obtener sesión inicial
-          setLoading(false);
         }
       } catch (error) {
-        console.error('❌ Error crítico en getInitialSession:', error);
+        console.error('Error in getInitialSession:', error);
+      } finally {
         if (isMounted) {
-          setSession(null);
-          setUser(null);
-          setInitialized(true);
           setLoading(false);
         }
       }
@@ -54,61 +33,44 @@ export const AuthProvider = ({ children }) => {
 
     getInitialSession();
 
-    // 🔧 CORRECCIÓN: Escuchar cambios de auth solo después de inicialización
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
         
-        console.log('🔐 Auth state changed:', event, { 
-          hasSession: !!session,
-          initialized 
-        });
+        console.log('Auth state changed:', event, session);
         
-        // 🔧 CRÍTICO: Manejar INITIAL_SESSION correctamente
+        // Evitar actualizar el estado si es el mismo evento de sesión inicial
         if (event === 'INITIAL_SESSION') {
-          // Solo procesar si no hemos inicializado aún
-          if (!initialized) {
-            console.log('🔐 Procesando INITIAL_SESSION...');
+          // Solo actualizar si realmente cambió algo
+          if (session) {
             setSession(session);
-            setUser(session?.user ?? null);
-            setInitialized(true);
-            setLoading(false);
+            setUser(session.user);
+          } else {
+            setSession(null);
+            setUser(null);
           }
-        } else if (event === 'SIGNED_IN') {
-          console.log('✅ Usuario inició sesión');
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setSession(session);
           setUser(session?.user ?? null);
-          setLoading(false);
         } else if (event === 'SIGNED_OUT') {
-          console.log('👋 Usuario cerró sesión');
           setSession(null);
           setUser(null);
+        }
+        
+        if (loading) {
           setLoading(false);
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log('🔄 Token renovado');
-          setSession(session);
-          setUser(session?.user ?? null);
         }
       }
     );
 
-    // 🔧 SEGURIDAD: Timeout para evitar loading infinito
-    const timeoutId = setTimeout(() => {
-      if (isMounted && loading) {
-        console.log('⏰ Timeout: Finalizando loading por seguridad');
-        setLoading(false);
-        setInitialized(true);
-      }
-    }, 5000); // 5 segundos máximo
-
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, [loading, initialized]);
+  }, [loading]);
 
-  // 🔧 FUNCIONES DE AUTENTICACIÓN
+  // Función para registrar usuario
   const signUp = async (email, password, userData = {}) => {
     try {
       setLoading(true);
@@ -116,7 +78,9 @@ export const AuthProvider = ({ children }) => {
         email,
         password,
         options: {
-          data: userData
+          data: {
+            full_name: userData.fullName
+          }
         }
       });
 
@@ -130,6 +94,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Función para iniciar sesión
   const signIn = async (email, password) => {
     try {
       setLoading(true);
@@ -148,26 +113,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Función para cerrar sesión
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       setUser(null);
       setSession(null);
       return { error: null };
     } catch (error) {
-      console.error('Error signing out:', error);
       return { error };
     }
   };
 
+  // Función para restablecer contraseña
   const resetPassword = async (email) => {
     try {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
-      return { data, error };
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
+  // Función para actualizar perfil
+  const updateProfile = async (updates) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({ data: updates });
+      if (error) throw error;
+      
+      if (data.user) {
+        setUser(data.user);
+      }
+      
+      return { data, error: null };
     } catch (error) {
       return { data: null, error };
     }
@@ -177,11 +160,11 @@ export const AuthProvider = ({ children }) => {
     user,
     session,
     loading,
-    initialized,
     signUp,
     signIn,
     signOut,
-    resetPassword
+    resetPassword,
+    updateProfile
   };
 
   return (
