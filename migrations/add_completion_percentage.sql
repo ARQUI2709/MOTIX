@@ -1,5 +1,6 @@
 -- migrations/add_completion_percentage.sql
 -- 🔧 MIGRACIÓN: Agregar columna completion_percentage a la tabla inspections
+-- ✅ SOLUCIONA: Could not find the 'completion_percentage' column error
 -- Ejecutar en Supabase SQL Editor
 
 -- ✅ AGREGAR COLUMNA: completion_percentage
@@ -10,15 +11,6 @@ CHECK (completion_percentage >= 0 AND completion_percentage <= 100);
 -- ✅ COMENTARIO: Documentar el propósito de la columna
 COMMENT ON COLUMN public.inspections.completion_percentage 
 IS 'Porcentaje de completitud de la inspección (0-100)';
-
--- ✅ ACTUALIZAR REGISTROS EXISTENTES: Calcular completion_percentage para inspecciones existentes
-UPDATE public.inspections 
-SET completion_percentage = 0 
-WHERE completion_percentage IS NULL;
-
--- ✅ ÍNDICE: Mejorar rendimiento de consultas por completion_percentage
-CREATE INDEX IF NOT EXISTS idx_inspections_completion_percentage 
-ON public.inspections(completion_percentage);
 
 -- ✅ FUNCIÓN: Calcular automáticamente completion_percentage
 CREATE OR REPLACE FUNCTION calculate_completion_percentage(inspection_data jsonb)
@@ -80,8 +72,13 @@ UPDATE public.inspections
 SET completion_percentage = calculate_completion_percentage(inspection_data)
 WHERE inspection_data IS NOT NULL AND inspection_data != '{}'::jsonb;
 
--- ✅ POLÍTICA RLS: Asegurar que completion_percentage respete las políticas existentes
--- (Las políticas RLS existentes se aplicarán automáticamente a la nueva columna)
+-- ✅ ÍNDICE: Mejorar rendimiento de consultas por completion_percentage
+CREATE INDEX IF NOT EXISTS idx_inspections_completion_percentage 
+ON public.inspections(completion_percentage);
+
+-- ✅ ÍNDICE COMPUESTO: Para consultas filtradas por usuario y completion
+CREATE INDEX IF NOT EXISTS idx_inspections_user_completion 
+ON public.inspections(user_id, completion_percentage);
 
 -- ✅ VERIFICACIÓN: Comprobar que la migración fue exitosa
 DO $$
@@ -106,5 +103,26 @@ BEGIN
         RAISE EXCEPTION 'Error: El trigger trigger_update_completion_percentage no fue creado correctamente';
     END IF;
     
+    -- Verificar que la función existe
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.routines 
+        WHERE routine_name = 'calculate_completion_percentage'
+        AND routine_schema = 'public'
+    ) THEN
+        RAISE EXCEPTION 'Error: La función calculate_completion_percentage no fue creada correctamente';
+    END IF;
+    
     RAISE NOTICE 'Migración completada exitosamente';
+    RAISE NOTICE 'Columna completion_percentage agregada con trigger automático';
+    RAISE NOTICE 'Registros existentes actualizados: %', (
+        SELECT COUNT(*) FROM public.inspections WHERE completion_percentage IS NOT NULL
+    );
 END $$;
+
+-- ✅ POLÍTICA RLS: Asegurar que completion_percentage respete las políticas existentes
+-- (Las políticas RLS existentes se aplicarán automáticamente a la nueva columna)
+
+-- ✅ GRANT: Asegurar permisos correctos
+GRANT SELECT, INSERT, UPDATE ON public.inspections TO authenticated;
+GRANT EXECUTE ON FUNCTION calculate_completion_percentage(jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_completion_percentage() TO authenticated;
