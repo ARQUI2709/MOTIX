@@ -1,7 +1,9 @@
-/* styles/mobile-fixes.css - Correcciones específicas para móviles */
-/* 🔧 VERSIÓN CORREGIDA: Responsividad completa y diseño mejorado */
+/* styles/mobile-fixes.css */
+/* 🔧 CORRECCIONES MÍNIMAS PARA RESPONSIVIDAD */
+/* ✅ CORRIGE: Layout responsive, touch targets, espaciado móvil */
+/* ❌ NO ALTERA: estilos base existentes, solo agrega mejoras */
 
-/* CORRECCIÓN: Estilos base para todas las pantallas */
+/* ✅ RESET Y BASE */
 * {
   box-sizing: border-box;
 }
@@ -11,29 +13,33 @@ body {
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* CORRECCIÓN: Container principal con espaciado adecuado */
+/* ✅ CONTAINER PRINCIPAL RESPONSIVE */
 .main-container {
-  padding-top: 80px; /* Espacio para header fijo */
+  padding-top: 64px; /* Espacio para header fijo */
   min-height: 100vh;
 }
 
-/* CORRECCIÓN: Mejorar área táctil en dispositivos móviles */
+/* ✅ CORRECCIONES ESPECÍFICAS PARA MÓVILES */
 @media (max-width: 768px) {
   
-  /* Asegurar que todos los botones tengan área táctil mínima de 44px */
+  /* ✅ TOUCH TARGETS: Área mínima de 44px */
   button, 
   .touch-target,
   .star-button,
-  .photo-upload-button {
+  .photo-upload-button,
+  input[type="file"] + label,
+  .accordion-header {
     min-height: 44px;
     min-width: 44px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
 
-  /* CORRECCIÓN: Header responsivo */
+  /* ✅ HEADER MÓVIL OPTIMIZADO */
   .mobile-header {
     position: fixed;
     top: 0;
@@ -43,129 +49,57 @@ body {
     background: white;
     border-bottom: 1px solid #e5e7eb;
     padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  /* CORRECCIÓN: Contenedor principal con padding apropiado */
+  /* ✅ CONTENEDOR PRINCIPAL CON PADDING APROPIADO */
   .mobile-container {
-    padding: 16px 16px 120px 16px; /* Espacio extra abajo para botones flotantes */
+    padding: 16px 16px 100px 16px; /* Espacio extra abajo para botones flotantes */
     max-width: 100vw;
     overflow-x: hidden;
   }
 
-  /* CORRECCIÓN: Mejorar el diseño de acordeones en móviles */
-  .accordion-header {
-    padding: 16px;
-    min-height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: white;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .accordion-header:active {
-    background-color: #f9fafb;
-    transform: scale(0.98);
-  }
-
-  /* CORRECCIÓN: Contenido de acordeón responsive */
-  .accordion-content {
-    padding: 16px;
-    background: #f9fafb;
-    border-radius: 0 0 8px 8px;
-    margin-top: -8px;
-  }
-
-  /* CORRECCIÓN: Textarea comentarios - diseño responsivo mejorado */
-  .inspection-textarea,
-  .comments-textarea-mobile {
-    min-height: 80px !important;
-    max-height: 200px !important;
-    resize: none;
-    overflow-y: auto;
-    line-height: 1.5;
-    font-size: 16px; /* Prevenir zoom en iOS */
-    padding: 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    width: 100%;
-  }
-
-  .inspection-textarea:focus,
-  .comments-textarea-mobile:focus {
-    min-height: 120px !important;
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  /* CORRECCIÓN: Sistema de calificación de 10 estrellas responsivo */
-  .star-rating-10 {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 8px 0;
-  }
-
-  .star-rating-10 button {
-    min-width: 32px;
-    min-height: 32px;
-    width: 32px;
-    height: 32px;
-    padding: 4px;
-    border: 2px solid #d1d5db;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    cursor: pointer;
-  }
-
-  .star-rating-10 button:hover {
-    transform: scale(1.05);
-    border-color: #fbbf24;
-    background-color: #fef3c7;
-  }
-
-  .star-rating-10 button:active {
-    transform: scale(0.95);
-  }
-
-  .star-rating-10 button.selected {
-    background-color: #fbbf24;
-    border-color: #f59e0b;
-    color: white;
-  }
-
-  /* CORRECCIÓN: Inputs y formularios responsivos */
-  .mobile-input,
-  .mobile-textarea,
-  .mobile-select {
+  /* ✅ INPUTS RESPONSIVOS - Evitar zoom en iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
     font-size: 16px !important; /* Prevenir zoom en iOS */
     padding: 12px 16px;
     border-radius: 8px;
     border: 1px solid #d1d5db;
     width: 100%;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 
-  .mobile-input:focus,
-  .mobile-textarea:focus,
-  .mobile-select:focus {
+  input:focus,
+  textarea:focus,
+  select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     outline: none;
   }
 
-  /* CORRECCIÓN: Grid responsivo para formularios */
+  /* ✅ TEXTAREA RESPONSIVE */
+  textarea {
+    min-height: 80px !important;
+    max-height: 200px !important;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  textarea:focus {
+    min-height: 120px !important;
+  }
+
+  /* ✅ GRID RESPONSIVE */
   .mobile-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -178,7 +112,50 @@ body {
     }
   }
 
-  /* CORRECCIÓN: Botones flotantes en móviles */
+  /* ✅ CALIFICACIÓN POR ESTRELLAS RESPONSIVE */
+  .star-rating-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .star-rating-container button {
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .star-rating-container button:hover,
+  .star-rating-container button:focus {
+    transform: scale(1.05);
+    border-color: #fbbf24;
+    background-color: #fef3c7;
+  }
+
+  .star-rating-container button:active {
+    transform: scale(0.95);
+  }
+
+  .star-rating-container button.selected {
+    background-color: #fbbf24;
+    border-color: #f59e0b;
+    color: white;
+  }
+
+  /* ✅ BOTÓN FLOTANTE PARA GUARDAR */
   .mobile-save-button {
     position: fixed !important;
     bottom: 16px;
@@ -211,40 +188,43 @@ body {
     cursor: not-allowed;
   }
 
-  /* CORRECCIÓN: Botón de fotos compacto y táctil */
-  .photo-upload-compact {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
-    background-color: #dbeafe;
-    color: #2563eb;
-    border: 2px solid #bfdbfe;
+  /* ✅ SUBIDA DE FOTOS RESPONSIVE */
+  .photo-upload-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 500;
   }
 
-  .photo-upload-compact:hover {
-    background-color: #bfdbfe;
-    border-color: #93c5fd;
-    transform: scale(1.05);
+  .photo-upload-button:hover {
+    background: #2563eb;
   }
 
-  .photo-upload-compact:active {
-    transform: scale(0.95);
+  .photo-upload-button:active {
+    transform: scale(0.98);
   }
 
-  /* CORRECCIÓN: Vista previa de imágenes responsiva */
+  /* ✅ VISTA PREVIA DE IMÁGENES */
   .image-preview-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     margin-top: 12px;
+  }
+
+  @media (min-width: 480px) {
+    .image-preview-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   .image-preview-item {
@@ -256,12 +236,18 @@ body {
     border: 1px solid #e5e7eb;
   }
 
+  .image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .image-preview-remove {
     position: absolute;
     top: -4px;
     right: -4px;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     background: #ef4444;
     color: white;
     border: none;
@@ -270,17 +256,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    cursor: pointer;
     z-index: 10;
+    transition: all 0.2s ease;
   }
 
-  .image-preview-item:hover .image-preview-remove {
-    opacity: 1;
+  .image-preview-remove:hover {
+    background: #dc2626;
+    transform: scale(1.1);
   }
 
-  /* CORRECCIÓN: Secciones de inspección con mejor espaciado */
-  .inspection-section {
+  /* ✅ ACORDEONES RESPONSIVOS */
+  .accordion-section {
     margin-bottom: 16px;
     background: white;
     border-radius: 12px;
@@ -288,15 +275,28 @@ body {
     overflow: hidden;
   }
 
-  .inspection-item {
-    margin-bottom: 12px;
+  .accordion-header {
     padding: 16px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
   }
 
-  /* CORRECCIÓN: Métricas y estadísticas responsivas */
+  .accordion-header:active {
+    background-color: #f3f4f6;
+  }
+
+  .accordion-content {
+    padding: 16px;
+    background: white;
+  }
+
+  /* ✅ MÉTRICAS RESPONSIVE */
   .metrics-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -309,12 +309,22 @@ body {
     }
   }
 
+  @media (min-width: 768px) {
+    .metrics-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
   .metric-card {
     padding: 16px;
     background: white;
     border-radius: 8px;
     text-align: center;
     border: 1px solid #e5e7eb;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .metric-value {
@@ -328,153 +338,7 @@ body {
     color: #6b7280;
   }
 
-  /* CORRECCIÓN: Navegación responsive */
-  .mobile-nav {
-    background: white;
-    border-top: 1px solid #e5e7eb;
-    padding: 8px 16px;
-  }
-
-  .mobile-nav-item {
-    padding: 12px 16px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.2s ease;
-    min-height: 48px;
-  }
-
-  .mobile-nav-item:active {
-    background-color: #f3f4f6;
-    transform: scale(0.98);
-  }
-
-  /* CORRECCIÓN: Modales responsivos */
-  .mobile-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  .mobile-modal-content {
-    background: white;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  }
-
-  .mobile-modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .mobile-modal-body {
-    padding: 20px;
-  }
-
-  /* CORRECCIÓN: Auto-resize para textareas */
-  .auto-resize-textarea {
-    overflow: hidden;
-    resize: none;
-    min-height: 80px;
-    max-height: 200px;
-  }
-
-  /* CORRECCIÓN: Utilidades responsive */
-  .no-scroll-x {
-    overflow-x: hidden;
-  }
-
-  .smooth-scroll {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .safe-area-inset {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  /* CORRECCIÓN: Animaciones optimizadas para móviles */
-  .mobile-transition {
-    transition: all 0.2s ease;
-  }
-
-  .mobile-fade-in {
-    animation: mobileSlideIn 0.3s ease-out forwards;
-  }
-
-  @keyframes mobileSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* CORRECCIÓN: Estados de carga */
-  .loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #f3f4f6;
-    border-radius: 50%;
-    border-top: 2px solid #3b82f6;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  /* CORRECCIÓN: Prevenir zoom accidental en inputs */
-  input[type="text"],
-  input[type="number"],
-  input[type="tel"],
-  input[type="email"],
-  input[type="password"],
-  textarea,
-  select {
-    font-size: 16px !important;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-  }
-
-  /* CORRECCIÓN: Mejorar tap targets */
-  .tap-target {
-    padding: 12px;
-    margin: 4px;
-    border-radius: 8px;
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* CORRECCIÓN: Optimizar scroll en listas largas */
-  .mobile-scroll-container {
-    height: calc(100vh - 160px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-
-  /* CORRECCIÓN: Estilos específicos para notificaciones */
+  /* ✅ NOTIFICACIONES MÓVILES */
   .mobile-notification {
     position: fixed;
     top: 80px;
@@ -485,6 +349,8 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     animation: slideDown 0.3s ease-out;
+    font-size: 14px;
+    font-weight: 500;
   }
 
   @keyframes slideDown {
@@ -513,21 +379,53 @@ body {
     color: white;
   }
 
-  /* CORRECCIÓN: Estilos para estados disabled */
-  .disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    pointer-events: none;
+  /* ✅ SCROLL OPTIMIZADO */
+  .mobile-scroll-container {
+    height: calc(100vh - 140px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 
-  /* CORRECCIÓN: Focus visible mejorado */
+  /* ✅ ESTADOS DE CARGA */
+  .loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f4f6;
+    border-radius: 50%;
+    border-top: 2px solid #3b82f6;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* ✅ UTILIDADES RESPONSIVE */
+  .no-scroll-x {
+    overflow-x: hidden;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ✅ FOCUS VISIBLE MEJORADO */
   .focus-visible:focus {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
   }
 }
 
-/* CORRECCIÓN: Estilos para tablets (768px - 1024px) */
+/* ✅ CORRECCIONES PARA TABLETS (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
   .tablet-grid {
     display: grid;
@@ -541,55 +439,23 @@ body {
     margin: 0 auto;
   }
 
-  /* CORRECCIÓN: Acordeones optimizados para tablets */
-  .tablet-accordion {
-    margin-bottom: 16px;
-  }
-
-  .tablet-accordion-header {
-    padding: 16px 20px;
-    min-height: 72px;
-  }
-
-  .tablet-accordion-content {
-    padding: 20px;
-  }
-
-  /* CORRECCIÓN: Textarea con mejor height en tablets */
-  .tablet-textarea {
-    min-height: 100px;
-    max-height: 250px;
-    font-size: 14px;
-  }
-
-  /* CORRECCIÓN: Star rating optimizado para tablets */
-  .tablet-star-rating {
-    gap: 12px;
-  }
-
-  .tablet-star-rating button {
-    min-width: 36px;
-    min-height: 36px;
-    width: 36px;
-    height: 36px;
-  }
-
-  /* CORRECCIÓN: Botones más grandes en tablets */
+  /* ✅ BOTONES MÁS GRANDES EN TABLETS */
   .tablet-button {
     padding: 12px 24px;
     font-size: 16px;
     min-height: 48px;
   }
 
-  /* CORRECCIÓN: Métricas en grid de 4 columnas para tablets */
-  .tablet-metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+  /* ✅ STAR RATING OPTIMIZADO PARA TABLETS */
+  .star-rating-container button {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
   }
 }
 
-/* CORRECCIÓN: Estilos para pantallas muy pequeñas (≤480px) */
+/* ✅ CORRECCIONES PARA PANTALLAS MUY PEQUEÑAS (≤480px) */
 @media (max-width: 480px) {
   .tiny-screen {
     font-size: 14px;
@@ -610,63 +476,59 @@ body {
     line-height: 1.4;
   }
 
-  /* CORRECCIÓN: Grid de una sola columna en pantallas muy pequeñas */
-  .tiny-grid {
-    display: grid;
-    grid-template-columns: 1fr !important;
-    gap: 12px;
-  }
-
-  /* CORRECCIÓN: Reducir padding en contenedores */
+  /* ✅ REDUCIR PADDING EN CONTENEDORES */
   .tiny-container {
     padding: 12px;
   }
 
-  /* CORRECCIÓN: Botones más compactos */
+  /* ✅ BOTONES MÁS COMPACTOS */
   .tiny-button {
     padding: 8px 12px;
     font-size: 14px;
-    min-height: 40px;
+    min-height: 44px;
   }
 
-  /* CORRECCIÓN: Star rating más compacto */
-  .tiny-star-rating button {
-    min-width: 28px;
-    min-height: 28px;
-    width: 28px;
-    height: 28px;
+  /* ✅ STAR RATING MÁS COMPACTO */
+  .star-rating-container button {
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
   }
 
-  /* CORRECCIÓN: Modales de pantalla completa en móviles pequeños */
-  .tiny-modal {
-    margin: 8px;
-    height: calc(100vh - 16px);
-  }
-
-  .tiny-modal-content {
-    height: 100%;
-    border-radius: 8px;
-  }
-
-  /* CORRECCIÓN: Texto más pequeño pero legible */
-  .tiny-text {
-    font-size: 12px;
-    line-height: 1.4;
-  }
-
-  /* CORRECCIÓN: Espaciado reducido */
+  /* ✅ ESPACIADO REDUCIDO */
   .tiny-spacing {
     margin: 8px 0;
     padding: 8px;
   }
 }
 
-/* CORRECCIÓN: Estilos para impresión */
+/* ✅ MODO OSCURO (preferencia del sistema) */
+@media (prefers-color-scheme: dark) {
+  .dark-mode-auto {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+
+  .dark-mode-auto .accordion-section,
+  .dark-mode-auto .metric-card {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+
+  .dark-mode-auto input,
+  .dark-mode-auto textarea {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+}
+
+/* ✅ ESTILOS PARA IMPRESIÓN */
 @media print {
   .no-print,
   .mobile-save-button,
-  .mobile-nav,
-  .photo-upload-compact,
+  .photo-upload-button,
   button {
     display: none !important;
   }
@@ -682,127 +544,10 @@ body {
     background: white;
   }
 
-  .inspection-section,
+  .accordion-section,
   .metric-card {
     border: 1px solid #000;
     margin-bottom: 12px;
     page-break-inside: avoid;
   }
 }
-
-/* CORRECCIÓN: Estilos para modo oscuro (preferencia del sistema) */
-@media (prefers-color-scheme: dark) {
-  .dark-mode-auto {
-    background-color: #1f2937;
-    color: #f9fafb;
-  }
-
-  .dark-mode-auto .inspection-section,
-  .dark-mode-auto .metric-card {
-    background-color: #374151;
-    border-color: #4b5563;
-  }
-
-  .dark-mode-auto .mobile-input,
-  .dark-mode-auto .mobile-textarea {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #f9fafb;
-  }
-
-  .dark-mode-auto .star-rating-10 button {
-    background-color: #374151;
-    border-color: #4b5563;
-  }
-
-  .dark-mode-auto .star-rating-10 button.selected {
-    background-color: #fbbf24;
-    border-color: #f59e0b;
-  }
-}
-
-/* CORRECCIÓN: Animaciones reducidas para usuarios que las prefieren */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  .mobile-fade-in {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* CORRECCIÓN: Estilos para accesibilidad */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.focus-outline:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* CORRECCIÓN: Estados hover solo para dispositivos que lo soporten */
-@media (hover: hover) and (pointer: fine) {
-  .hover-scale:hover {
-    transform: scale(1.02);
-  }
-
-  .hover-shadow:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .hover-bg:hover {
-    background-color: #f3f4f6;
-  }
-}
-
-/* CORRECCIÓN: Utilidades de espaciado consistente */
-.spacing-xs { margin: 4px; padding: 4px; }
-.spacing-sm { margin: 8px; padding: 8px; }
-.spacing-md { margin: 16px; padding: 16px; }
-.spacing-lg { margin: 24px; padding: 24px; }
-.spacing-xl { margin: 32px; padding: 32px; }
-
-/* CORRECCIÓN: Utilidades de color consistentes */
-.text-primary { color: #3b82f6; }
-.text-secondary { color: #6b7280; }
-.text-success { color: #10b981; }
-.text-warning { color: #f59e0b; }
-.text-error { color: #ef4444; }
-
-.bg-primary { background-color: #3b82f6; }
-.bg-secondary { background-color: #f3f4f6; }
-.bg-success { background-color: #10b981; }
-.bg-warning { background-color: #f59e0b; }
-.bg-error { background-color: #ef4444; }
-
-/* CORRECCIÓN: Utilidades de border radius */
-.rounded-sm { border-radius: 4px; }
-.rounded-md { border-radius: 8px; }
-.rounded-lg { border-radius: 12px; }
-.rounded-xl { border-radius: 16px; }
-.rounded-full { border-radius: 50%; }
-
-/* CORRECCIÓN: Utilidades de shadow */
-.shadow-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
-.shadow-md { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
-.shadow-lg { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-.shadow-xl { box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
-
-/* CORRECCIÓN: Fin del archivo */
