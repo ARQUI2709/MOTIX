@@ -1,0 +1,553 @@
+/* styles/mobile-fixes.css */
+/* 🔧 CORRECCIONES MÍNIMAS PARA RESPONSIVIDAD */
+/* ✅ CORRIGE: Layout responsive, touch targets, espaciado móvil */
+/* ❌ NO ALTERA: estilos base existentes, solo agrega mejoras */
+
+/* ✅ RESET Y BASE */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ✅ CONTAINER PRINCIPAL RESPONSIVE */
+.main-container {
+  padding-top: 64px; /* Espacio para header fijo */
+  min-height: 100vh;
+}
+
+/* ✅ CORRECCIONES ESPECÍFICAS PARA MÓVILES */
+@media (max-width: 768px) {
+  
+  /* ✅ TOUCH TARGETS: Área mínima de 44px */
+  button, 
+  .touch-target,
+  .star-button,
+  .photo-upload-button,
+  input[type="file"] + label,
+  .accordion-header {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+
+  /* ✅ HEADER MÓVIL OPTIMIZADO */
+  .mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ✅ CONTENEDOR PRINCIPAL CON PADDING APROPIADO */
+  .mobile-container {
+    padding: 16px 16px 100px 16px; /* Espacio extra abajo para botones flotantes */
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* ✅ INPUTS RESPONSIVOS - Evitar zoom en iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevenir zoom en iOS */
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+  }
+
+  /* ✅ TEXTAREA RESPONSIVE */
+  textarea {
+    min-height: 80px !important;
+    max-height: 200px !important;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  textarea:focus {
+    min-height: 120px !important;
+  }
+
+  /* ✅ GRID RESPONSIVE */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .mobile-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ✅ CALIFICACIÓN POR ESTRELLAS RESPONSIVE */
+  .star-rating-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .star-rating-container button {
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .star-rating-container button:hover,
+  .star-rating-container button:focus {
+    transform: scale(1.05);
+    border-color: #fbbf24;
+    background-color: #fef3c7;
+  }
+
+  .star-rating-container button:active {
+    transform: scale(0.95);
+  }
+
+  .star-rating-container button.selected {
+    background-color: #fbbf24;
+    border-color: #f59e0b;
+    color: white;
+  }
+
+  /* ✅ BOTÓN FLOTANTE PARA GUARDAR */
+  .mobile-save-button {
+    position: fixed !important;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 40;
+    min-height: 56px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-save-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  }
+
+  .mobile-save-button:disabled {
+    background: #9ca3af;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: not-allowed;
+  }
+
+  /* ✅ SUBIDA DE FOTOS RESPONSIVE */
+  .photo-upload-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .photo-upload-button:hover {
+    background: #2563eb;
+  }
+
+  .photo-upload-button:active {
+    transform: scale(0.98);
+  }
+
+  /* ✅ VISTA PREVIA DE IMÁGENES */
+  .image-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  @media (min-width: 480px) {
+    .image-preview-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .image-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    background: #f3f4f6;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+  }
+
+  .image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .image-preview-remove {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 24px;
+    height: 24px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+  }
+
+  .image-preview-remove:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+  }
+
+  /* ✅ ACORDEONES RESPONSIVOS */
+  .accordion-section {
+    margin-bottom: 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .accordion-header {
+    padding: 16px;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .accordion-header:active {
+    background-color: #f3f4f6;
+  }
+
+  .accordion-content {
+    padding: 16px;
+    background: white;
+  }
+
+  /* ✅ MÉTRICAS RESPONSIVE */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  @media (min-width: 480px) {
+    .metrics-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 768px) {
+    .metrics-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .metric-card {
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  /* ✅ NOTIFICACIONES MÓVILES */
+  .mobile-notification {
+    position: fixed;
+    top: 80px;
+    left: 16px;
+    right: 16px;
+    z-index: 50;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .mobile-notification.success {
+    background: #10b981;
+    color: white;
+  }
+
+  .mobile-notification.error {
+    background: #ef4444;
+    color: white;
+  }
+
+  .mobile-notification.warning {
+    background: #f59e0b;
+    color: white;
+  }
+
+  /* ✅ SCROLL OPTIMIZADO */
+  .mobile-scroll-container {
+    height: calc(100vh - 140px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* ✅ ESTADOS DE CARGA */
+  .loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f4f6;
+    border-radius: 50%;
+    border-top: 2px solid #3b82f6;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* ✅ UTILIDADES RESPONSIVE */
+  .no-scroll-x {
+    overflow-x: hidden;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ✅ FOCUS VISIBLE MEJORADO */
+  .focus-visible:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}
+
+/* ✅ CORRECCIONES PARA TABLETS (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .tablet-container {
+    padding: 24px;
+    max-width: 1024px;
+    margin: 0 auto;
+  }
+
+  /* ✅ BOTONES MÁS GRANDES EN TABLETS */
+  .tablet-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  /* ✅ STAR RATING OPTIMIZADO PARA TABLETS */
+  .star-rating-container button {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* ✅ CORRECCIONES PARA PANTALLAS MUY PEQUEÑAS (≤480px) */
+@media (max-width: 480px) {
+  .tiny-screen {
+    font-size: 14px;
+  }
+
+  .tiny-screen h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .tiny-screen h2 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .tiny-screen h3 {
+    font-size: 1.125rem;
+    line-height: 1.4;
+  }
+
+  /* ✅ REDUCIR PADDING EN CONTENEDORES */
+  .tiny-container {
+    padding: 12px;
+  }
+
+  /* ✅ BOTONES MÁS COMPACTOS */
+  .tiny-button {
+    padding: 8px 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  /* ✅ STAR RATING MÁS COMPACTO */
+  .star-rating-container button {
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* ✅ ESPACIADO REDUCIDO */
+  .tiny-spacing {
+    margin: 8px 0;
+    padding: 8px;
+  }
+}
+
+/* ✅ MODO OSCURO (preferencia del sistema) */
+@media (prefers-color-scheme: dark) {
+  .dark-mode-auto {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+
+  .dark-mode-auto .accordion-section,
+  .dark-mode-auto .metric-card {
+    background-color: #374151;
+    border-color: #4b5563;
+  }
+
+  .dark-mode-auto input,
+  .dark-mode-auto textarea {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+}
+
+/* ✅ ESTILOS PARA IMPRESIÓN */
+@media print {
+  .no-print,
+  .mobile-save-button,
+  .photo-upload-button,
+  button {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    font-size: 12px;
+    line-height: 1.4;
+    color: black;
+    background: white;
+  }
+
+  .accordion-section,
+  .metric-card {
+    border: 1px solid #000;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+  }
+}

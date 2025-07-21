@@ -1,28 +1,47 @@
 {
-  "name": "motix-inspection-app",
+  "name": "vehicle-inspection-app",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "verify": "node scripts/verify-build.js",
+    "fix": "bash scripts/auto-fix.sh",
+    "clean": "rm -rf .next node_modules package-lock.json && npm cache clean --force",
+    "clean:install": "npm run clean && npm install",
+    "build:verbose": "NEXT_TELEMETRY_DISABLED=1 next build --debug",
+    "analyze": "ANALYZE=true next build",
+    "check:circular": "madge --circular .",
+    "check:unused": "madge --orphans .",
+    "debug:imports": "node scripts/debug-imports.js",
+    "test:build": "npm run verify && npm run build",
+    "deploy:verify": "npm run clean:install && npm run test:build",
+    "backup": "tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz components contexts data utils pages *.js *.json",
+    "postinstall": "echo '✅ Dependencias instaladas. Ejecuta npm run verify para verificar el proyecto'"
   },
   "dependencies": {
+    "@babel/runtime": "^7.27.6",
+    "@supabase/supabase-js": "^2.39.3",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^0.309.0",
     "next": "14.0.4",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@supabase/supabase-js": "^2.38.4",
-    "lucide-react": "^0.263.1"
+    "react": "^18",
+    "react-dom": "^18"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.16",
-    "eslint": "8.56.0",
+    "@babel/plugin-transform-runtime": "^7.28.0",
+    "autoprefixer": "^10.0.1",
+    "babel-loader": "^10.0.0",
+    "eslint": "^8",
     "eslint-config-next": "14.0.4",
-    "postcss": "^8.4.32",
-    "tailwindcss": "^3.4.0"
+    "madge": "^6.1.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
   }
 }
