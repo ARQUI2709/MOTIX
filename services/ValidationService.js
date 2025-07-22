@@ -1,6 +1,6 @@
 // services/ValidationService.js
 // ✅ SERVICIO: Validaciones de negocio centralizadas
-// ✅ RESPONSABILIDADES: Validar datos, reglas de negocio, sanitización
+// 🔧 CORREGIDO: Manejo seguro de tipos de datos
 
 export class ValidationService {
   // ✅ VALIDAR INFORMACIÓN DEL VEHÍCULO
@@ -43,7 +43,8 @@ export class ValidationService {
   static isValidPlaca(placa) {
     // Formato colombiano: ABC123 o ABC12D
     const placaRegex = /^[A-Z]{3}[0-9]{2}[0-9A-Z]$/;
-    return placaRegex.test(placa.trim().toUpperCase());
+    const cleanPlaca = this.formatPlaca(placa);
+    return placaRegex.test(cleanPlaca);
   }
 
   // ✅ VALIDAR AÑO
@@ -126,16 +127,28 @@ export class ValidationService {
     };
   }
 
-  // ✅ SANITIZAR TEXTO
+  // 🔧 CORREGIDO: SANITIZAR TEXTO - Manejo seguro de tipos
   static sanitizeText(text) {
-    if (!text) return '';
-    return text.trim().replace(/[<>]/g, '');
+    // ✅ Conversión segura a string
+    if (text === null || text === undefined) return '';
+    
+    // Convertir a string si no lo es
+    const textStr = typeof text === 'string' ? text : String(text);
+    
+    // Aplicar sanitización
+    return textStr.trim().replace(/[<>]/g, '');
   }
 
-  // ✅ FORMATEAR PLACA
+  // 🔧 CORREGIDO: FORMATEAR PLACA - Manejo seguro de tipos
   static formatPlaca(placa) {
+    // ✅ Conversión segura a string
     if (!placa) return '';
-    return placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    // Convertir a string si no lo es
+    const placaStr = typeof placa === 'string' ? placa : String(placa);
+    
+    // Aplicar formateo
+    return placaStr.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
 
   // ✅ VALIDAR ARCHIVO DE IMAGEN
@@ -163,5 +176,35 @@ export class ValidationService {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  // 🆕 NUEVA FUNCIÓN: Convertir valor a string de forma segura
+  static safeStringConvert(value, defaultValue = '') {
+    try {
+      if (value === null || value === undefined) {
+        return defaultValue;
+      }
+      return String(value);
+    } catch (error) {
+      console.error('safeStringConvert error:', error);
+      return defaultValue;
+    }
+  }
+
+  // 🆕 NUEVA FUNCIÓN: Validar y limpiar valor de entrada
+  static validateAndCleanInput(value, type = 'text') {
+    const safeValue = this.safeStringConvert(value, '');
+    
+    switch (type) {
+      case 'text':
+        return this.sanitizeText(safeValue);
+      case 'placa':
+        return this.formatPlaca(safeValue);
+      case 'number':
+        const num = parseFloat(safeValue.replace(/[^\d.-]/g, ''));
+        return isNaN(num) ? 0 : num;
+      default:
+        return safeValue;
+    }
   }
 }
