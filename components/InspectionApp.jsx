@@ -312,6 +312,20 @@ const ChecklistInterface = ({ inspectionData, onEvaluateItem, checklistStructure
     setExpandedCategory(expandedCategory === categoryName ? null : categoryName);
   };
 
+// ✅ VALIDACIÓN ROBUSTA
+if (!checklistStructure || typeof checklistStructure !== 'object') {
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">📋 Lista de Inspección</h2>
+        <div className="text-center py-8">
+          <p className="text-gray-500">Cargando estructura de inspección...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -320,7 +334,7 @@ const ChecklistInterface = ({ inspectionData, onEvaluateItem, checklistStructure
         </h2>
         
         <div className="space-y-4">
-          {Object.entries(checklistStructure.checklistStructure || {}).map(([categoryName, items]) => (
+          {Object.entries(checklistStructure || {}).map(([categoryName, items]) => (
             <div key={categoryName} className="border rounded-lg">
               <button
                 onClick={() => toggleCategory(categoryName)}
