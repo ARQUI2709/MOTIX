@@ -19,20 +19,7 @@
     "test:build": "npm run verify && npm run build",
     "deploy:verify": "npm run clean:install && npm run test:build",
     "backup": "tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz components contexts data utils pages *.js *.json",
-    "postinstall": "echo '✅ Dependencias instaladas. Ejecuta npm run verify para verificar el proyecto'",
-    "migrate:phase1": "bash scripts/migrate-phase-1.sh",
-    "migrate:phase2": "bash scripts/migrate-phase-2.sh",
-    "migrate:phase3": "bash scripts/migrate-phase-3.sh",
-    "migrate:phase4": "bash scripts/migrate-phase-4.sh",
-    "migrate:rollback": "bash scripts/migrate-rollback.sh",
-    "clean:obsolete": "rm -rf obsolete_files",
-    "dev:clean": "rm -rf .next && npm run dev",
-    "test:domain": "echo \"Testing domain entities...\" && node -e \"console.log(\"✅ Domain tests placeholder\")\"",
-    "validate:domain": "node -e \"console.log(\"🔍 Validating domain structure...\"); console.log(\"✅ Domain validation placeholder\")\"",
-    "test:application": "echo \"Testing application layer...\" && node -e \"console.log(\"✅ Application tests placeholder\")\"",
-    "validate:application": "node -e \"console.log(\"🔍 Validating application structure...\"); console.log(\"✅ Application validation placeholder\")\"",
-    "migration:complete": "bash scripts/migration-complete.sh",
-    "migration:status": "bash scripts/migration-status.sh"
+    "postinstall": "echo '✅ Dependencias instaladas. Ejecuta npm run verify para verificar el proyecto'"
   },
   "dependencies": {
     "@babel/runtime": "^7.27.6",

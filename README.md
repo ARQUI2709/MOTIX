@@ -1,51 +1,100 @@
-# MOTIX
-      {/* Lista de categorías */}
-      <div className="space-y-3">
-        {Object.entries(metrics.categories).map(([categoryName, categoryMetrics]) => (
-          <div 
-            key={categoryName}
-            onClick={() => onCategoryClick && onCategoryClick(categoryName)}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-          >
-            <div className="flex-1">
-              <div className="flex items-center mb-2">
-                <h3 className="font-semibold text-gray-900 mr-3">
-                  {categoryName}
-                </h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(categoryMetrics.status)}`}>
-                  {categoryMetrics.status === 'completed' ? 'Completa' :
-                   categoryMetrics.status === 'in_progress' ? 'En Progreso' : 'Pendiente'}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span>
-                  <CheckCircle2 className="inline mr-1" size={14} />
-                  {categoryMetrics.evaluatedItems}/{categoryMetrics.totalItems} ítems
-                </span>
-                <span>
-                  <Target className="inline mr-1" size={14} />
-                  {categoryMetrics.completionPercentage}% completo
-                </span>
-                {categoryMetrics.averageScore > 0 && (
-                  <span className={`font-medium ${getScoreColor(categoryMetrics.averageScore)}`}>
-                    <TrendingUp className="inline mr-1" size={14} />
-                    {categoryMetrics.averageScore}/10 promedio
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-lg font-bold text-gray-900">
-                {categoryMetrics.completionPercentage}%
-              </div>
-              {categoryMetrics.totalRepairCost > 0 && (
-                <div className="text-sm text-red-600">
-                  ${categoryMetrics.totalRepairCost.toLocaleString()}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+# 🚗 InspecciónPro 4x4 - Sistema de Inspección Vehicular
+
+> Sistema profesional de inspección vehicular con **Arquitectura Limpia**
+
+## 🏗️ Arquitectura
+
+Este proyecto implementa **Clean Architecture** organizada en 4 capas:
+
+```
+🎨 Presentación  → UI, Componentes React, Páginas
+⚙️ Aplicación    → Estado, Contextos, Coordinación  
+🎯 Dominio       → Entidades, Lógica de Negocio
+🔧 Infraestructura → Servicios, Base de Datos, APIs
+```
+
+## 🚀 Inicio Rápido
+
+```bash
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env.local
+
+# Ejecutar en desarrollo
+npm run dev
+
+# Construir para producción
+npm run build
+```
+
+## 📋 Funcionalidades
+
+- ✅ **Gestión de Vehículos** - Registro y administración
+- ✅ **Sistema de Inspección** - Evaluación por categorías
+- ✅ **Generación de Reportes** - PDFs profesionales
+- ✅ **Autenticación de Usuarios** - Sistema seguro
+- ✅ **Cálculo de Métricas** - Análisis detallado
+
+## 🛠️ Tecnologías
+
+- **Frontend:** Next.js 14 + React 18
+- **Backend:** Supabase (PostgreSQL)
+- **Estilos:** Tailwind CSS
+- **PDF:** jsPDF
+- **Arquitectura:** Clean Architecture
+
+## 📚 Documentación
+
+- [Arquitectura](docs/architecture.md) - Documentación técnica detallada
+- [Instalación](docs/installation.md) - Guía de instalación
+- [Desarrollo](docs/development.md) - Guía para desarrolladores
+
+## 🧪 Testing
+
+```bash
+# Tests por capa
+npm run test:domain        # Entidades y lógica de negocio
+npm run test:application   # Contextos y coordinación  
+npm run test:presentation  # Componentes UI
+
+# Todos los tests
+npm run test:all
+```
+
+## 📦 Scripts Disponibles
+
+```bash
+npm run dev                 # Desarrollo
+npm run build              # Construcción
+npm run start              # Producción
+npm run migration:status   # Estado de migración
+npm run architecture:validate # Validar estructura
+```
+
+## 🏛️ Estructura del Proyecto
+
+```
+src/
+├── infrastructure/     # 🔧 Servicios y configuración
+├── domain/            # 🎯 Entidades y lógica de negocio
+├── application/       # ⚙️ Estado y coordinación
+└── presentation/      # 🎨 UI y componentes
+```
+
+## 👥 Contribución
+
+1. Fork el proyecto
+2. Crear feature branch (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
+4. Push branch (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+
+---
+
+**v2.0.0** - Arquitectura Limpia Implementada 🎉
