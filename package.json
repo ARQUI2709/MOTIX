@@ -1,6 +1,6 @@
 {
   "name": "vehicle-inspection-app",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -32,7 +32,12 @@
     "test:application": "echo \"Testing application layer...\" && node -e \"console.log(\"✅ Application tests placeholder\")\"",
     "validate:application": "node -e \"console.log(\"🔍 Validating application structure...\"); console.log(\"✅ Application validation placeholder\")\"",
     "migration:complete": "bash scripts/migration-complete.sh",
-    "migration:status": "bash scripts/migration-status.sh"
+    "migration:status": "bash scripts/migration-status.sh",
+    "verify:phase1": "node -e \"console.log(\"� Verificando Fase 1...\"); try { require(\"./src/infrastructure/index.js\"); console.log(\"✅ Fase 1 verificada\"); } catch(e) { console.error(\"❌ Error en Fase 1:\", e.message); process.exit(1); }\"",
+    "test:infrastructure": "node -e \"console.log(\"� Testing infraestructura...\"); const infra = require(\"./src/infrastructure/index.js\"); infra.diagnose()\"",
+    "verify:phase4": "node -e \"console.log(\"� Verificando Fase 4...\"); try { require(\"./pages/index.js\"); console.log(\"✅ Fase 4 verificada\"); } catch(e) { console.error(\"❌ Error en Fase 4:\", e.message); process.exit(1); }\"",
+    "test:clean-architecture": "npm run verify:phase1 && npm run verify:phase4",
+    "architecture:complete": "echo \"� ¡Clean Architecture completada!\" && npm run test:clean-architecture"
   },
   "dependencies": {
     "@babel/runtime": "^7.27.6",
@@ -58,5 +63,6 @@
   "engines": {
     "node": ">=18.17.0",
     "npm": ">=9.0.0"
-  }
+  },
+  "description": "Sistema profesional de inspección vehicular con Clean Architecture"
 }

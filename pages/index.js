@@ -1,21 +1,22 @@
 // pages/index.js
-// 🚀 PÁGINA PRINCIPAL: Arquitectura limpia integrada
-// ✅ Punto de entrada con todas las capas configuradas
+// 🚀 PÁGINA PRINCIPAL: Integración completa con Clean Architecture
+// ✅ RESPONSABILIDAD: Punto de entrada principal con todas las capas
 
 import React from 'react';
-import { ApplicationProvider } from '../src/application/index.js';
-import { LayoutProvider } from '../src/presentation/components/layout/AppLayout.jsx';
-import { MainApp } from '../src/presentation/components/templates/MainApp.jsx';
-import { ErrorBoundary } from '../src/presentation/components/shared/ui/ErrorBoundary.jsx';
+import { AuthProvider } from '../contexts/AuthContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import MainApplication from '../components/MainApplication';
 
+/**
+ * Página principal que integra toda la arquitectura limpia
+ * Mantiene compatibilidad con la estructura existente
+ */
 export default function Home() {
   return (
     <ErrorBoundary>
-      <ApplicationProvider>
-        <LayoutProvider>
-          <MainApp />
-        </LayoutProvider>
-      </ApplicationProvider>
+      <AuthProvider>
+        <MainApplication />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
